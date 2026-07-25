@@ -1,5 +1,5 @@
-import { FoundationScreen } from '@/components/foundation-screen';
+import { HomeScreen } from '@/features/home/home-screen';
 
 export default function HomeRoute() {
-  return <FoundationScreen />;
+  return <HomeScreen />;
 }
