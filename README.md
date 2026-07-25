@@ -2,32 +2,41 @@
 
 > **Train. Track. Transform.**
 
-TitanLog; antrenman, beslenme ve fiziksel gelişim verilerini tek bir mobil deneyimde takip etmeyi hedefleyen açık kaynaklı bir fitness uygulamasıdır. Proje şu anda erken alfa aşamasındadır ve aktif olarak geliştirilmektedir.
+TitanLog; antrenman, beslenme ve fiziksel gelişim verilerini tek bir mobil deneyimde takip etmeyi hedefleyen açık kaynaklı bir fitness uygulamasıdır. Proje erken alfa aşamasındadır ve aktif olarak geliştirilmektedir.
 
 > [!IMPORTANT]
-> Bu depo üretime hazır bir ürün sunmaz. Henüz yalnızca uygulama temeli, mühendislik standartları ve Sprint 0 karşılama ekranı uygulanmıştır.
+> Bu depo üretime hazır bir ürün sunmaz. Sprint 1 arayüzleri örnek veriler kullanır; gerçek hesap, antrenman kaydı veya kalıcı veri desteği henüz yoktur.
 
 ## Proje durumu
 
-### Şu anda uygulanmış olanlar
+### Uygulanan Sprint 1 deneyimi
 
-- Expo SDK 54 ve TypeScript tabanlı uygulama temeli
-- Expo Router giriş yapısı
-- Türkçe, güvenli alan uyumlu temel ekran
-- Koyu tema için ortak tasarım token'ları
-- Merkezi Türkçe metin kaynağı
-- ESLint, Prettier, sıkı TypeScript ve Jest kontrolleri
-- React Native Testing Library ile temel ekran smoke testi
+- `Ana Sayfa`, `Antrenman`, `Gelişim` ve `Profil` sekmelerinden oluşan Expo Router gezinmesi
+- Android güvenli alanları ve gesture navigation ile uyumlu alt sekme çubuğu
+- Ortak renk, aralık, tipografi, border, radius, shadow, ikon ve layout token'ları
+- Tekrar kullanılabilir kart, buton, metin, input, ekran, progress ve empty-state bileşenleri
+- Responsive, kaydırılabilir Türkçe ana panel
+- Bugünkü program, istatistikler, Titan hedefi, son antrenman ve motivasyon bölümleri
+- Typed demo veri kaynağından hesaplanan kilo hedefi ilerlemesi
+- UI-only `Giriş Yap` ve `Kayıt Ol` ekranları
+- Boş alan ve şifre eşleşmesi için küçük yerel form kontrolleri
+- Gezinme, ana panel, hedef hesabı ve auth davranışlarını kapsayan smoke testleri
 
-### Planlanan temel özellikler
+### Henüz desteklenmeyenler
 
-- Antrenman planlama ve egzersiz kaydı
-- Beslenme ve makro takibi
-- Vücut ölçümleri ve ilerleme geçmişi
-- Hedefler, özetler ve anlaşılır gelişim grafikleri
-- Yerel ve çevrimdışı öncelikli veri deneyimi
+- Gerçek kayıt, giriş, oturum veya şifre yenileme
+- Backend, API çağrısı veya uzaktan veri
+- SQLite veya başka bir kalıcı veri katmanı
+- Antrenman oluşturma ya da kaydetme
+- Beslenme takibi
+- Gerçek veriye bağlı grafikler
+- Bildirim, analytics veya sağlık platformu entegrasyonları
 
-Bu özellikler henüz uygulanmamıştır.
+Formlara girilen bilgiler gönderilmez, saklanmaz ve oturum oluşturmaz. Geçerli form gönderimi yalnızca özelliğin geliştirme aşamasında olduğunu belirten bir bildirim gösterir.
+
+## Ana paneldeki örnek veriler
+
+Ana panel, yalnızca arayüz geliştirme ve test amacıyla yerel typed preview verisi kullanır. Örnek antrenman, kilo, hedef, seri ve hacim değerleri gerçek kullanıcı verisi değildir ve uygulama yeniden açıldığında kalıcı olmaz.
 
 ## Teknoloji yığını
 
@@ -43,20 +52,27 @@ Bu özellikler henüz uygulanmamıştır.
 
 ```text
 TitanLog/
-├── __tests__/                 # Uygulama temeli testleri
-├── app/                       # Expo Router rotaları ve kök yerleşim
-├── assets/images/             # Uygulama ikonu ve açılış görselleri
+├── __tests__/                    # Gezinme, ana panel, auth ve hesaplama testleri
+├── app/
+│   ├── (tabs)/                   # Dört ana alt sekme rotası
+│   ├── auth/                     # Tab bar dışında kalan auth UI rotaları
+│   └── _layout.tsx               # Kök Expo Router Stack
+├── assets/images/                # Uygulama ikonu ve splash görselleri
 ├── src/
-│   ├── components/            # Yeniden kullanılabilir arayüz bileşenleri
-│   ├── constants/             # Merkezi uygulama metinleri ve sabitler
-│   └── theme/                 # Renk, aralık, tipografi ve kenar token'ları
-├── app.json                   # Expo uygulama yapılandırması
-├── eslint.config.js           # ESLint flat config
-├── package.json               # Script'ler ve bağımlılıklar
-└── tsconfig.json              # Sıkı TypeScript ve yol eşleme ayarları
+│   ├── components/               # Ortak mobil tasarım sistemi bileşenleri
+│   ├── constants/                # Merkezi Türkçe metin kaynağı
+│   ├── features/
+│   │   ├── auth/                 # UI-only auth ekranları ve form kontrolleri
+│   │   ├── home/                 # Ana panel, demo veri ve hedef hesabı
+│   │   ├── profile/              # Profil ve hesap girişleri
+│   │   ├── progress/             # Gelişim empty-state ekranı
+│   │   └── workout/              # Antrenman empty-state ekranı
+│   └── theme/                    # Paylaşılan tasarım token'ları
+├── app.json                      # Expo uygulama yapılandırması
+├── eslint.config.js              # ESLint flat config
+├── package.json                  # Script'ler ve bağımlılıklar
+└── tsconfig.json                 # Sıkı TypeScript ve yol eşleme ayarları
 ```
-
-Yeni ürün alanları geliştikçe `src/features` altında özellik odaklı modüller oluşturulacaktır. Servisler, hook'lar, durum yönetimi, veri katmanı, türler ve yardımcı işlevler yalnızca gerçek bir kullanım ortaya çıktığında eklenecektir.
 
 ## Yerel kurulum
 
@@ -64,7 +80,7 @@ Yeni ürün alanları geliştikçe `src/features` altında özellik odaklı mod�
 
 - Node.js 20.19 veya üzeri
 - npm
-- Fiziksel cihaz testi için Expo Go'nun Expo SDK 54 ile uyumlu sürümü
+- Fiziksel cihaz testi için Expo SDK 54 ile uyumlu Expo Go
 
 ### Adımlar
 
@@ -79,51 +95,54 @@ Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilir veya platform komutlar
 
 ## Kullanılabilir komutlar
 
-| Komut                  | Açıklama                                        |
-| ---------------------- | ----------------------------------------------- |
-| `npm start`            | Expo geliştirme sunucusunu başlatır             |
-| `npm run android`      | Android geliştirme hedefini açar                |
-| `npm run ios`          | iOS geliştirme hedefini açar                    |
-| `npm run web`          | Web geliştirme hedefini açar                    |
-| `npm run lint`         | Uygulama kaynaklarını ESLint ile denetler       |
-| `npm run typecheck`    | TypeScript tür kontrolünü çalıştırır            |
-| `npm test`             | Jest testlerini tek seferde çalıştırır          |
-| `npm run format`       | Desteklenen dosyaları Prettier ile biçimler     |
-| `npm run format:check` | Biçimlendirme tutarlılığını değiştirmeden sınar |
+| Komut                  | Açıklama                                           |
+| ---------------------- | -------------------------------------------------- |
+| `npm start`            | Expo geliştirme sunucusunu başlatır                |
+| `npm run android`      | Android geliştirme hedefini açar                   |
+| `npm run ios`          | iOS geliştirme hedefini açar                       |
+| `npm run web`          | Web geliştirme hedefini açar                       |
+| `npm run lint`         | Uygulama kaynaklarını ESLint ile denetler          |
+| `npm run typecheck`    | TypeScript tür kontrolünü çalıştırır               |
+| `npm test`             | Jest testlerini tek seferde çalıştırır             |
+| `npm run format`       | Desteklenen dosyaları Prettier ile biçimler        |
+| `npm run format:check` | Biçimlendirme tutarlılığını değiştirmeden denetler |
 
 ## Geliştirme ilkeleri
 
 - Expo SDK 54 ve Expo Go uyumluluğu korunur.
-- Uygulama kodundaki adlandırmalar İngilizce, kullanıcı arayüzü metinleri Türkçedir.
+- Kaynak kod adlandırmaları İngilizce, kullanıcı arayüzü metinleri Türkçedir.
+- Ürün alanları `src/features` altında özellik odaklı tutulur.
+- Görsel değerler ortak tasarım token'larından gelir.
 - Özellikler küçük, doğrulanabilir ve Conventional Commits uyumlu değişikliklerle geliştirilir.
 - Sırlar, kişisel veriler, yerel yapılandırmalar ve oluşturulan çıktılar depoya eklenmez.
-- Gereksiz soyutlamalar ve kullanılmayan bağımlılıklar eklenmez.
-- Erişilebilirlik, güvenli alanlar ve ortak tasarım token'ları temel kabul edilir.
+- Erişilebilir etiketler, yeterli dokunma hedefleri, güvenli alanlar ve responsive düzen temel kabul edilir.
 
 ## Yol haritası
 
-- **Sprint 0 — Proje temeli:** metadata, kalite araçları, tema, Türkçe temel ekran, test ve dokümantasyon
-- **Sprint 1 — Uygulama iskeleti:** bilgi mimarisi, temel gezinme ve ortak arayüz parçaları
-- **Gelecek sprint'ler:** antrenman, beslenme, ilerleme ve yerel veri özelliklerinin aşamalı geliştirilmesi
+- **Sprint 0 — Proje temeli:** tamamlandı; metadata, kalite araçları, tema başlangıcı, test ve dokümantasyon
+- **Sprint 1 — Gezinme ve ana deneyim:** tamamlandı; dört sekme, tasarım sistemi, ana panel ve UI-only auth
+- **Sprint 2 — Antrenman planlama temeli:** egzersiz modeli, program görüntüleme ve yerel veri yaklaşımının tasarlanması
+- **Gelecek sprint'ler:** kalıcı antrenman verisi, gelişim geçmişi ve beslenme alanlarının aşamalı geliştirilmesi
 
-Yol haritası yön gösterir; tamamlanmış özellik taahhüdü değildir.
+Yol haritası yön gösterir; tamamlanmamış özellikler için yayın taahhüdü değildir.
 
 ## Sürümleme
 
 TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kullanır.
 
-- Uygulama sürümü: `0.1.0`
-- Paket ön sürümü: `0.1.0-alpha.0`
-- Planlanan ilk tag: `v0.1.0-alpha.0`
+- Expo uygulama sürümü: `0.1.0`
+- Paket ön sürümü: `0.1.0-alpha.1`
+- Mevcut temel tag: `v0.1.0-alpha.0`
+- Sprint 1 için planlanan tag: `v0.1.0-alpha.1`
 - `alpha`: aktif erken geliştirme
 - `beta`: özellikleri tamamlanmış test dönemi
 - kararlı sürüm: üretime hazır yayın
 
-Henüz bir tag veya GitHub release oluşturulmamıştır.
+Sprint 1 tag'i ve GitHub release henüz oluşturulmamıştır.
 
 ## Katkı durumu
 
-Proje şu anda tek geliştiricili erken temel aşamasındadır ve dış katkı süreci henüz açılmamıştır. Katkı rehberi ve issue şablonları süreç olgunlaştığında eklenecektir.
+Proje şu anda tek geliştiricili erken geliştirme aşamasındadır ve dış katkı süreci henüz açılmamıştır. Katkı rehberi ve issue şablonları süreç olgunlaştığında eklenecektir.
 
 ## Lisans
 
