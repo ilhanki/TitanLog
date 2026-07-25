@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     alignSelf: 'flex-start',
-    backgroundColor: theme.colors.primaryMuted,
+    backgroundColor: theme.colors.primarySoft,
     borderRadius: theme.radii.pill,
     color: theme.colors.primary,
     fontSize: theme.typography.size.caption,
