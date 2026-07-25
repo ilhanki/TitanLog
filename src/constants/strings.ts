@@ -1,6 +1,36 @@
 export const appStrings = {
   brandName: 'TitanLog',
   slogan: 'Train. Track. Transform.',
+  common: {
+    goBack: 'Geri dön',
+  },
+  auth: {
+    signIn: 'Giriş Yap',
+    signUp: 'Kayıt Ol',
+    signInDescription: 'TitanLog hesabına erişmek için bilgilerini gir.',
+    signUpDescription:
+      'TitanLog deneyimine hazırlanmak için hesap bilgilerini gir.',
+    nameLabel: 'Ad Soyad',
+    namePlaceholder: 'Adını ve soyadını yaz',
+    emailLabel: 'E-posta',
+    emailPlaceholder: 'ornek@eposta.com',
+    passwordLabel: 'Şifre',
+    passwordPlaceholder: 'Şifreni yaz',
+    passwordConfirmationLabel: 'Şifre Tekrarı',
+    passwordConfirmationPlaceholder: 'Şifreni yeniden yaz',
+    forgotPassword: 'Şifremi Unuttum',
+    noAccountPrompt: 'Hesabın yok mu? Kayıt Ol',
+    existingAccountPrompt: 'Zaten hesabın var mı? Giriş Yap',
+    developmentNotice: 'Hesap sistemi sonraki sürümde etkinleştirilecek.',
+    passwordResetNotice: 'Şifre yenileme özelliği henüz geliştirme aşamasında.',
+    validation: {
+      nameRequired: 'Ad soyad alanı zorunludur.',
+      emailRequired: 'E-posta alanı zorunludur.',
+      passwordRequired: 'Şifre alanı zorunludur.',
+      passwordConfirmationRequired: 'Şifre tekrarı alanı zorunludur.',
+      passwordMismatch: 'Şifreler eşleşmiyor.',
+    },
+  },
   navigation: {
     home: 'Ana Sayfa',
     workout: 'Antrenman',

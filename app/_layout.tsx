@@ -13,6 +13,8 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="auth/sign-in" />
+        <Stack.Screen name="auth/sign-up" />
       </Stack>
       <StatusBar style="light" />
     </>
