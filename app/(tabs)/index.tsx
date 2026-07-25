@@ -1,5 +1,5 @@
 import { FoundationScreen } from '@/components/foundation-screen';
 
-export default function IndexScreen() {
+export default function HomeRoute() {
   return <FoundationScreen />;
 }
