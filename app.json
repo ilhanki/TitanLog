@@ -1,19 +1,26 @@
 {
   "expo": {
     "name": "TitanLog",
-    "slug": "TitanLog",
-    "version": "1.0.0",
+    "slug": "titanlog",
+    "description": "Antrenman, beslenme ve ilerleme takibi için geliştirilen mobil fitness uygulaması.",
+    "githubUrl": "https://github.com/ilhanki/TitanLog",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "titanlog",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#090B10",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ilhanki.titanlog",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.ilhanki.titanlog",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#090B10",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -33,9 +40,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#090B10",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#090B10"
           }
         }
       ]
