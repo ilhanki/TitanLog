@@ -21,8 +21,8 @@ export const appStrings = {
     forgotPassword: 'Şifremi Unuttum',
     noAccountPrompt: 'Hesabın yok mu? Kayıt Ol',
     existingAccountPrompt: 'Zaten hesabın var mı? Giriş Yap',
-    developmentNotice: 'Hesap sistemi sonraki sürümde etkinleştirilecek.',
-    passwordResetNotice: 'Şifre yenileme özelliği henüz geliştirme aşamasında.',
+    developmentNotice: 'Hesap işlemleri şu anda kullanılamıyor.',
+    passwordResetNotice: 'Şifre yenileme şu anda kullanılamıyor.',
     validation: {
       nameRequired: 'Ad soyad alanı zorunludur.',
       emailRequired: 'E-posta alanı zorunludur.',
@@ -68,26 +68,18 @@ export const appStrings = {
   workout: {
     title: 'Antrenman',
     emptyTitle: 'Program alanın hazırlanıyor',
-    description:
-      'Antrenman planların ve egzersiz kayıtların sonraki sprintlerde burada yer alacak. Henüz kayıt yapılmıyor.',
+    description: 'Antrenman planların ve egzersiz kayıtların burada görünecek.',
   },
   progress: {
     title: 'Gelişim',
     emptyTitle: 'Gelişimin görünür olacak',
     description:
-      'Vücut ölçümlerin ve antrenman ilerlemen burada özetlenecek. Bu sürümde grafik veya kalıcı veri bulunmuyor.',
+      'Kilo, vücut ölçüleri ve antrenman ilerlemen burada özetlenecek.',
   },
   profile: {
     title: 'Profil',
-    emptyTitle: 'Hesap desteği geliştiriliyor',
+    emptyTitle: 'Hesabını oluşturmaya hazır mısın?',
     description:
-      'Profil ve hesap özellikleri henüz etkin değil. Giriş ve kayıt arayüzleri bu sprintte hazırlanıyor.',
-  },
-  foundation: {
-    eyebrow: 'ERKEN ALFA',
-    title: 'Temel hazır.',
-    description:
-      'TitanLog, sürdürülebilir gelişimini takip edeceğin güçlü bir deneyim için hazırlanıyor.',
-    status: 'Sprint 0 tamamlandı',
+      'Antrenmanlarını ve gelişimini kişisel hesabınla takip edebileceksin.',
   },
 } as const;
