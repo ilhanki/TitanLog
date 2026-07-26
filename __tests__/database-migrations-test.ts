@@ -21,20 +21,33 @@ function createDatabase(currentVersion: number) {
 }
 
 describe('runMigrations', () => {
-  it('applies pending migrations and advances user_version', async () => {
+  it('applies migrations 1 and 2 on a fresh database', async () => {
     const { database, transactionExecAsync } = createDatabase(0);
 
-    await expect(runMigrations(database)).resolves.toBe(1);
-    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+    await expect(runMigrations(database)).resolves.toBe(2);
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(2);
     expect(transactionExecAsync).toHaveBeenLastCalledWith(
-      'PRAGMA user_version = 1'
+      'PRAGMA user_version = 2'
+    );
+    expect(transactionExecAsync).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE IF NOT EXISTS workout_sessions')
+    );
+    expect(transactionExecAsync).toHaveBeenCalledWith(
+      expect.stringContaining('CREATE TABLE IF NOT EXISTS body_profiles')
     );
   });
 
-  it('does not reapply an existing migration', async () => {
+  it('upgrades version 1 without rewriting workout tables', async () => {
     const { database } = createDatabase(1);
 
-    await expect(runMigrations(database)).resolves.toBe(1);
+    await expect(runMigrations(database)).resolves.toBe(2);
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reapply migration 2', async () => {
+    const { database } = createDatabase(2);
+
+    await expect(runMigrations(database)).resolves.toBe(2);
     expect(database.withExclusiveTransactionAsync).not.toHaveBeenCalled();
   });
 });
