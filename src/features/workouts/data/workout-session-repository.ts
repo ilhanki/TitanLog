@@ -259,7 +259,7 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
     async updateSetValues(
       setId: number,
       weightKg: number,
-      actualReps: number
+      actualReps: number | null
     ): Promise<void> {
       const timestamp = new Date().toISOString();
       await database.runAsync(

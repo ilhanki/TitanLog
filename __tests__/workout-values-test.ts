@@ -1,6 +1,7 @@
 import {
   calculateSessionMetrics,
   canCompleteSet,
+  formatWorkoutWeight,
   getIsoWeekday,
   parseRepetitionInput,
   parseWeightInput,
@@ -10,6 +11,7 @@ describe('workout value helpers', () => {
   it('maps JavaScript weekdays to ISO weekdays', () => {
     expect(getIsoWeekday(new Date(2026, 6, 26))).toBe(7);
     expect(getIsoWeekday(new Date(2026, 6, 27))).toBe(1);
+    expect(getIsoWeekday(new Date(2026, 6, 31))).toBe(5);
   });
 
   it('accepts Turkish and international decimal weights within limits', () => {
@@ -28,6 +30,11 @@ describe('workout value helpers', () => {
     expect(parseRepetitionInput('-1')).toBeNull();
     expect(parseRepetitionInput('12,5')).toBeNull();
     expect(parseRepetitionInput('1001')).toBeNull();
+  });
+
+  it('formats decimal weights with a Turkish comma', () => {
+    expect(formatWorkoutWeight(17.5)).toBe('17,5');
+    expect(formatWorkoutWeight(50)).toBe('50');
   });
 
   it('requires a positive repetition count before a set can complete', () => {

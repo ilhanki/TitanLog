@@ -1,4 +1,4 @@
-import { WorkoutScreen } from '@/features/workout/workout-screen';
+import { WorkoutScreen } from '@/features/workouts/screens/workout-screen';
 
 export default function WorkoutRoute() {
   return <WorkoutScreen />;

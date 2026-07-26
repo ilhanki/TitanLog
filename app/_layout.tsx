@@ -16,6 +16,9 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth/sign-in" />
         <Stack.Screen name="auth/sign-up" />
+        <Stack.Screen name="workout/day/[dayId]" />
+        <Stack.Screen name="workout/session/[sessionId]/index" />
+        <Stack.Screen name="workout/session/[sessionId]/summary" />
       </Stack>
       <StatusBar style="light" />
     </DatabaseProvider>
