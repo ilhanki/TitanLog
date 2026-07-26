@@ -1,24 +1,30 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { appStrings } from '@/constants/strings';
-import type { HomePreviewData } from '@/features/home/home-preview-data';
 import { theme } from '@/theme/tokens';
 
 type TodayWorkoutCardProps = {
-  workout: HomePreviewData['todayWorkout'];
+  actionLabel: string;
+  disabled?: boolean;
+  onPress: () => void;
+  schedule: string;
+  title: string;
 };
 
-export function TodayWorkoutCard({ workout }: TodayWorkoutCardProps) {
-  const router = useRouter();
-
+export function TodayWorkoutCard({
+  actionLabel,
+  disabled,
+  onPress,
+  schedule,
+  title,
+}: TodayWorkoutCardProps) {
   return (
     <LinearGradient
-      accessibilityLabel={`${appStrings.home.todayWorkoutLabel}: ${workout.title}`}
+      accessibilityLabel={`${appStrings.home.todayWorkoutLabel}: ${title}`}
       colors={[theme.colors.surfaceRaised, theme.colors.primarySoft]}
       end={{ x: 1, y: 1 }}
       start={{ x: 0, y: 0 }}
@@ -40,16 +46,13 @@ export function TodayWorkoutCard({ workout }: TodayWorkoutCardProps) {
           {appStrings.home.todayWorkoutLabel}
         </AppText>
         <AppText accessibilityRole="header" variant="title">
-          {workout.title}
+          {title}
         </AppText>
         <AppText selectable tone="muted" variant="bodyStrong">
-          {workout.schedule}
+          {schedule}
         </AppText>
       </View>
-      <AppButton
-        label={appStrings.home.startWorkout}
-        onPress={() => router.navigate('/workout')}
-      />
+      <AppButton disabled={disabled} label={actionLabel} onPress={onPress} />
     </LinearGradient>
   );
 }
@@ -77,8 +80,5 @@ const styles = StyleSheet.create({
     top: theme.spacing.xxl,
     width: 72,
   },
-  copy: {
-    gap: theme.spacing.sm,
-    paddingRight: 84,
-  },
+  copy: { gap: theme.spacing.sm, paddingRight: 84 },
 });

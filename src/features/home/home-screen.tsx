@@ -1,4 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
@@ -17,17 +19,26 @@ import { GoalCard } from '@/features/home/goal-card';
 import { LastWorkoutCard } from '@/features/home/last-workout-card';
 import { MotivationBanner } from '@/features/home/motivation-banner';
 import { TodayWorkoutCard } from '@/features/home/today-workout-card';
+import { createWorkoutSessionRepository } from '@/features/workouts/data/workout-session-repository';
+import { useWorkoutOverview } from '@/features/workouts/hooks/use-workout-overview';
+import { formatWorkoutWeekdays } from '@/features/workouts/utils/workout-formatters';
+import { decideWorkoutStart } from '@/features/workouts/utils/workout-navigation';
+import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
 import { theme } from '@/theme/tokens';
 
 export function HomeScreen() {
+  const database = useSQLiteContext();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const compact = width < theme.layout.compactWidth;
+  const { data, error, loading, retry } = useWorkoutOverview();
+  const [starting, setStarting] = useState(false);
+  const latestWorkout = data.recentSessions[0] ?? null;
   const stats = [
     {
       icon: 'calendar-check-outline' as const,
       label: appStrings.home.sportsDays,
-      value: formatTurkishNumber(homePreviewData.stats.sportsDays),
+      value: formatTurkishNumber(data.completedSessionCount),
     },
     {
       icon: 'scale-bathroom' as const,
@@ -40,11 +51,66 @@ export function HomeScreen() {
       value: formatWeight(homePreviewData.stats.targetWeight),
     },
     {
-      icon: 'fire' as const,
-      label: appStrings.home.streak,
-      value: `${formatTurkishNumber(homePreviewData.stats.streakDays)} ${appStrings.home.dayUnit}`,
+      icon: 'weight-lifter' as const,
+      label: appStrings.home.latestVolume,
+      value: `${formatWorkoutWeight(latestWorkout?.totalVolume ?? 0)} kg`,
     },
   ];
+
+  const handleWorkoutAction = async () => {
+    if (error) {
+      retry();
+      return;
+    }
+    const decision = decideWorkoutStart(
+      data.activeSession,
+      data.scheduledWorkout
+    );
+    if (decision.kind === 'resume') {
+      router.navigate(`/workout/session/${decision.sessionId}` as Href);
+      return;
+    }
+    if (decision.kind === 'rest') {
+      router.navigate('/workout');
+      return;
+    }
+    if (starting) return;
+    setStarting(true);
+    try {
+      const session = await createWorkoutSessionRepository(
+        database
+      ).startSessionFromWorkoutDay(decision.dayId);
+      router.navigate(`/workout/session/${session.id}` as Href);
+    } catch {
+      router.navigate('/workout');
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  const workoutTitle = loading
+    ? appStrings.database.loadingTitle
+    : error
+      ? appStrings.database.errorTitle
+      : (data.activeSession?.workoutName ??
+        data.scheduledWorkout?.name ??
+        appStrings.workout.restTitle);
+  const workoutSchedule = loading
+    ? appStrings.workout.loading
+    : error
+      ? appStrings.workout.loadError
+      : data.activeSession
+        ? appStrings.workout.activeSessionNotice
+        : data.scheduledWorkout
+          ? formatWorkoutWeekdays(data.scheduledWorkout.scheduleWeekdays)
+          : appStrings.workout.restDescription;
+  const workoutAction = error
+    ? appStrings.workout.retry
+    : data.activeSession
+      ? appStrings.workout.resumeWorkout
+      : data.scheduledWorkout
+        ? appStrings.home.startWorkout
+        : appStrings.workout.viewProgram;
 
   return (
     <Screen>
@@ -63,7 +129,13 @@ export function HomeScreen() {
         </AppText>
       </View>
       <AuthEntryCard compact={compact} />
-      <TodayWorkoutCard workout={homePreviewData.todayWorkout} />
+      <TodayWorkoutCard
+        actionLabel={workoutAction}
+        disabled={loading || starting}
+        onPress={() => void handleWorkoutAction()}
+        schedule={workoutSchedule}
+        title={workoutTitle}
+      />
       <View style={styles.section}>
         <SectionHeader title={appStrings.home.overviewTitle} />
         <View style={styles.statsGrid}>
@@ -79,7 +151,7 @@ export function HomeScreen() {
         </View>
       </View>
       <GoalCard goal={homePreviewData.goal} />
-      <LastWorkoutCard workout={homePreviewData.lastWorkout} />
+      <LastWorkoutCard workout={latestWorkout} />
       <MotivationBanner />
     </Screen>
   );
