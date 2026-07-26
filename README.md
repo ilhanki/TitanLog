@@ -2,50 +2,97 @@
 
 > **Train. Track. Transform.**
 
-TitanLog; antrenman, beslenme ve fiziksel gelişim verilerini tek bir mobil deneyimde takip etmeyi hedefleyen açık kaynaklı bir fitness uygulamasıdır. Proje erken alfa aşamasındadır ve aktif olarak geliştirilmektedir.
+TitanLog, antrenman ve fiziksel gelişim takibini tek bir Android öncelikli mobil deneyimde buluşturmayı hedefleyen açık kaynaklı bir fitness uygulamasıdır. Proje erken alfa aşamasındadır ve aktif olarak geliştirilmektedir.
 
 > [!IMPORTANT]
-> Bu depo üretime hazır bir ürün sunmaz. Sprint 1 arayüzleri örnek veriler kullanır; gerçek hesap, antrenman kaydı veya kalıcı veri desteği henüz yoktur.
+> Bu depo üretime hazır bir ürün sunmaz. Sprint 2 ile antrenman kaydı cihaz üzerinde kalıcı hâle gelmiştir; hesap, bulut yedekleme, cihazlar arası eşitleme ve kalıcı vücut ölçümleri henüz yoktur.
 
 ## Proje durumu
 
-### Uygulanan Sprint 1 deneyimi
+### Sprint 2 — Çevrimdışı antrenman takibi
 
-- `Ana Sayfa`, `Antrenman`, `Gelişim` ve `Profil` sekmelerinden oluşan Expo Router gezinmesi
-- Android güvenli alanları ve gesture navigation ile uyumlu alt sekme çubuğu
-- Samsung Galaxy A55 fiziksel cihaz kontrolü sonrasında dinamik alt safe-area ve üç düğmeli gezinme rötuşları
-- Ortak renk, aralık, tipografi, border, radius, shadow, ikon ve layout token'ları
-- Tekrar kullanılabilir kart, buton, metin, input, ekran, progress ve empty-state bileşenleri
-- Responsive, kaydırılabilir Türkçe ana panel
-- Bugünkü program, istatistikler, Titan hedefi, son antrenman ve motivasyon bölümleri
-- Typed demo veri kaynağından hesaplanan kilo hedefi ilerlemesi
-- UI-only `Giriş Yap` ve `Kayıt Ol` ekranları
-- Android klavyesi açıkken form bağlantılarına ulaşmayı koruyan yeniden boyutlandırma davranışı
-- Boş alan ve şifre eşleşmesi için küçük yerel form kontrolleri
-- Gezinme, ana panel, hedef hesabı ve auth davranışlarını kapsayan smoke testleri
+- Expo SQLite ile tek cihazda çevrimdışı antrenman planı ve oturum saklama
+- `PRAGMA user_version` tabanlı, sıralı ve tekrar çalıştırılabilir migrasyon sistemi
+- Her açılışta güvenle kontrol edilen idempotent Titan Başlangıç Programı seed'i
+- Cihazın yerel gününe göre bugünün programı ve Cuma dinlenme durumu
+- Program günü detayı, egzersiz sırası, varsayılan set/tekrar/kilo değerleri
+- Tek aktif oturum kuralı ve uygulama yeniden açıldığında oturuma devam etme
+- Set kilosu ve tekrar girişi, set tamamlama, güvenli set ekleme/kaldırma
+- Yerel geçmişi koruyan antrenman tamamlama ve iptal akışları
+- Tamamlanan set, toplam tekrar ve antrenman hacmi özeti
+- Ana sayfada gerçek bugünkü program, aktif oturum, spor günü sayısı ve son antrenman
+- Android klavye yeniden boyutlandırması ve alt güvenli alan çözümünün korunması
 
-### Henüz desteklenmeyenler
+Sprint 1'de eklenen dört sekmeli Expo Router gezinmesi, Türkçe ana panel, UI-only hesap ekranları ve ortak tasarım sistemi kullanılmaya devam eder.
 
-- Gerçek kayıt, giriş, oturum veya şifre yenileme
-- Backend, API çağrısı veya uzaktan veri
-- SQLite veya başka bir kalıcı veri katmanı
-- Antrenman oluşturma ya da kaydetme
-- Beslenme takibi
-- Gerçek veriye bağlı grafikler
-- Bildirim, analytics veya sağlık platformu entegrasyonları
+## Yerel veritabanı
 
-Formlara girilen bilgiler gönderilmez, saklanmaz ve oturum oluşturmaz. Geçerli form gönderimi yalnızca özelliğin geliştirme aşamasında olduğunu belirten bir bildirim gösterir.
+Veritabanı adı `titanlog.db`, güncel şema sürümü `1`'dir. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve ardından varsayılan programı seed eder. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
 
-## Ana paneldeki örnek veriler
+Şema şu tabloları içerir:
 
-Ana panel, yalnızca arayüz geliştirme ve test amacıyla yerel typed preview verisi kullanır. Örnek antrenman, kilo, hedef, seri ve hacim değerleri gerçek kullanıcı verisi değildir ve uygulama yeniden açıldığında kalıcı olmaz.
+- `workout_plans`
+- `workout_days`
+- `workout_day_schedules`
+- `exercises`
+- `workout_day_exercises`
+- `workout_sessions`
+- `workout_session_exercises`
+- `workout_sets`
+
+Çalışma zamanı değerleri bağlı SQL parametreleriyle yazılır. Çok adımlı seed, oturum başlatma, set ekleme/kaldırma ve tamamlama işlemleri transaction içinde yürütülür. Geçmiş oturumlar, gelecekte program değişse bile eski kaydı korumak için antrenman ve egzersiz snapshot'ları taşır.
+
+## Varsayılan program
+
+`Titan Başlangıç Programı` tek aktif plan olarak eklenir:
+
+| Günler                | Program         | Egzersiz |
+| --------------------- | --------------- | -------- |
+| Pazartesi ve Perşembe | Sırt + Biceps   | 7        |
+| Salı ve Cumartesi     | Göğüs + Triceps | 6        |
+| Çarşamba ve Pazar     | Bacak + Omuz    | 7        |
+| Cuma                  | Dinlenme        | —        |
+
+Her egzersiz 3 set ve 10 hedef tekrar ile başlar. Kilo değerleri kilogram olarak sayısal saklanır. Dambıl egzersizlerindeki değer `her el` olarak açıkça gösterilir. Sprint 2 hacim hesabı, girilen her-el kilosunu sessizce ikiyle çarpmaz; tamamlanan setler için `kilo × gerçek tekrar` toplamını kullanır.
+
+## Oturum yaşam döngüsü
+
+Antrenman başlatıldığında program ve egzersizler transaction içinde snapshot'lanır, varsayılan set satırları oluşturulur ve oturum `active` olur. Veritabanı kısıtı ile uygulama kontrolü birlikte ikinci bir aktif oturumu engeller.
+
+Kilo ve tekrar değişiklikleri input düzenlemesi bittiğinde, tamamlama durumu ise düğmeye basıldığında yazılır. Tamamlanan bir set geçerli kilo ve sıfırdan büyük gerçek tekrar gerektirir. Oturumu bitirmek için en az bir tamamlanmış set gerekir. İptal edilen oturum silinmez, normal tamamlanan geçmişine ve spor günü sayısına katılmaz.
+
+## Ana panel verileri
+
+Şu alanlar gerçek SQLite verisidir:
+
+- bugünün programı veya dinlenme durumu
+- aktif oturum ve `Antrenmana Devam Et` eylemi
+- tamamlanan spor günü sayısı
+- son tamamlanan antrenman, ilk üç egzersizi, set sayısı ve hacmi
+
+Başlangıç kilosu, güncel kilo, hedef kilo ve hedef ilerlemesi Sprint 2 kapsamı dışında olduğu için yalnızca açıkça izole edilmiş arayüz önizleme verisidir; veritabanına kaydedilmez ve kullanıcı tarafından saklanmış veri olarak sunulmaz.
+
+## Desteklenmeyen özellikler
+
+- Gerçek kayıt, giriş, çoklu kullanıcı veya şifre yenileme
+- Backend, bulut yedekleme veya cihazlar arası eşitleme
+- Program ve egzersiz kütüphanesi düzenleme
+- Kalıcı vücut ölçümü ve beslenme takibi
+- Sağlık platformu, bildirim, analytics veya sosyal özellikler
+- Şifreli veritabanı, SQLCipher veya ORM
+
+## Android ve web durumu
+
+Android Expo Go, Sprint 2'nin birincil çalışma hedefidir. Metro başlangıcı ve SDK bağımlılık uyumu otomatik olarak doğrulanır; Sprint 2'nin kalıcılık akışları Samsung Galaxy A55 üzerinde ayrıca fiziksel cihaz kontrolü gerektirir.
+
+Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandırmasıyla üretilir. Expo SQLite'ın web desteği alfa durumundadır; tarayıcıda kalıcılık çalışma zamanı doğrulanmadığından web, Sprint 2 için veri güvenilirliği kaynağı değildir ve sahte web persistence katmanı kullanılmaz.
 
 ## Teknoloji yığını
 
 - React Native 0.81
 - React 19.1
-- Expo SDK 54
-- Expo Router 6
+- Expo SDK 54 ve Expo Router 6
+- Expo SQLite 16
 - TypeScript 5.9
 - Jest ve React Native Testing Library
 - ESLint ve Prettier
@@ -54,26 +101,25 @@ Ana panel, yalnızca arayüz geliştirme ve test amacıyla yerel typed preview v
 
 ```text
 TitanLog/
-├── __tests__/                    # Gezinme, ana panel, auth ve hesaplama testleri
+├── __tests__/                         # Migrasyon, seed, repository, ekran ve yardımcı testleri
 ├── app/
-│   ├── (tabs)/                   # Dört ana alt sekme rotası
-│   ├── auth/                     # Tab bar dışında kalan auth UI rotaları
-│   └── _layout.tsx               # Kök Expo Router Stack
-├── assets/images/                # Uygulama ikonu ve splash görselleri
+│   ├── (tabs)/                        # Dört ana alt sekme
+│   ├── auth/                          # UI-only hesap rotaları
+│   ├── workout/                       # Gün, aktif oturum ve özet rotaları
+│   └── _layout.tsx                    # SQLiteProvider içeren kök Stack
 ├── src/
-│   ├── components/               # Ortak mobil tasarım sistemi bileşenleri
-│   ├── constants/                # Merkezi Türkçe metin kaynağı
+│   ├── components/                    # Ortak mobil tasarım sistemi
+│   ├── constants/                     # Merkezi Türkçe metinler
+│   ├── database/
+│   │   ├── migrations/                # user_version tabanlı şema adımları
+│   │   └── seed/                      # İdempotent varsayılan program
 │   ├── features/
-│   │   ├── auth/                 # UI-only auth ekranları ve form kontrolleri
-│   │   ├── home/                 # Ana panel, demo veri ve hedef hesabı
-│   │   ├── profile/              # Profil ve hesap girişleri
-│   │   ├── progress/             # Gelişim empty-state ekranı
-│   │   └── workout/              # Antrenman empty-state ekranı
-│   └── theme/                    # Paylaşılan tasarım token'ları
-├── app.json                      # Expo uygulama yapılandırması
-├── eslint.config.js              # ESLint flat config
-├── package.json                  # Script'ler ve bağımlılıklar
-└── tsconfig.json                 # Sıkı TypeScript ve yol eşleme ayarları
+│   │   ├── home/                      # SQLite bağlantılı ana panel
+│   │   └── workouts/                  # Domain, repository, hook, ekran ve yardımcılar
+│   └── theme/                         # Paylaşılan tasarım token'ları
+├── app.json                           # Expo uygulama ve build sürümleri
+├── metro.config.js                    # Expo SQLite web WASM asset ayarı
+└── package.json                       # Komutlar ve bağımlılıklar
 ```
 
 ## Yerel kurulum
@@ -82,9 +128,7 @@ TitanLog/
 
 - Node.js 20.19 veya üzeri
 - npm
-- Fiziksel cihaz testi için Expo SDK 54 ile uyumlu Expo Go
-
-### Adımlar
+- Fiziksel Android kontrolü için Expo SDK 54 ile uyumlu Expo Go
 
 ```bash
 git clone https://github.com/ilhanki/TitanLog.git
@@ -93,58 +137,41 @@ npm ci
 npm start
 ```
 
-Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilir veya platform komutlarından birini kullanabilirsiniz. iOS geliştirme komutu macOS ve uygun iOS araç zinciri gerektirir.
+Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilirsiniz. iOS komutu macOS ve uygun iOS araç zinciri gerektirir.
 
 ## Kullanılabilir komutlar
 
-| Komut                  | Açıklama                                           |
-| ---------------------- | -------------------------------------------------- |
-| `npm start`            | Expo geliştirme sunucusunu başlatır                |
-| `npm run android`      | Android geliştirme hedefini açar                   |
-| `npm run ios`          | iOS geliştirme hedefini açar                       |
-| `npm run web`          | Web geliştirme hedefini açar                       |
-| `npm run lint`         | Uygulama kaynaklarını ESLint ile denetler          |
-| `npm run typecheck`    | TypeScript tür kontrolünü çalıştırır               |
-| `npm test`             | Jest testlerini tek seferde çalıştırır             |
-| `npm run format`       | Desteklenen dosyaları Prettier ile biçimler        |
-| `npm run format:check` | Biçimlendirme tutarlılığını değiştirmeden denetler |
-
-## Geliştirme ilkeleri
-
-- Expo SDK 54 ve Expo Go uyumluluğu korunur.
-- Kaynak kod adlandırmaları İngilizce, kullanıcı arayüzü metinleri Türkçedir.
-- Ürün alanları `src/features` altında özellik odaklı tutulur.
-- Görsel değerler ortak tasarım token'larından gelir.
-- Özellikler küçük, doğrulanabilir ve Conventional Commits uyumlu değişikliklerle geliştirilir.
-- Sırlar, kişisel veriler, yerel yapılandırmalar ve oluşturulan çıktılar depoya eklenmez.
-- Erişilebilir etiketler, yeterli dokunma hedefleri, güvenli alanlar ve responsive düzen temel kabul edilir.
-
-## Yol haritası
-
-- **Sprint 0 — Proje temeli:** tamamlandı; metadata, kalite araçları, tema başlangıcı, test ve dokümantasyon
-- **Sprint 1 — Gezinme ve ana deneyim:** tamamlandı; dört sekme, tasarım sistemi, ana panel ve UI-only auth
-- **Sprint 2 — Antrenman planlama temeli:** egzersiz modeli, program görüntüleme ve yerel veri yaklaşımının tasarlanması
-- **Gelecek sprint'ler:** kalıcı antrenman verisi, gelişim geçmişi ve beslenme alanlarının aşamalı geliştirilmesi
-
-Yol haritası yön gösterir; tamamlanmamış özellikler için yayın taahhüdü değildir.
+| Komut                            | Açıklama                                      |
+| -------------------------------- | --------------------------------------------- |
+| `npm start`                      | Expo Metro geliştirme sunucusunu başlatır     |
+| `npm run android`                | Android hedefini açar                         |
+| `npm run ios`                    | iOS hedefini açar                             |
+| `npm run web`                    | Web geliştirme hedefini açar                  |
+| `npm run typecheck`              | Sıkı TypeScript kontrolünü çalıştırır         |
+| `npm run lint`                   | Kaynakları ESLint ile denetler                |
+| `npm run format:check`           | Prettier tutarlılığını değiştirmeden denetler |
+| `npm test -- --runInBand`        | Testleri tek süreçte çalıştırır               |
+| `npx expo-doctor`                | Expo proje sağlığını denetler                 |
+| `npx expo export --platform web` | Statik web çıktısını doğrular                 |
 
 ## Sürümleme
 
 TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kullanır.
 
+- Paket ön sürümü: `0.1.0-alpha.3`
 - Expo uygulama sürümü: `0.1.0`
-- Paket ön sürümü: `0.1.0-alpha.1`
-- Mevcut temel tag: `v0.1.0-alpha.0`
-- Sprint 1 tag'i: `v0.1.0-alpha.1`
-- `alpha`: aktif erken geliştirme
-- `beta`: özellikleri tamamlanmış test dönemi
-- kararlı sürüm: üretime hazır yayın
+- Android `versionCode`: `1`
+- iOS `buildNumber`: `1`
+- Planlanan Sprint 2 tag'i: `v0.1.0-alpha.3`
 
-Sprint 1 tag'i oluşturulmuştur. Bu tag için GitHub Release oluşturulmamıştır.
+Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşturulmaz.
 
-## Katkı durumu
+## Yol haritası
 
-Proje şu anda tek geliştiricili erken geliştirme aşamasındadır ve dış katkı süreci henüz açılmamıştır. Katkı rehberi ve issue şablonları süreç olgunlaştığında eklenecektir.
+- **Sprint 0 — Proje temeli:** tamamlandı
+- **Sprint 1 — Gezinme ve ana deneyim:** tamamlandı
+- **Sprint 2 — Antrenman alanı ve yerel kalıcılık:** uygulandı; fiziksel cihaz doğrulaması bekliyor
+- **Önerilen Sprint 3 — Ölçüm geçmişi:** kalıcı vücut ölçümleri, ölçüm girişi ve sade ilerleme görünümü
 
 ## Lisans
 
@@ -152,4 +179,4 @@ Bu proje [MIT Lisansı](LICENSE) ile lisanslanmıştır.
 
 ---
 
-TitanLog aktif geliştirme altındadır. Belgelenmemiş davranışlar ve kırıcı değişiklikler erken alfa sürecinde görülebilir.
+TitanLog aktif geliştirme altındadır. Erken alfa sürecinde kırıcı değişiklikler görülebilir.
