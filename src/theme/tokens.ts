@@ -68,7 +68,7 @@ export const layout = {
   contentPadding: 20,
   contentPaddingCompact: 16,
   touchTarget: 48,
-  tabBarHeight: 64,
+  tabBarContentHeight: 64,
 } as const;
 
 export const typography = {

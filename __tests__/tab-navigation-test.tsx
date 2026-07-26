@@ -21,6 +21,10 @@ jest.mock('expo-router', () => {
   return { Tabs: Object.assign(MockTabs, { Screen: MockScreen }) };
 });
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ bottom: 24, left: 0, right: 0, top: 0 }),
+}));
+
 describe('TabLayout', () => {
   it('contains the four Turkish navigation tabs', async () => {
     const { getByLabelText } = await render(<TabLayout />);

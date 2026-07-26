@@ -1,10 +1,15 @@
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabBarIcon } from '@/components/tab-bar-icon';
 import { appStrings } from '@/constants/strings';
+import { getTabBarLayout } from '@/navigation/tab-bar-layout';
 import { theme } from '@/theme/tokens';
 
 export default function TabLayout() {
+  const { bottom } = useSafeAreaInsets();
+  const tabBarLayout = getTabBarLayout(bottom);
+
   return (
     <Tabs
       initialRouteName="index"
@@ -22,7 +27,8 @@ export default function TabLayout() {
           backgroundColor: theme.colors.backgroundElevated,
           borderTopColor: theme.colors.border,
           borderTopWidth: theme.borders.hairline,
-          minHeight: theme.layout.tabBarHeight,
+          height: tabBarLayout.height,
+          paddingBottom: tabBarLayout.paddingBottom,
           paddingTop: theme.spacing.sm,
         },
       }}
