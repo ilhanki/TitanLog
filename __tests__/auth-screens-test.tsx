@@ -59,6 +59,16 @@ describe('authentication interface screens', () => {
     expect(getByText(appStrings.auth.developmentNotice)).toBeTruthy();
   });
 
+  it('shows a truthful notice for unavailable password recovery', async () => {
+    const { getByRole, getByText } = await render(<SignInScreen />);
+
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.auth.forgotPassword })
+    );
+
+    expect(getByText(appStrings.auth.passwordResetNotice)).toBeTruthy();
+  });
+
   it('validates password confirmation without creating an account', async () => {
     const { getByLabelText, getByRole, getByText, queryByText } = await render(
       <SignUpScreen />

@@ -40,4 +40,14 @@ describe('HomeScreen', () => {
 
     expect(mockRouter.push).toHaveBeenCalledWith('/auth/sign-up');
   });
+
+  it('navigates to the workout tab from the start action', async () => {
+    const { getByRole } = await render(<HomeScreen />);
+
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.home.startWorkout })
+    );
+
+    expect(mockRouter.navigate).toHaveBeenCalledWith('/workout');
+  });
 });

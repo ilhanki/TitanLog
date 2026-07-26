@@ -9,11 +9,16 @@ jest.mock('expo-router', () => {
     jest.requireActual<typeof import('react-native')>('react-native');
   const MockTabs = ({ children }: PropsWithChildren) => children;
   const MockScreen = ({
+    name,
     options,
   }: {
+    name: string;
     options: { tabBarAccessibilityLabel: string; title: string };
   }) => (
-    <MockText accessibilityLabel={options.tabBarAccessibilityLabel}>
+    <MockText
+      accessibilityLabel={options.tabBarAccessibilityLabel}
+      testID={`tab-route-${name}`}
+    >
       {options.title}
     </MockText>
   );
@@ -27,7 +32,9 @@ jest.mock('react-native-safe-area-context', () => ({
 
 describe('TabLayout', () => {
   it('contains the four Turkish navigation tabs', async () => {
-    const { getByLabelText } = await render(<TabLayout />);
+    const { getAllByTestId, getByLabelText, queryByTestId } = await render(
+      <TabLayout />
+    );
 
     expect(
       getByLabelText(appStrings.navigation.homeAccessibilityLabel)
@@ -41,5 +48,8 @@ describe('TabLayout', () => {
     expect(
       getByLabelText(appStrings.navigation.profileAccessibilityLabel)
     ).toBeTruthy();
+    expect(getAllByTestId(/^tab-route-/)).toHaveLength(4);
+    expect(queryByTestId('tab-route-auth/sign-in')).toBeNull();
+    expect(queryByTestId('tab-route-auth/sign-up')).toBeNull();
   });
 });
