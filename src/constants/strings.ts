@@ -4,6 +4,14 @@ export const appStrings = {
   common: {
     goBack: 'Geri dön',
   },
+  database: {
+    loadingTitle: 'Antrenman alanın hazırlanıyor',
+    loadingDescription: 'Yerel verilerin güvenli biçimde hazırlanıyor.',
+    errorTitle: 'Antrenman verilerine ulaşılamadı',
+    errorDescription:
+      'Yerel veriler hazırlanırken bir sorun oluştu. Tekrar deneyebilirsin.',
+    retry: 'Tekrar Dene',
+  },
   auth: {
     signIn: 'Giriş Yap',
     signUp: 'Kayıt Ol',

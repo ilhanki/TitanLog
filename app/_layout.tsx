@@ -1,11 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router/stack';
 
+import { DatabaseProvider } from '@/database/database-provider';
 import { theme } from '@/theme/tokens';
 
 export default function RootLayout() {
   return (
-    <>
+    <DatabaseProvider>
       <Stack
         screenOptions={{
           contentStyle: { backgroundColor: theme.colors.background },
@@ -17,6 +18,6 @@ export default function RootLayout() {
         <Stack.Screen name="auth/sign-up" />
       </Stack>
       <StatusBar style="light" />
-    </>
+    </DatabaseProvider>
   );
 }
