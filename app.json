@@ -19,6 +19,7 @@
     "android": {
       "package": "com.ilhanki.titanlog",
       "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#090B10",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

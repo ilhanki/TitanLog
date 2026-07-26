@@ -67,6 +67,7 @@ export const layout = {
   contentMaxWidth: 720,
   contentPadding: 20,
   contentPaddingCompact: 16,
+  compactTouchTarget: 44,
   touchTarget: 48,
   tabBarContentHeight: 64,
 } as const;

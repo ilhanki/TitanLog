@@ -69,9 +69,9 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radii.pill,
     borderWidth: theme.borders.thin,
-    height: theme.layout.touchTarget,
+    height: theme.layout.compactTouchTarget,
     justifyContent: 'center',
-    width: theme.layout.touchTarget,
+    width: theme.layout.compactTouchTarget,
   },
   actionPressed: {
     backgroundColor: theme.colors.primarySoft,

@@ -47,7 +47,6 @@ export function TodayWorkoutCard({ workout }: TodayWorkoutCardProps) {
         </AppText>
       </View>
       <AppButton
-        icon="arrow-right"
         label={appStrings.home.startWorkout}
         onPress={() => router.navigate('/workout')}
       />
