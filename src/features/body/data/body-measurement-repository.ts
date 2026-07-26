@@ -20,7 +20,10 @@ type MeasurementRow = {
 };
 
 export class BodyMeasurementError extends Error {
-  constructor(readonly code: 'measurement_not_found' | 'only_measurement') {
+  constructor(
+    readonly code:
+      'initial_measurement' | 'measurement_not_found' | 'only_measurement'
+  ) {
     super(code);
   }
 }
@@ -138,6 +141,13 @@ export function createBodyMeasurementRepository(database: SQLiteDatabase) {
         );
         if (!count || count.count <= 1) {
           throw new BodyMeasurementError('only_measurement');
+        }
+        const initial = await transaction.getFirstAsync<{ id: number }>(
+          `SELECT id FROM body_measurements
+           ORDER BY measured_at ASC, id ASC LIMIT 1`
+        );
+        if (initial?.id === id) {
+          throw new BodyMeasurementError('initial_measurement');
         }
         const result = await transaction.runAsync(
           'DELETE FROM body_measurements WHERE id = ?',

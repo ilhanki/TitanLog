@@ -58,6 +58,29 @@ describe('body repositories', () => {
     expect(transaction.runAsync).not.toHaveBeenCalled();
   });
 
+  it('propagates transaction failure without completing profile setup', async () => {
+    const transaction = {
+      getFirstAsync: jest.fn().mockResolvedValue(null),
+      runAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 1 })
+        .mockRejectedValueOnce(new Error('controlled transaction failure')),
+    };
+    const database = {
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    } as unknown as SQLiteDatabase;
+
+    await expect(
+      createBodyProfileRepository(database).createProfileWithInitialMeasurement(
+        100,
+        80
+      )
+    ).rejects.toThrow('controlled transaction failure');
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+  });
+
   it('returns nullable measurement fields and newest-first query results', async () => {
     const row = {
       chest_cm: null,
@@ -107,7 +130,10 @@ describe('body repositories', () => {
 
   it('deletes an eligible measurement and lets the previous row become latest', async () => {
     const transaction = {
-      getFirstAsync: jest.fn().mockResolvedValue({ count: 2 }),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ count: 2 })
+        .mockResolvedValueOnce({ id: 1 }),
       runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
     };
     const previousRow = {
@@ -140,5 +166,69 @@ describe('body repositories', () => {
       'DELETE FROM body_measurements WHERE id = ?',
       2
     );
+  });
+
+  it('protects the initial chronological measurement', async () => {
+    const transaction = {
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ count: 2 })
+        .mockResolvedValueOnce({ id: 1 }),
+      runAsync: jest.fn(),
+    };
+    const database = {
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    } as unknown as SQLiteDatabase;
+
+    await expect(
+      createBodyMeasurementRepository(database).deleteMeasurement(1)
+    ).rejects.toEqual(new BodyMeasurementError('initial_measurement'));
+    expect(transaction.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('creates and updates measurements with nullable optional values', async () => {
+    const row = {
+      chest_cm: null,
+      created_at: '2026-08-01T10:00:00.000Z',
+      hip_cm: null,
+      id: 3,
+      measured_at: '2026-08-01T10:00:00.000Z',
+      note: null,
+      thigh_cm: null,
+      upper_arm_cm: null,
+      updated_at: '2026-08-01T10:00:00.000Z',
+      waist_cm: null,
+      weight_kg: 90,
+    };
+    const runAsync = jest
+      .fn()
+      .mockResolvedValueOnce({ changes: 1, lastInsertRowId: 3 })
+      .mockResolvedValueOnce({ changes: 1 });
+    const database = {
+      getFirstAsync: jest.fn().mockResolvedValue(row),
+      runAsync,
+    } as unknown as SQLiteDatabase;
+    const repository = createBodyMeasurementRepository(database);
+    const input = {
+      chestCm: null,
+      hipCm: null,
+      note: null,
+      thighCm: null,
+      upperArmCm: null,
+      waistCm: null,
+      weightKg: 90,
+    };
+
+    await expect(repository.createMeasurement(input)).resolves.toMatchObject({
+      id: 3,
+      waistCm: null,
+      weightKg: 90,
+    });
+    await expect(
+      repository.updateMeasurement(3, input)
+    ).resolves.toBeUndefined();
+    expect(runAsync).toHaveBeenCalledTimes(2);
   });
 });

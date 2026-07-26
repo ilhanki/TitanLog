@@ -28,7 +28,9 @@ type InitialMeasurementRow = {
 };
 
 export class BodyProfileError extends Error {
-  constructor(readonly code: 'invalid_goal' | 'profile_exists') {
+  constructor(
+    readonly code: 'invalid_goal' | 'profile_exists' | 'profile_not_found'
+  ) {
     super(code);
   }
 }
@@ -139,7 +141,7 @@ export function createBodyProfileRepository(database: SQLiteDatabase) {
       if (startingWeightKg === targetWeightKg) {
         throw new BodyProfileError('invalid_goal');
       }
-      await database.runAsync(
+      const result = await database.runAsync(
         `UPDATE body_profiles
          SET starting_weight_kg = ?, target_weight_kg = ?, updated_at = ?
          WHERE id = 1`,
@@ -147,6 +149,9 @@ export function createBodyProfileRepository(database: SQLiteDatabase) {
         targetWeightKg,
         new Date().toISOString()
       );
+      if (result.changes !== 1) {
+        throw new BodyProfileError('profile_not_found');
+      }
     },
   };
 }

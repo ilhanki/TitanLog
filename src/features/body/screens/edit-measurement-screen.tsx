@@ -97,7 +97,8 @@ export function EditMeasurementScreen() {
               } catch (caught) {
                 setError(
                   caught instanceof BodyMeasurementError &&
-                    caught.code === 'only_measurement'
+                    (caught.code === 'only_measurement' ||
+                      caught.code === 'initial_measurement')
                     ? appStrings.progress.onlyMeasurement
                     : appStrings.progress.saveError
                 );

@@ -172,7 +172,8 @@ export const appStrings = {
     deleteTitle: 'Ölçüm silinsin mi?',
     deleteDescription: 'Bu işlem geri alınamaz.',
     deleteConfirm: 'Sil',
-    onlyMeasurement: 'Profilin tek ölçümü silinemez. Önce yeni bir ölçüm ekle.',
+    onlyMeasurement:
+      'Profilin ilk veya tek ölçümü silinemez. Bu kayıt başlangıç değerini korur.',
     invalidWeight: '20 ile 400 kg arasında geçerli bir değer gir.',
     invalidMeasurement: '20 ile 300 cm arasında geçerli bir değer gir.',
     equalGoal: 'Başlangıç ve hedef kilosu farklı olmalıdır.',
