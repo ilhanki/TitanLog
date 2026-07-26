@@ -2,7 +2,6 @@ import { render } from '@testing-library/react-native';
 
 import { appStrings } from '@/constants/strings';
 import { ProfileScreen } from '@/features/profile/profile-screen';
-import { ProgressScreen } from '@/features/progress/progress-screen';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
@@ -10,12 +9,6 @@ jest.mock('expo-router', () => ({
 
 describe('product-facing placeholder screens', () => {
   it.each([
-    [
-      'progress',
-      <ProgressScreen key="progress" />,
-      appStrings.progress.emptyTitle,
-      appStrings.progress.description,
-    ],
     [
       'profile',
       <ProfileScreen key="profile" />,
