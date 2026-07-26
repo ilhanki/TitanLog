@@ -1,0 +1,60 @@
+import {
+  calculateSessionMetrics,
+  canCompleteSet,
+  getIsoWeekday,
+  parseRepetitionInput,
+  parseWeightInput,
+} from '@/features/workouts/utils/workout-values';
+
+describe('workout value helpers', () => {
+  it('maps JavaScript weekdays to ISO weekdays', () => {
+    expect(getIsoWeekday(new Date(2026, 6, 26))).toBe(7);
+    expect(getIsoWeekday(new Date(2026, 6, 27))).toBe(1);
+  });
+
+  it('accepts Turkish and international decimal weights within limits', () => {
+    expect(parseWeightInput(' 12,5 ')).toBe(12.5);
+    expect(parseWeightInput('12.50')).toBe(12.5);
+    expect(parseWeightInput('2000')).toBe(2000);
+    expect(parseWeightInput('-1')).toBeNull();
+    expect(parseWeightInput('12,555')).toBeNull();
+    expect(parseWeightInput('2000.01')).toBeNull();
+  });
+
+  it('accepts only bounded whole-number repetitions', () => {
+    expect(parseRepetitionInput('0')).toBe(0);
+    expect(parseRepetitionInput('12')).toBe(12);
+    expect(parseRepetitionInput('1000')).toBe(1000);
+    expect(parseRepetitionInput('-1')).toBeNull();
+    expect(parseRepetitionInput('12,5')).toBeNull();
+    expect(parseRepetitionInput('1001')).toBeNull();
+  });
+
+  it('requires a positive repetition count before a set can complete', () => {
+    expect(canCompleteSet({ actualReps: 10, weightKg: 0 })).toBe(true);
+    expect(canCompleteSet({ actualReps: 0, weightKg: 20 })).toBe(false);
+    expect(canCompleteSet({ actualReps: null, weightKg: 20 })).toBe(false);
+  });
+
+  it('calculates completed metrics and counts per-hand weight only once', () => {
+    const session = {
+      exercises: [
+        {
+          sets: [
+            { actualReps: 10, isCompleted: true, weightKg: 12.5 },
+            { actualReps: 8, isCompleted: false, weightKg: 12.5 },
+          ],
+        },
+        {
+          sets: [{ actualReps: 6, isCompleted: true, weightKg: 20 }],
+        },
+      ],
+    };
+
+    expect(calculateSessionMetrics(session)).toEqual({
+      completedSetCount: 2,
+      totalRepetitions: 16,
+      totalVolume: 245,
+    });
+  });
+});
