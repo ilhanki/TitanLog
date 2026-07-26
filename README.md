@@ -13,12 +13,14 @@ TitanLog; antrenman, beslenme ve fiziksel gelişim verilerini tek bir mobil dene
 
 - `Ana Sayfa`, `Antrenman`, `Gelişim` ve `Profil` sekmelerinden oluşan Expo Router gezinmesi
 - Android güvenli alanları ve gesture navigation ile uyumlu alt sekme çubuğu
+- Samsung Galaxy A55 fiziksel cihaz kontrolü sonrasında dinamik alt safe-area ve üç düğmeli gezinme rötuşları
 - Ortak renk, aralık, tipografi, border, radius, shadow, ikon ve layout token'ları
 - Tekrar kullanılabilir kart, buton, metin, input, ekran, progress ve empty-state bileşenleri
 - Responsive, kaydırılabilir Türkçe ana panel
 - Bugünkü program, istatistikler, Titan hedefi, son antrenman ve motivasyon bölümleri
 - Typed demo veri kaynağından hesaplanan kilo hedefi ilerlemesi
 - UI-only `Giriş Yap` ve `Kayıt Ol` ekranları
+- Android klavyesi açıkken form bağlantılarına ulaşmayı koruyan yeniden boyutlandırma davranışı
 - Boş alan ve şifre eşleşmesi için küçük yerel form kontrolleri
 - Gezinme, ana panel, hedef hesabı ve auth davranışlarını kapsayan smoke testleri
 
@@ -133,12 +135,12 @@ TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kull
 - Expo uygulama sürümü: `0.1.0`
 - Paket ön sürümü: `0.1.0-alpha.1`
 - Mevcut temel tag: `v0.1.0-alpha.0`
-- Sprint 1 için planlanan tag: `v0.1.0-alpha.1`
+- Sprint 1 tag'i: `v0.1.0-alpha.1`
 - `alpha`: aktif erken geliştirme
 - `beta`: özellikleri tamamlanmış test dönemi
 - kararlı sürüm: üretime hazır yayın
 
-Sprint 1 tag'i ve GitHub release henüz oluşturulmamıştır.
+Sprint 1 tag'i oluşturulmuştur. Bu tag için GitHub Release oluşturulmamıştır.
 
 ## Katkı durumu
 
