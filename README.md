@@ -5,9 +5,21 @@
 TitanLog, antrenman ve fiziksel gelişim takibini tek bir Android öncelikli mobil deneyimde buluşturmayı hedefleyen açık kaynaklı bir fitness uygulamasıdır. Proje erken alfa aşamasındadır ve aktif olarak geliştirilmektedir.
 
 > [!IMPORTANT]
-> Bu depo üretime hazır bir ürün sunmaz. Sprint 2 ile antrenman kaydı cihaz üzerinde kalıcı hâle gelmiştir; hesap, bulut yedekleme, cihazlar arası eşitleme ve kalıcı vücut ölçümleri henüz yoktur.
+> Bu depo üretime hazır bir ürün sunmaz. Antrenmanlar ve vücut ölçümleri tek cihazda yerel olarak saklanır; hesap, bulut yedekleme ve cihazlar arası eşitleme henüz yoktur.
 
 ## Proje durumu
+
+### Sprint 3 — Vücut gelişimi ve ölçüm geçmişi
+
+- Kişisel değer seed etmeden yerel başlangıç ve hedef kilo kurulumu
+- Kilo, isteğe bağlı çevre ölçümleri ve 250 karakterlik not kaydı
+- En yeni ölçümün güncel kilo olarak kullanıldığı düzenlenebilir ölçüm geçmişi
+- İlk/tek ölçümü koruyan destructive onaylı silme akışı
+- Kilo verme ve kilo alma hedeflerini destekleyen yön duyarlı ilerleme hesabı
+- Başlangıç, güncel, hedef, kalan, toplam değişim ve önceki ölçüm farkı
+- Progress sekmesinde gerçek özet, geçmiş, yeni ölçüm ve hedef ayarları
+- Ana sayfadaki bütün vücut değerlerinin gerçek SQLite verisine bağlanması
+- Profil yokken örnek sayı yerine hedef kurulum çağrısı
 
 ### Sprint 2 — Çevrimdışı antrenman takibi
 
@@ -27,7 +39,7 @@ Sprint 1'de eklenen dört sekmeli Expo Router gezinmesi, Türkçe ana panel, UI-
 
 ## Yerel veritabanı
 
-Veritabanı adı `titanlog.db`, güncel şema sürümü `1`'dir. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve ardından varsayılan programı seed eder. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
+Veritabanı adı `titanlog.db`, güncel şema sürümü `2`'dir. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve ardından varsayılan programı seed eder. Var olan v1 kurulumlarında yalnızca migration v2 uygulanır ve antrenman verileri korunur. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
 
 Şema şu tabloları içerir:
 
@@ -39,6 +51,8 @@ Veritabanı adı `titanlog.db`, güncel şema sürümü `1`'dir. Uygulama kökü
 - `workout_sessions`
 - `workout_session_exercises`
 - `workout_sets`
+- `body_profiles`
+- `body_measurements`
 
 Çalışma zamanı değerleri bağlı SQL parametreleriyle yazılır. Çok adımlı seed, oturum başlatma, set ekleme/kaldırma ve tamamlama işlemleri transaction içinde yürütülür. Geçmiş oturumlar, gelecekte program değişse bile eski kaydı korumak için antrenman ve egzersiz snapshot'ları taşır.
 
@@ -61,6 +75,14 @@ Antrenman başlatıldığında program ve egzersizler transaction içinde snapsh
 
 Kilo ve tekrar değişiklikleri input düzenlemesi bittiğinde, tamamlama durumu ise düğmeye basıldığında yazılır. Tamamlanan bir set geçerli kilo ve sıfırdan büyük gerçek tekrar gerektirir. Oturumu bitirmek için en az bir tamamlanmış set gerekir. İptal edilen oturum silinmez, normal tamamlanan geçmişine ve spor günü sayısına katılmaz.
 
+## Vücut profili ve ölçümler
+
+Profil kurulumu başlangıç ve hedef kilosunu doğrular, singleton `body_profiles` kaydını ve başlangıç kilosunu taşıyan ilk `body_measurements` kaydını tek transaction içinde oluşturur. Başlangıç ve hedef aynı olamaz. Kilo aralığı 20–400 kg, isteğe bağlı çevre ölçümleri 20–300 cm'dir; hem virgül hem nokta ondalık ayırıcı kabul edilir.
+
+Ölçümler en yeniden eskiye sıralanır, düzenlenebilir ve uygun olduğunda silinebilir. Profilin başlangıç temelini koruyan ilk ölçüm ile tek kalan ölçüm silinemez. Hedef ayarları değiştirildiğinde geçmiş ölçümler yeniden yazılmaz; ilerleme yeni başlangıç/hedef değerlerine göre yeniden hesaplanır.
+
+Kilo verme ilerlemesi `(başlangıç - güncel) / (başlangıç - hedef)`, kilo alma ilerlemesi `(güncel - başlangıç) / (hedef - başlangıç)` olarak hesaplanır ve 0–1 aralığında sınırlandırılır.
+
 ## Ana panel verileri
 
 Şu alanlar gerçek SQLite verisidir:
@@ -69,23 +91,25 @@ Kilo ve tekrar değişiklikleri input düzenlemesi bittiğinde, tamamlama durumu
 - aktif oturum ve `Antrenmana Devam Et` eylemi
 - tamamlanan spor günü sayısı
 - son tamamlanan antrenman, ilk üç egzersizi, set sayısı ve hacmi
+- güncel, başlangıç ve hedef kilo ile hedefe kalan mesafe
+- gerçek vücut hedefi ilerlemesi
 
-Başlangıç kilosu, güncel kilo, hedef kilo ve hedef ilerlemesi Sprint 2 kapsamı dışında olduğu için yalnızca açıkça izole edilmiş arayüz önizleme verisidir; veritabanına kaydedilmez ve kullanıcı tarafından saklanmış veri olarak sunulmaz.
+Vücut profili yoksa hiçbir örnek kişisel ölçüm gösterilmez; kullanıcı Progress kurulumuna yönlendirilir.
 
 ## Desteklenmeyen özellikler
 
 - Gerçek kayıt, giriş, çoklu kullanıcı veya şifre yenileme
 - Backend, bulut yedekleme veya cihazlar arası eşitleme
 - Program ve egzersiz kütüphanesi düzenleme
-- Kalıcı vücut ölçümü ve beslenme takibi
+- Beslenme, boy, BMI veya kalori önerileri
 - Sağlık platformu, bildirim, analytics veya sosyal özellikler
 - Şifreli veritabanı, SQLCipher veya ORM
 
 ## Android ve web durumu
 
-Android Expo Go, Sprint 2'nin birincil çalışma hedefidir. Metro başlangıcı ve SDK bağımlılık uyumu otomatik olarak doğrulanır; Sprint 2'nin kalıcılık akışları Samsung Galaxy A55 üzerinde ayrıca fiziksel cihaz kontrolü gerektirir.
+Android Expo Go birincil çalışma hedefidir. Sprint 2 antrenman akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 3 vücut profili ve ölçüm akışları için ayrıca fiziksel cihaz kontrolü gerekir.
 
-Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandırmasıyla üretilir. Expo SQLite'ın web desteği alfa durumundadır; tarayıcıda kalıcılık çalışma zamanı doğrulanmadığından web, Sprint 2 için veri güvenilirliği kaynağı değildir ve sahte web persistence katmanı kullanılmaz.
+Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandırmasıyla üretilir. Expo SQLite'ın web desteği alfa durumundadır; tarayıcıda kalıcılık çalışma zamanı doğrulanmadığından web veri güvenilirliği kaynağı değildir ve sahte web persistence katmanı kullanılmaz.
 
 ## Teknoloji yığını
 
@@ -105,6 +129,7 @@ TitanLog/
 ├── app/
 │   ├── (tabs)/                        # Dört ana alt sekme
 │   ├── auth/                          # UI-only hesap rotaları
+│   ├── progress/                      # Ölçüm ekleme, düzenleme ve hedef rotaları
 │   ├── workout/                       # Gün, aktif oturum ve özet rotaları
 │   └── _layout.tsx                    # SQLiteProvider içeren kök Stack
 ├── src/
@@ -114,6 +139,7 @@ TitanLog/
 │   │   ├── migrations/                # user_version tabanlı şema adımları
 │   │   └── seed/                      # İdempotent varsayılan program
 │   ├── features/
+│   │   ├── body/                      # Profil, ölçüm, hesaplama ve form akışları
 │   │   ├── home/                      # SQLite bağlantılı ana panel
 │   │   └── workouts/                  # Domain, repository, hook, ekran ve yardımcılar
 │   └── theme/                         # Paylaşılan tasarım token'ları
@@ -158,11 +184,12 @@ Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilirsiniz. iOS komutu macOS
 
 TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kullanır.
 
-- Paket ön sürümü: `0.1.0-alpha.3`
+- Paket ön sürümü: `0.1.0-alpha.4`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
-- Planlanan Sprint 2 tag'i: `v0.1.0-alpha.3`
+- Yayımlanan Sprint 2 tag'i: `v0.1.0-alpha.3`
+- Planlanan Sprint 3 tag'i: `v0.1.0-alpha.4`
 
 Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşturulmaz.
 
@@ -170,8 +197,9 @@ Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşt
 
 - **Sprint 0 — Proje temeli:** tamamlandı
 - **Sprint 1 — Gezinme ve ana deneyim:** tamamlandı
-- **Sprint 2 — Antrenman alanı ve yerel kalıcılık:** uygulandı; fiziksel cihaz doğrulaması bekliyor
-- **Önerilen Sprint 3 — Ölçüm geçmişi:** kalıcı vücut ölçümleri, ölçüm girişi ve sade ilerleme görünümü
+- **Sprint 2 — Antrenman alanı ve yerel kalıcılık:** yayımlandı ve fiziksel cihazda doğrulandı
+- **Sprint 3 — Vücut gelişimi ve ölçüm geçmişi:** yerel olarak uygulandı; fiziksel cihaz doğrulaması bekliyor
+- **Önerilen Sprint 4 — Antrenman geçmişi detayı:** tamamlanan oturumların salt-okunur egzersiz ve set dökümü
 
 ## Lisans
 
