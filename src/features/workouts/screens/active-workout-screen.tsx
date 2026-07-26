@@ -151,7 +151,7 @@ export function ActiveWorkoutScreen() {
     );
   }
 
-  if (!session) {
+  if (!session || session.status === 'cancelled') {
     return (
       <Screen edges={['top', 'bottom']}>
         <EmptyState

@@ -28,6 +28,7 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
   const router = useRouter();
   const { data, error, loading, retry } = useWorkoutOverview(now);
   const [starting, setStarting] = useState(false);
+  const [writeError, setWriteError] = useState(false);
 
   const openDay = (day: WorkoutDay) => {
     router.push(`/workout/day/${day.id}` as Href);
@@ -38,6 +39,7 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
   const start = async (dayId: number) => {
     if (starting) return;
     setStarting(true);
+    setWriteError(false);
     try {
       const session =
         await createWorkoutSessionRepository(
@@ -45,7 +47,7 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
         ).startSessionFromWorkoutDay(dayId);
       resume(session.id);
     } catch {
-      retry();
+      setWriteError(true);
     } finally {
       setStarting(false);
     }
@@ -84,6 +86,12 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
       <AppText accessibilityRole="header" variant="title">
         {appStrings.workout.title}
       </AppText>
+
+      {writeError ? (
+        <AppText accessibilityLiveRegion="polite" selectable tone="danger">
+          {appStrings.workout.writeError}
+        </AppText>
+      ) : null}
 
       {data.activeSession ? (
         <ActiveSessionCard
