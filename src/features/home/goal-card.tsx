@@ -4,40 +4,30 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { ProgressBar } from '@/components/progress-bar';
 import { appStrings } from '@/constants/strings';
-import { calculateGoalProgress } from '@/features/home/calculate-goal-progress';
-import { formatProgress, formatWeight } from '@/features/home/home-formatters';
-import type { HomePreviewData } from '@/features/home/home-preview-data';
+import type { BodyProfile, BodyProgress } from '@/features/body/domain/models';
+import { formatBodyValue } from '@/features/body/utils/body-values';
 import { theme } from '@/theme/tokens';
 
 type GoalCardProps = {
-  goal: HomePreviewData['goal'];
+  profile: BodyProfile;
+  progress: BodyProgress;
 };
 
-export function GoalCard({ goal }: GoalCardProps) {
-  const progress = calculateGoalProgress(
-    goal.startingWeight,
-    goal.currentWeight,
-    goal.targetWeight
-  );
-  const remainingWeight = Math.max(goal.currentWeight - goal.targetWeight, 0);
-  const progressLabel = `${formatProgress(progress)} ${appStrings.home.goalCompleted}`;
-
+export function GoalCard({ profile, progress }: GoalCardProps) {
+  const progressLabel = `%${progress.progressPercentage} ${appStrings.home.goalCompleted}`;
   const values = [
     {
       label: appStrings.home.startingWeight,
-      value: formatWeight(goal.startingWeight),
+      value: profile.startingWeightKg,
     },
     {
       label: appStrings.home.currentWeight,
-      value: formatWeight(goal.currentWeight),
+      value: progress.currentWeightKg,
     },
-    {
-      label: appStrings.home.targetWeight,
-      value: formatWeight(goal.targetWeight),
-    },
+    { label: appStrings.home.targetWeight, value: profile.targetWeightKg },
     {
       label: appStrings.home.remainingWeight,
-      value: formatWeight(remainingWeight),
+      value: progress.remainingWeightKg,
     },
   ];
 
@@ -48,12 +38,12 @@ export function GoalCard({ goal }: GoalCardProps) {
           {appStrings.home.goalTitle}
         </AppText>
         <AppText selectable tone="primary" variant="bodyStrong">
-          {progressLabel}
+          {progress.targetReached ? appStrings.progress.reached : progressLabel}
         </AppText>
       </View>
       <ProgressBar
         accessibilityLabel={`${appStrings.home.goalTitle}: ${progressLabel}`}
-        progress={progress}
+        progress={progress.progress}
       />
       <View style={styles.values}>
         {values.map((item) => (
@@ -62,7 +52,7 @@ export function GoalCard({ goal }: GoalCardProps) {
               {item.label}
             </AppText>
             <AppText selectable variant="bodyStrong">
-              {item.value}
+              {formatBodyValue(item.value)} kg
             </AppText>
           </View>
         ))}
@@ -72,20 +62,13 @@ export function GoalCard({ goal }: GoalCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: theme.spacing.lg,
-  },
+  card: { gap: theme.spacing.lg },
   header: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
     justifyContent: 'space-between',
-  },
-  values: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.md,
   },
   valueItem: {
     backgroundColor: theme.colors.backgroundElevated,
@@ -95,4 +78,5 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
     padding: theme.spacing.md,
   },
+  values: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md },
 });

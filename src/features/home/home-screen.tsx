@@ -4,17 +4,17 @@ import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
+import { AppButton } from '@/components/app-button';
+import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/section-header';
 import { StatCard } from '@/components/stat-card';
 import { appStrings } from '@/constants/strings';
+import { useBodyOverview } from '@/features/body/hooks/use-body-overview';
+import { formatBodyValue } from '@/features/body/utils/body-values';
 import { AuthEntryCard } from '@/features/home/auth-entry-card';
-import {
-  formatTurkishNumber,
-  formatWeight,
-} from '@/features/home/home-formatters';
-import { homePreviewData } from '@/features/home/home-preview-data';
+import { formatTurkishNumber } from '@/features/home/home-formatters';
 import { GoalCard } from '@/features/home/goal-card';
 import { LastWorkoutCard } from '@/features/home/last-workout-card';
 import { MotivationBanner } from '@/features/home/motivation-banner';
@@ -32,6 +32,7 @@ export function HomeScreen() {
   const { width } = useWindowDimensions();
   const compact = width < theme.layout.compactWidth;
   const { data, error, loading, retry } = useWorkoutOverview();
+  const bodyOverview = useBodyOverview();
   const [starting, setStarting] = useState(false);
   const latestWorkout = data.recentSessions[0] ?? null;
   const stats = [
@@ -43,12 +44,16 @@ export function HomeScreen() {
     {
       icon: 'scale-bathroom' as const,
       label: appStrings.home.currentWeight,
-      value: formatWeight(homePreviewData.stats.currentWeight),
+      value: bodyOverview.data.progress
+        ? `${formatBodyValue(bodyOverview.data.progress.currentWeightKg)} kg`
+        : '—',
     },
     {
       icon: 'target' as const,
       label: appStrings.home.target,
-      value: formatWeight(homePreviewData.stats.targetWeight),
+      value: bodyOverview.data.profile
+        ? `${formatBodyValue(bodyOverview.data.profile.targetWeightKg)} kg`
+        : '—',
     },
     {
       icon: 'weight-lifter' as const,
@@ -150,7 +155,36 @@ export function HomeScreen() {
           ))}
         </View>
       </View>
-      <GoalCard goal={homePreviewData.goal} />
+      {bodyOverview.data.profile && bodyOverview.data.progress ? (
+        <GoalCard
+          profile={bodyOverview.data.profile}
+          progress={bodyOverview.data.progress}
+        />
+      ) : (
+        <AppCard style={styles.setupCard} tone="raised">
+          <AppText accessibilityRole="header" variant="heading">
+            {appStrings.progress.setupCtaTitle}
+          </AppText>
+          <AppText selectable tone="muted">
+            {bodyOverview.error
+              ? appStrings.progress.loadError
+              : appStrings.progress.setupCtaDescription}
+          </AppText>
+          <AppButton
+            disabled={bodyOverview.loading}
+            label={
+              bodyOverview.error
+                ? appStrings.progress.retry
+                : appStrings.progress.setupCtaAction
+            }
+            onPress={() =>
+              bodyOverview.error
+                ? bodyOverview.retry()
+                : router.navigate('/progress')
+            }
+          />
+        </AppCard>
+      )}
       <LastWorkoutCard workout={latestWorkout} />
       <MotivationBanner />
     </Screen>
@@ -164,6 +198,7 @@ const styles = StyleSheet.create({
   section: {
     gap: theme.spacing.lg,
   },
+  setupCard: { gap: theme.spacing.lg },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
