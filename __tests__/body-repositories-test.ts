@@ -9,7 +9,116 @@ import {
   BodyProfileError,
 } from '@/features/body/data/body-profile-repository';
 
+class NativeProfileDatabaseDouble {
+  readonly database: SQLiteDatabase;
+  readonly transactionRunAsync = jest.fn(
+    async (source: string, ...params: unknown[]) => this.execute(source, params)
+  );
+  readonly workoutHistory = ['existing-workout'];
+  failInitialMeasurement = false;
+  measurements: Array<{ id: number; weightKg: number }> = [];
+  profile: { startingWeightKg: number; targetWeightKg: number } | null = null;
+
+  constructor() {
+    this.database = {
+      runAsync: jest.fn(() => {
+        throw new Error('Outer database connection must not be used');
+      }),
+      withExclusiveTransactionAsync: jest.fn(async (operation) => {
+        const profileSnapshot = this.profile;
+        const measurementsSnapshot = [...this.measurements];
+        const transaction = {
+          runAsync: this.transactionRunAsync,
+        } as unknown as SQLiteDatabase;
+        try {
+          await operation(transaction);
+        } catch (error) {
+          this.profile = profileSnapshot;
+          this.measurements = measurementsSnapshot;
+          throw error;
+        }
+      }),
+    } as unknown as SQLiteDatabase;
+  }
+
+  private execute(source: string, params: unknown[]) {
+    if (source.includes('INSERT INTO body_profiles')) {
+      if (this.profile) return { changes: 0, lastInsertRowId: 1 };
+      this.profile = {
+        startingWeightKg: params[0] as number,
+        targetWeightKg: params[1] as number,
+      };
+      return { changes: 1, lastInsertRowId: 1 };
+    }
+    if (source.includes('INSERT INTO body_measurements')) {
+      if (this.failInitialMeasurement) {
+        throw Object.assign(new Error('controlled native insert failure'), {
+          code: 'SQLITE_CONSTRAINT',
+        });
+      }
+      const id = this.measurements.length + 1;
+      this.measurements.push({ id, weightKg: params[1] as number });
+      return { changes: 1, lastInsertRowId: id };
+    }
+    throw new Error('Unexpected SQL in native profile database double');
+  }
+}
+
 describe('body repositories', () => {
+  it.each([
+    { starting: 119.6, target: 99.9 },
+    { starting: 110, target: 120 },
+  ])(
+    'creates loss and gain profiles on the exclusive transaction connection',
+    async ({ starting, target }) => {
+      const testDatabase = new NativeProfileDatabaseDouble();
+
+      const result = await createBodyProfileRepository(
+        testDatabase.database
+      ).createProfileWithInitialMeasurement(starting, target);
+
+      expect(result.profile).toMatchObject({
+        startingWeightKg: starting,
+        targetWeightKg: target,
+      });
+      expect(result.measurement.weightKg).toBe(starting);
+      expect(testDatabase.transactionRunAsync).toHaveBeenCalledTimes(2);
+      expect(testDatabase.database.runAsync).not.toHaveBeenCalled();
+      expect(testDatabase.workoutHistory).toEqual(['existing-workout']);
+    }
+  );
+
+  it('rolls back the profile when the native initial-measurement insert fails', async () => {
+    const testDatabase = new NativeProfileDatabaseDouble();
+    testDatabase.failInitialMeasurement = true;
+
+    await expect(
+      createBodyProfileRepository(
+        testDatabase.database
+      ).createProfileWithInitialMeasurement(119.6, 99.9)
+    ).rejects.toMatchObject({
+      cause: expect.objectContaining({ code: 'SQLITE_CONSTRAINT' }),
+      code: 'setup_failed',
+    });
+
+    expect(testDatabase.profile).toBeNull();
+    expect(testDatabase.measurements).toHaveLength(0);
+    expect(testDatabase.workoutHistory).toEqual(['existing-workout']);
+  });
+
+  it('returns a controlled singleton result without duplicate measurements', async () => {
+    const testDatabase = new NativeProfileDatabaseDouble();
+    const repository = createBodyProfileRepository(testDatabase.database);
+
+    await repository.createProfileWithInitialMeasurement(119.6, 99.9);
+    await expect(
+      repository.createProfileWithInitialMeasurement(119.6, 99.9)
+    ).rejects.toEqual(new BodyProfileError('profile_exists'));
+
+    expect(testDatabase.measurements).toHaveLength(1);
+    expect(testDatabase.transactionRunAsync).toHaveBeenCalledTimes(3);
+  });
+
   it('creates a singleton profile and its initial measurement transactionally', async () => {
     const transaction = {
       getFirstAsync: jest.fn().mockResolvedValue(null),
