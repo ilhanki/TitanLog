@@ -29,9 +29,12 @@ type InitialMeasurementRow = {
 
 export class BodyProfileError extends Error {
   constructor(
-    readonly code: 'invalid_goal' | 'profile_exists' | 'profile_not_found'
+    readonly code:
+      'invalid_goal' | 'profile_exists' | 'profile_not_found' | 'setup_failed',
+    readonly cause?: unknown
   ) {
     super(code);
+    this.name = 'BodyProfileError';
   }
 }
 
@@ -82,54 +85,62 @@ export function createBodyProfileRepository(database: SQLiteDatabase) {
         measurement: BodyMeasurement;
         profile: BodyProfile;
       } | null = null;
-      await database.withExclusiveTransactionAsync(async (transaction) => {
-        const existing = await transaction.getFirstAsync<ProfileRow>(
-          'SELECT id FROM body_profiles WHERE id = 1'
-        );
-        if (existing) throw new BodyProfileError('profile_exists');
+      try {
+        await database.withExclusiveTransactionAsync(async (transaction) => {
+          const timestamp = new Date().toISOString();
+          const profileResult = await transaction.runAsync(
+            `INSERT INTO body_profiles
+              (id, starting_weight_kg, target_weight_kg, created_at, updated_at)
+             VALUES (1, ?, ?, ?, ?)
+             ON CONFLICT(id) DO NOTHING`,
+            startingWeightKg,
+            targetWeightKg,
+            timestamp,
+            timestamp
+          );
+          if (profileResult.changes === 0) {
+            throw new BodyProfileError('profile_exists');
+          }
+          if (profileResult.changes !== 1) {
+            throw new BodyProfileError('setup_failed');
+          }
 
-        const timestamp = new Date().toISOString();
-        await transaction.runAsync(
-          `INSERT INTO body_profiles
-            (id, starting_weight_kg, target_weight_kg, created_at, updated_at)
-           VALUES (1, ?, ?, ?, ?)`,
-          startingWeightKg,
-          targetWeightKg,
-          timestamp,
-          timestamp
-        );
-        const measurementResult = await transaction.runAsync(
-          `INSERT INTO body_measurements
-            (measured_at, weight_kg, created_at, updated_at)
-           VALUES (?, ?, ?, ?)`,
-          timestamp,
-          startingWeightKg,
-          timestamp,
-          timestamp
-        );
-        result = {
-          measurement: mapInitialMeasurement({
-            chest_cm: null,
-            created_at: timestamp,
-            hip_cm: null,
-            id: measurementResult.lastInsertRowId,
-            measured_at: timestamp,
-            note: null,
-            thigh_cm: null,
-            upper_arm_cm: null,
-            updated_at: timestamp,
-            waist_cm: null,
-            weight_kg: startingWeightKg,
-          }),
-          profile: mapProfile({
-            created_at: timestamp,
-            id: 1,
-            starting_weight_kg: startingWeightKg,
-            target_weight_kg: targetWeightKg,
-            updated_at: timestamp,
-          }),
-        };
-      });
+          const measurementResult = await transaction.runAsync(
+            `INSERT INTO body_measurements
+              (measured_at, weight_kg, created_at, updated_at)
+             VALUES (?, ?, ?, ?)`,
+            timestamp,
+            startingWeightKg,
+            timestamp,
+            timestamp
+          );
+          result = {
+            measurement: mapInitialMeasurement({
+              chest_cm: null,
+              created_at: timestamp,
+              hip_cm: null,
+              id: measurementResult.lastInsertRowId,
+              measured_at: timestamp,
+              note: null,
+              thigh_cm: null,
+              upper_arm_cm: null,
+              updated_at: timestamp,
+              waist_cm: null,
+              weight_kg: startingWeightKg,
+            }),
+            profile: mapProfile({
+              created_at: timestamp,
+              id: 1,
+              starting_weight_kg: startingWeightKg,
+              target_weight_kg: targetWeightKg,
+              updated_at: timestamp,
+            }),
+          };
+        });
+      } catch (error) {
+        if (error instanceof BodyProfileError) throw error;
+        throw new BodyProfileError('setup_failed', error);
+      }
       if (!result) throw new BodyProfileError('invalid_goal');
       return result;
     },

@@ -40,7 +40,7 @@ describe('body repositories', () => {
   it('prevents duplicate profile setup and equal goals', async () => {
     const transaction = {
       getFirstAsync: jest.fn().mockResolvedValue({ id: 1 }),
-      runAsync: jest.fn(),
+      runAsync: jest.fn().mockResolvedValue({ changes: 0, lastInsertRowId: 1 }),
     };
     const database = {
       withExclusiveTransactionAsync: jest.fn(async (operation) =>
@@ -55,7 +55,7 @@ describe('body repositories', () => {
     await expect(
       repository.createProfileWithInitialMeasurement(80, 80)
     ).rejects.toEqual(new BodyProfileError('invalid_goal'));
-    expect(transaction.runAsync).not.toHaveBeenCalled();
+    expect(transaction.runAsync).toHaveBeenCalledTimes(1);
   });
 
   it('propagates transaction failure without completing profile setup', async () => {
@@ -77,7 +77,12 @@ describe('body repositories', () => {
         100,
         80
       )
-    ).rejects.toThrow('controlled transaction failure');
+    ).rejects.toMatchObject({
+      cause: expect.objectContaining({
+        message: 'controlled transaction failure',
+      }),
+      code: 'setup_failed',
+    });
     expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
   });
 

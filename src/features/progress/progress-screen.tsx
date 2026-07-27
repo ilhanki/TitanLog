@@ -1,6 +1,6 @@
 import { useRouter, type Href } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -12,7 +12,10 @@ import { ProgressBar } from '@/components/progress-bar';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/section-header';
 import { appStrings } from '@/constants/strings';
-import { createBodyProfileRepository } from '@/features/body/data/body-profile-repository';
+import {
+  BodyProfileError,
+  createBodyProfileRepository,
+} from '@/features/body/data/body-profile-repository';
 import type { BodyMeasurement } from '@/features/body/domain/models';
 import { useBodyOverview } from '@/features/body/hooks/use-body-overview';
 import {
@@ -84,31 +87,80 @@ export function ProgressScreen() {
   const { data, error, loading, retry } = useBodyOverview();
   const [startingWeight, setStartingWeight] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
+  const [startingError, setStartingError] = useState<string | null>(null);
+  const [targetError, setTargetError] = useState<string | null>(null);
+  const [relationshipError, setRelationshipError] = useState<string | null>(
+    null
+  );
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const submissionPending = useRef(false);
+
+  const logSetupFailure = (error: unknown) => {
+    if (!__DEV__) return;
+    const diagnosticError =
+      error instanceof BodyProfileError && error.cause ? error.cause : error;
+    const record =
+      typeof diagnosticError === 'object' && diagnosticError !== null
+        ? (diagnosticError as Record<string, unknown>)
+        : null;
+    const message =
+      diagnosticError instanceof Error
+        ? diagnosticError.message
+            .replace(/(['"]).*?\1/g, '$1[redacted]$1')
+            .replace(/\b\d+(?:[.,]\d+)?\b/g, '[number]')
+            .slice(0, 240)
+        : 'Unknown error';
+    console.error('[BodyProfileSetup] Profile creation failed', {
+      code:
+        typeof record?.code === 'string' || typeof record?.code === 'number'
+          ? String(record.code)
+          : undefined,
+      message,
+      name:
+        diagnosticError instanceof Error
+          ? diagnosticError.name
+          : 'UnknownError',
+      operation: 'createProfileWithInitialMeasurement',
+    });
+  };
 
   const saveProfile = async () => {
+    if (submissionPending.current) return;
+    setStartingError(null);
+    setTargetError(null);
+    setRelationshipError(null);
+    setSubmissionError(null);
     const starting = parseBodyWeight(startingWeight);
     const target = parseBodyWeight(targetWeight);
+    if (starting === null) setStartingError(appStrings.progress.invalidWeight);
+    if (target === null) setTargetError(appStrings.progress.invalidWeight);
     if (starting === null || target === null) {
-      setFormError(appStrings.progress.invalidWeight);
       return;
     }
     if (starting === target) {
-      setFormError(appStrings.progress.equalGoal);
+      setRelationshipError(appStrings.progress.equalGoal);
       return;
     }
-    if (pending) return;
+    submissionPending.current = true;
     setPending(true);
-    setFormError(null);
     try {
       await createBodyProfileRepository(
         database
       ).createProfileWithInitialMeasurement(starting, target);
       retry();
-    } catch {
-      setFormError(appStrings.progress.saveError);
+    } catch (error) {
+      if (
+        error instanceof BodyProfileError &&
+        error.code === 'profile_exists'
+      ) {
+        retry();
+      } else {
+        logSetupFailure(error);
+        setSubmissionError(appStrings.progress.saveError);
+      }
     } finally {
+      submissionPending.current = false;
       setPending(false);
     }
   };
@@ -153,7 +205,7 @@ export function ProgressScreen() {
           </AppText>
           <AppTextInput
             editable={!pending}
-            error={formError ?? undefined}
+            error={startingError ?? undefined}
             inputMode="decimal"
             keyboardType="decimal-pad"
             label={appStrings.progress.startingWeight}
@@ -162,6 +214,7 @@ export function ProgressScreen() {
           />
           <AppTextInput
             editable={!pending}
+            error={targetError ?? undefined}
             inputMode="decimal"
             keyboardType="decimal-pad"
             label={appStrings.progress.targetWeight}
@@ -173,6 +226,17 @@ export function ProgressScreen() {
             label={appStrings.progress.saveGoal}
             onPress={() => void saveProfile()}
           />
+          {relationshipError || submissionError ? (
+            <AppText
+              accessibilityLiveRegion="polite"
+              accessibilityRole="alert"
+              selectable
+              tone="danger"
+              variant="caption"
+            >
+              {relationshipError ?? submissionError}
+            </AppText>
+          ) : null}
         </AppCard>
       </Screen>
     );

@@ -178,7 +178,7 @@ export const appStrings = {
     invalidMeasurement: '20 ile 300 cm arasında geçerli bir değer gir.',
     equalGoal: 'Başlangıç ve hedef kilosu farklı olmalıdır.',
     noteTooLong: 'Not en fazla 250 karakter olabilir.',
-    saveError: 'Bilgiler kaydedilemedi. Tekrar dene.',
+    saveError: 'Bilgiler kaydedilemedi. Lütfen tekrar dene.',
     loadError: 'Vücut gelişimi verilerine ulaşılamadı.',
     retry: 'Tekrar Dene',
     loading: 'Vücut gelişimi verilerin yükleniyor.',
