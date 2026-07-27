@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/empty-state';
 import { ProgressBar } from '@/components/progress-bar';
 import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
+import { CompletedSetEditor } from '@/features/workouts/components/completed-set-editor';
 import {
   WorkoutExerciseRow,
   workoutTableColumns,
@@ -50,6 +51,7 @@ export function ActiveWorkoutScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sessionPending, setSessionPending] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [editorExerciseId, setEditorExerciseId] = useState<number | null>(null);
   const sessionPendingRef = useRef(false);
 
   const refreshSession = async () => {
@@ -200,6 +202,9 @@ export function ActiveWorkoutScreen() {
     0
   );
   const progress = totalSets > 0 ? metrics.completedSetCount / totalSets : 0;
+  const editorExercise =
+    session.exercises.find((exercise) => exercise.id === editorExerciseId) ??
+    null;
 
   return (
     <Screen
@@ -297,10 +302,29 @@ export function ActiveWorkoutScreen() {
               );
               await refreshSession();
             }}
-            onOpenEditor={() => undefined}
+            onOpenEditor={() => setEditorExerciseId(exercise.id)}
           />
         ))}
       </View>
+      <CompletedSetEditor
+        exercise={editorExercise}
+        onAddSet={async () => {
+          if (!editorExercise) return;
+          await repository.addSet(editorExercise.id);
+          await refreshSession();
+        }}
+        onClose={() => setEditorExerciseId(null)}
+        onRemoveSet={async () => {
+          if (!editorExercise) return;
+          await repository.removeLastIncompleteSet(editorExercise.id);
+          await refreshSession();
+        }}
+        onSaveSet={async (setId, weightKg, actualReps) => {
+          await repository.updateSetValues(setId, weightKg, actualReps);
+          await refreshSession();
+        }}
+        visible={editorExercise !== null}
+      />
     </Screen>
   );
 }

@@ -16,6 +16,9 @@ const mockGetWorkoutDayDetails = jest.fn();
 const mockGetActiveSession = jest.fn();
 const mockGetSessionDetails = jest.fn();
 const mockStartSession = jest.fn();
+const mockAddSet = jest.fn();
+const mockRemoveSet = jest.fn();
+const mockUpdateSetValues = jest.fn();
 const mockUseWorkoutOverview = jest.fn();
 let mockLocalParams = { dayId: '1', sessionId: '9' };
 
@@ -119,16 +122,16 @@ jest.mock('@/features/workouts/data/workout-session-repository', () => {
   return {
     WorkoutSessionError: MockWorkoutSessionError,
     createWorkoutSessionRepository: () => ({
-      addSet: jest.fn(),
+      addSet: mockAddSet,
       cancelSession: jest.fn(),
       completeSetAndPrefillNext: jest.fn(),
       completeSession: jest.fn(),
       getActiveSession: mockGetActiveSession,
       getSessionDetails: mockGetSessionDetails,
-      removeLastIncompleteSet: jest.fn(),
+      removeLastIncompleteSet: mockRemoveSet,
       startSessionFromWorkoutDay: mockStartSession,
       toggleSetCompletion: jest.fn(),
-      updateSetValues: jest.fn(),
+      updateSetValues: mockUpdateSetValues,
     }),
   };
 });
@@ -208,6 +211,62 @@ describe('workout screens', () => {
     await waitFor(() => {
       expect(getByText(appStrings.workout.invalidSet)).toBeTruthy();
     });
+  });
+
+  it('opens the compact editor and preserves completed status while editing', async () => {
+    const sessionWithCompletedSet = {
+      ...activeSession,
+      exercises: [
+        {
+          ...activeSession.exercises[0]!,
+          sets: [
+            {
+              ...activeSession.exercises[0]!.sets[0]!,
+              completedAt: '2026-07-31T10:30:00.000Z',
+              isCompleted: true,
+            },
+            {
+              ...activeSession.exercises[0]!.sets[0]!,
+              id: 32,
+              setNumber: 2,
+            },
+          ],
+        },
+      ],
+    };
+    mockGetSessionDetails.mockResolvedValue(sessionWithCompletedSet);
+    const { getByLabelText, getByRole, getByText } = await render(
+      <ActiveWorkoutScreen />
+    );
+
+    await waitFor(() => {
+      expect(getByText('1/2')).toBeTruthy();
+    });
+    await fireEvent.press(
+      getByRole('button', {
+        name: `Dumbbell Curl: 1/2. ${appStrings.workout.editSets}`,
+      })
+    );
+
+    expect(getByText(appStrings.workout.setEditorTitle)).toBeTruthy();
+    await fireEvent.changeText(
+      getByLabelText('Dumbbell Curl Set 1 Kilo (kg)'),
+      '18,5'
+    );
+    await fireEvent.changeText(
+      getByLabelText('Dumbbell Curl Set 1 Tekrar'),
+      '10'
+    );
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.workout.saveSet })
+    );
+
+    await waitFor(() => {
+      expect(mockUpdateSetValues).toHaveBeenCalledWith(31, 18.5, 10);
+    });
+    expect(sessionWithCompletedSet.exercises[0]!.sets[0]!.isCompleted).toBe(
+      true
+    );
   });
 
   it('resumes the existing active session without starting another', async () => {
