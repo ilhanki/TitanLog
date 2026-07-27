@@ -61,7 +61,7 @@ describe('default workout plan seed', () => {
     expect(
       defaultWorkoutPlanSeed.days.every((day) =>
         day.exercises.every(
-          (exercise) => exercise.setCount === 3 && exercise.targetReps === 10
+          (exercise) => exercise.setCount === 3 && exercise.targetReps === 12
         )
       )
     ).toBe(true);

@@ -14,7 +14,7 @@ const activeSessionRow = {
 
 const dayExerciseRow = {
   default_set_count: 3,
-  default_target_reps: 10,
+  default_target_reps: 12,
   default_weight_kg: 17.5,
   exercise_id: 2,
   muscle_group: 'Biceps',
@@ -60,11 +60,7 @@ describe('workout session repository', () => {
     expect(session.id).toBe(10);
     expect(transaction.runAsync).toHaveBeenCalledTimes(5);
     expect(transaction.runAsync.mock.calls[2]?.slice(1, 6)).toEqual([
-      20,
-      1,
-      10,
-      null,
-      17.5,
+      20, 1, 12, 12, 17.5,
     ]);
   });
 

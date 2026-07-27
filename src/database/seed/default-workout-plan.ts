@@ -19,7 +19,7 @@ export type DefaultWorkoutDaySeed = {
 };
 
 const DEFAULT_SET_COUNT = 3;
-const DEFAULT_TARGET_REPS = 10;
+const DEFAULT_TARGET_REPS = 12;
 
 function exercise(
   name: string,

@@ -239,7 +239,7 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
               snapshot.lastInsertRowId,
               setNumber,
               exercise.default_target_reps,
-              null,
+              exercise.default_target_reps,
               exercise.default_weight_kg,
               timestamp,
               timestamp
@@ -329,7 +329,7 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
           sessionExerciseId,
           lastSet.set_number + 1,
           lastSet.target_reps,
-          null,
+          lastSet.actual_reps ?? lastSet.target_reps,
           lastSet.weight_kg,
           timestamp,
           timestamp
