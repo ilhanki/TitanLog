@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { appStrings } from '@/constants/strings';
-import { WorkoutSetRow } from '@/features/workouts/components/workout-set-row';
+import { WorkoutExerciseRow } from '@/features/workouts/components/workout-exercise-row';
 import { ActiveWorkoutScreen } from '@/features/workouts/screens/active-workout-screen';
 import { WorkoutDayScreen } from '@/features/workouts/screens/workout-day-screen';
 import { WorkoutScreen } from '@/features/workouts/screens/workout-screen';
@@ -54,12 +54,12 @@ const activeSession = {
       name: 'Dumbbell Curl',
       sets: [
         {
-          actualReps: null,
+          actualReps: 12,
           completedAt: null,
           id: 31,
           isCompleted: false,
           setNumber: 1,
-          targetReps: 10,
+          targetReps: 12,
           weightKg: 17.5,
         },
       ],
@@ -121,6 +121,7 @@ jest.mock('@/features/workouts/data/workout-session-repository', () => {
     createWorkoutSessionRepository: () => ({
       addSet: jest.fn(),
       cancelSession: jest.fn(),
+      completeSetAndPrefillNext: jest.fn(),
       completeSession: jest.fn(),
       getActiveSession: mockGetActiveSession,
       getSessionDetails: mockGetSessionDetails,
@@ -174,23 +175,34 @@ describe('workout screens', () => {
     const { getByLabelText } = await render(<ActiveWorkoutScreen />);
 
     await waitFor(() => {
-      expect(getByLabelText(appStrings.workout.weightLabel)).toBeTruthy();
-      expect(getByLabelText(appStrings.workout.repetitionLabel)).toBeTruthy();
+      expect(
+        getByLabelText(`Dumbbell Curl ${appStrings.workout.weightLabel}`)
+      ).toBeTruthy();
+      expect(
+        getByLabelText(`Dumbbell Curl ${appStrings.workout.repetitionLabel}`)
+      ).toBeTruthy();
     });
   });
 
   it('shows a Turkish validation message for an incomplete set', async () => {
     const { getByRole, getByText } = await render(
-      <WorkoutSetRow
-        disabled={false}
-        onSave={jest.fn()}
-        onToggle={jest.fn()}
-        workoutSet={activeSession.exercises[0]!.sets[0]!}
+      <WorkoutExerciseRow
+        exercise={{
+          ...activeSession.exercises[0]!,
+          sets: [
+            {
+              ...activeSession.exercises[0]!.sets[0]!,
+              actualReps: null,
+            },
+          ],
+        }}
+        onComplete={jest.fn()}
+        onOpenEditor={jest.fn()}
       />
     );
 
-    fireEvent.press(
-      getByRole('button', { name: appStrings.workout.markComplete })
+    await fireEvent.press(
+      getByRole('button', { name: 'Dumbbell Curl setini tamamla' })
     );
 
     await waitFor(() => {

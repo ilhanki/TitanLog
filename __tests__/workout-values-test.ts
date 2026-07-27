@@ -18,13 +18,14 @@ describe('workout value helpers', () => {
     expect(parseWeightInput(' 12,5 ')).toBe(12.5);
     expect(parseWeightInput('12.50')).toBe(12.5);
     expect(parseWeightInput('2000')).toBe(2000);
+    expect(parseWeightInput('0')).toBeNull();
     expect(parseWeightInput('-1')).toBeNull();
     expect(parseWeightInput('12,555')).toBeNull();
     expect(parseWeightInput('2000.01')).toBeNull();
   });
 
   it('accepts only bounded whole-number repetitions', () => {
-    expect(parseRepetitionInput('0')).toBe(0);
+    expect(parseRepetitionInput('0')).toBeNull();
     expect(parseRepetitionInput('12')).toBe(12);
     expect(parseRepetitionInput('1000')).toBe(1000);
     expect(parseRepetitionInput('-1')).toBeNull();
@@ -38,7 +39,7 @@ describe('workout value helpers', () => {
   });
 
   it('requires a positive repetition count before a set can complete', () => {
-    expect(canCompleteSet({ actualReps: 10, weightKg: 0 })).toBe(true);
+    expect(canCompleteSet({ actualReps: 10, weightKg: 0 })).toBe(false);
     expect(canCompleteSet({ actualReps: 0, weightKg: 20 })).toBe(false);
     expect(canCompleteSet({ actualReps: null, weightKg: 20 })).toBe(false);
   });

@@ -13,7 +13,7 @@ export function parseWeightInput(value: string): number | null {
   if (!/^\d+(\.\d{0,2})?$/.test(normalized)) return null;
 
   const weight = Number(normalized);
-  if (!Number.isFinite(weight) || weight < 0 || weight > MAX_WEIGHT_KG) {
+  if (!Number.isFinite(weight) || weight <= 0 || weight > MAX_WEIGHT_KG) {
     return null;
   }
 
@@ -27,7 +27,7 @@ export function parseRepetitionInput(value: string): number | null {
   const repetitions = Number(normalized);
   if (
     !Number.isSafeInteger(repetitions) ||
-    repetitions < 0 ||
+    repetitions <= 0 ||
     repetitions > MAX_REPETITIONS
   ) {
     return null;
@@ -49,7 +49,7 @@ export function canCompleteSet(
     workoutSet.actualReps !== null &&
     workoutSet.actualReps > 0 &&
     Number.isFinite(workoutSet.weightKg) &&
-    workoutSet.weightKg >= 0
+    workoutSet.weightKg > 0
   );
 }
 

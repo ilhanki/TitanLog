@@ -87,6 +87,108 @@ describe('workout session repository', () => {
     expect(transaction.runAsync).not.toHaveBeenCalled();
   });
 
+  it('completes one set and prefills the next set atomically', async () => {
+    const transaction = {
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({
+          actual_reps: 12,
+          completed_at: null,
+          id: 30,
+          is_completed: 0,
+          session_exercise_id: 20,
+          set_number: 1,
+          target_reps: 12,
+          weight_kg: 50,
+        })
+        .mockResolvedValueOnce({ id: 31 }),
+      runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
+    };
+    const database = createDatabase({
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await createWorkoutSessionRepository(database).completeSetAndPrefillNext(
+      30,
+      52.5,
+      10
+    );
+
+    expect(transaction.runAsync).toHaveBeenCalledTimes(2);
+    expect(transaction.runAsync).toHaveBeenLastCalledWith(
+      expect.stringContaining('SET weight_kg = ?, actual_reps = ?'),
+      52.5,
+      10,
+      expect.any(String),
+      31
+    );
+  });
+
+  it('rejects a repeated completion without advancing another set', async () => {
+    const transaction = {
+      getFirstAsync: jest.fn().mockResolvedValue({
+        actual_reps: 12,
+        completed_at: '2026-07-31T10:30:00.000Z',
+        id: 30,
+        is_completed: 1,
+        session_exercise_id: 20,
+        set_number: 1,
+        target_reps: 12,
+        weight_kg: 50,
+      }),
+      runAsync: jest.fn(),
+    };
+    const database = createDatabase({
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await expect(
+      createWorkoutSessionRepository(database).completeSetAndPrefillNext(
+        30,
+        50,
+        12
+      )
+    ).rejects.toMatchObject({ code: 'set_already_completed' });
+    expect(transaction.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('copies the final set values when adding one set', async () => {
+    const transaction = {
+      getFirstAsync: jest.fn().mockResolvedValue({
+        actual_reps: 10,
+        completed_at: null,
+        id: 32,
+        is_completed: 0,
+        set_number: 3,
+        target_reps: 12,
+        weight_kg: 52.5,
+      }),
+      runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
+    };
+    const database = createDatabase({
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await createWorkoutSessionRepository(database).addSet(20);
+
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workout_sets'),
+      20,
+      4,
+      12,
+      10,
+      52.5,
+      expect.any(String),
+      expect.any(String)
+    );
+  });
+
   it('completes a session only after a completed set and returns real metrics', async () => {
     const transaction = {
       getFirstAsync: jest.fn().mockResolvedValue({ count: 1 }),

@@ -42,6 +42,8 @@ type SetRow = {
   weight_kg: number;
 };
 
+type ActiveSetRow = SetRow & { session_exercise_id: number };
+
 type DayExerciseRow = {
   default_set_count: number;
   default_target_reps: number;
@@ -59,6 +61,7 @@ export type WorkoutSessionErrorCode =
   | 'invalid_set'
   | 'no_completed_sets'
   | 'session_not_active'
+  | 'set_already_completed'
   | 'set_not_removable';
 
 export class WorkoutSessionError extends Error {
@@ -262,7 +265,7 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
       actualReps: number | null
     ): Promise<void> {
       const timestamp = new Date().toISOString();
-      await database.runAsync(
+      const result = await database.runAsync(
         `UPDATE workout_sets
          SET weight_kg = ?, actual_reps = ?, updated_at = ?
          WHERE id = ?
@@ -276,6 +279,74 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
         timestamp,
         setId
       );
+      if (result.changes !== 1) {
+        throw new WorkoutSessionError('session_not_active');
+      }
+    },
+
+    async completeSetAndPrefillNext(
+      setId: number,
+      weightKg: number,
+      actualReps: number
+    ): Promise<void> {
+      if (!canCompleteSet({ actualReps, weightKg })) {
+        throw new WorkoutSessionError('invalid_set');
+      }
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        const row = await transaction.getFirstAsync<ActiveSetRow>(
+          `SELECT ws.id, ws.session_exercise_id, ws.set_number,
+                  ws.target_reps, ws.actual_reps, ws.weight_kg,
+                  ws.is_completed, ws.completed_at
+           FROM workout_sets AS ws
+           JOIN workout_session_exercises AS wse
+             ON wse.id = ws.session_exercise_id
+           JOIN workout_sessions AS session ON session.id = wse.session_id
+           WHERE ws.id = ? AND session.status = 'active'`,
+          setId
+        );
+        if (!row) throw new WorkoutSessionError('session_not_active');
+        if (row.is_completed === 1) {
+          throw new WorkoutSessionError('set_already_completed');
+        }
+
+        const timestamp = new Date().toISOString();
+        const result = await transaction.runAsync(
+          `UPDATE workout_sets
+           SET weight_kg = ?, actual_reps = ?, is_completed = 1,
+               completed_at = ?, updated_at = ?
+           WHERE id = ? AND is_completed = 0`,
+          weightKg,
+          actualReps,
+          timestamp,
+          timestamp,
+          setId
+        );
+        if (result.changes !== 1) {
+          throw new WorkoutSessionError('set_already_completed');
+        }
+
+        const nextSet = await transaction.getFirstAsync<{ id: number }>(
+          `SELECT id FROM workout_sets
+           WHERE session_exercise_id = ?
+             AND set_number > ?
+             AND is_completed = 0
+           ORDER BY set_number
+           LIMIT 1`,
+          row.session_exercise_id,
+          row.set_number
+        );
+        if (nextSet) {
+          await transaction.runAsync(
+            `UPDATE workout_sets
+             SET weight_kg = ?, actual_reps = ?, updated_at = ?
+             WHERE id = ? AND is_completed = 0`,
+            weightKg,
+            actualReps,
+            timestamp,
+            nextSet.id
+          );
+        }
+      });
     },
 
     async toggleSetCompletion(setId: number): Promise<void> {
