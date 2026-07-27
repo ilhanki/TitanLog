@@ -156,6 +156,25 @@ describe('workout session repository', () => {
     expect(transaction.runAsync).not.toHaveBeenCalled();
   });
 
+  it('edits set values without changing completed status', async () => {
+    const runAsync = jest.fn().mockResolvedValue({ changes: 1 });
+    const database = createDatabase({ runAsync });
+
+    await createWorkoutSessionRepository(database).updateSetValues(
+      30,
+      52.5,
+      10
+    );
+
+    expect(runAsync).toHaveBeenCalledWith(
+      expect.not.stringMatching(/is_completed|completed_at/),
+      52.5,
+      10,
+      expect.any(String),
+      30
+    );
+  });
+
   it('copies the final set values when adding one set', async () => {
     const transaction = {
       getFirstAsync: jest.fn().mockResolvedValue({

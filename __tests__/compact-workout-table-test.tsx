@@ -188,6 +188,22 @@ describe('compact workout table', () => {
     );
   });
 
+  it('allows exercises to be completed in any order', async () => {
+    const { getAllByText, getByLabelText, getByText } = await render(
+      <View>
+        <StatefulExerciseRow exercise={createExercise(1, 'Lat Pulldown')} />
+        <StatefulExerciseRow exercise={createExercise(2, 'Low Row')} />
+      </View>
+    );
+
+    await fireEvent.press(getByLabelText('Low Row setini tamamla'));
+    await waitFor(() => expect(getByText('1/3')).toBeTruthy());
+    expect(getByText('0/3')).toBeTruthy();
+
+    await fireEvent.press(getByLabelText('Lat Pulldown setini tamamla'));
+    await waitFor(() => expect(getAllByText('1/3')).toHaveLength(2));
+  });
+
   it('opens a flat editor with completed, add, and safe-remove actions', async () => {
     const exercise = createExercise(1, 'Lat Pulldown', {
       sets: [
