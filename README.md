@@ -9,6 +9,15 @@ TitanLog, antrenman ve fiziksel gelişim takibini tek bir Android öncelikli mob
 
 ## Proje durumu
 
+### Sprint 4 — Kompakt antrenman tablosu
+
+- Düşük parlaklıklı siyah/kömür yüzeyler ve ince ayırıcılarla sadeleştirilmiş antrenman ekranları
+- Bütün egzersizleri aynı anda gösteren, egzersiz başına tek kalıcı satırlı aktif antrenman tablosu
+- Önceden doldurulmuş ve düzenlenebilir kilo/tekrar alanları, canlı set sayacı ve satır içi tamamlama
+- Tamamlanan egzersizi yerinde tutan, yalnızca işlem yapılan satırı bekleten hızlı set akışı
+- Tamamlanan setleri düzenleyen; değer devralarak set ekleyen ve yalnızca son tamamlanmamış seti kaldıran kompakt düzenleyici
+- Uygulama yeniden açıldığında aktif oturumun, sayaçların ve sıradaki set değerlerinin geri yüklenmesi
+
 ### Sprint 3 — Vücut gelişimi ve ölçüm geçmişi
 
 - Kişisel değer seed etmeden yerel başlangıç ve hedef kilo kurulumu
@@ -39,7 +48,7 @@ Sprint 1'de eklenen dört sekmeli Expo Router gezinmesi, Türkçe ana panel, UI-
 
 ## Yerel veritabanı
 
-Veritabanı adı `titanlog.db`, güncel şema sürümü `2`'dir. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve ardından varsayılan programı seed eder. Var olan v1 kurulumlarında yalnızca migration v2 uygulanır ve antrenman verileri korunur. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
+Veritabanı adı `titanlog.db`, güncel şema sürümü `3`'tür. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve ardından varsayılan programı seed eder. Var olan v2 kurulumlarında yalnızca migration v3 uygulanır; gelecekte oluşturulacak oturumların program varsayılanı 12 tekrara yükseltilirken geçmiş, iptal edilmiş ve aktif oturum setleri ile bütün vücut verileri korunur. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
 
 Şema şu tabloları içerir:
 
@@ -67,13 +76,15 @@ Veritabanı adı `titanlog.db`, güncel şema sürümü `2`'dir. Uygulama kökü
 | Çarşamba ve Pazar     | Bacak + Omuz    | 7        |
 | Cuma                  | Dinlenme        | —        |
 
-Her egzersiz 3 set ve 10 hedef tekrar ile başlar. Kilo değerleri kilogram olarak sayısal saklanır. Dambıl egzersizlerindeki değer `her el` olarak açıkça gösterilir. Sprint 2 hacim hesabı, girilen her-el kilosunu sessizce ikiyle çarpmaz; tamamlanan setler için `kilo × gerçek tekrar` toplamını kullanır.
+Her egzersiz 3 set ve 12 hedef tekrar ile başlar. Yeni oturumlarda gerçek tekrar alanı da 12 ile önceden doldurulur; bu değer set tamamlanana kadar toplam tekrar veya hacme katılmaz. Kilo değerleri kilogram olarak sayısal saklanır. Dambıl egzersizlerindeki değer `her el` olarak açıkça gösterilir. Hacim hesabı, girilen her-el kilosunu sessizce ikiyle çarpmaz; tamamlanan setler için `kilo × gerçek tekrar` toplamını kullanır.
 
 ## Oturum yaşam döngüsü
 
 Antrenman başlatıldığında program ve egzersizler transaction içinde snapshot'lanır, varsayılan set satırları oluşturulur ve oturum `active` olur. Veritabanı kısıtı ile uygulama kontrolü birlikte ikinci bir aktif oturumu engeller.
 
 Kilo ve tekrar değişiklikleri input düzenlemesi bittiğinde, tamamlama durumu ise düğmeye basıldığında yazılır. Tamamlanan bir set geçerli kilo ve sıfırdan büyük gerçek tekrar gerektirir. Oturumu bitirmek için en az bir tamamlanmış set gerekir. İptal edilen oturum silinmez, normal tamamlanan geçmişine ve spor günü sayısına katılmaz.
+
+Aktif antrenmanda her egzersiz tek satırda kalır. Satır, sıradaki tamamlanmamış setin kilo ve tekrar değerlerini gösterir; tamamlama sonrasında sayaç yerinde güncellenir ve sonraki set son girilen değerleri devralır. Bütün setler tamamlandığında satır kaldırılmaz, tamamlandı durumu metin ve simgeyle belirtilir. Set sayacına dokunulduğunda açılan kompakt düzenleyicide tamamlanan setler değiştirilebilir, son setin değerlerini devralan yeni bir set eklenebilir ve yalnızca son tamamlanmamış set güvenle kaldırılabilir.
 
 ## Vücut profili ve ölçümler
 
@@ -107,7 +118,7 @@ Vücut profili yoksa hiçbir örnek kişisel ölçüm gösterilmez; kullanıcı 
 
 ## Android ve web durumu
 
-Android Expo Go birincil çalışma hedefidir. Sprint 2 antrenman akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 3 vücut profili ve ölçüm akışları için ayrıca fiziksel cihaz kontrolü gerekir.
+Android Expo Go birincil çalışma hedefidir. Sprint 2 ve Sprint 3 akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 4 kompakt antrenman tablosu, klavye davranışı ve güvenli alan uyumu için fiziksel cihaz doğrulaması henüz yapılmadı.
 
 Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandırmasıyla üretilir. Expo SQLite'ın web desteği alfa durumundadır; tarayıcıda kalıcılık çalışma zamanı doğrulanmadığından web veri güvenilirliği kaynağı değildir ve sahte web persistence katmanı kullanılmaz.
 
@@ -184,12 +195,12 @@ Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilirsiniz. iOS komutu macOS
 
 TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kullanır.
 
-- Paket ön sürümü: `0.1.0-alpha.4`
+- Paket ön sürümü: `0.1.0-alpha.5`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
-- Yayımlanan Sprint 2 tag'i: `v0.1.0-alpha.3`
-- Planlanan Sprint 3 tag'i: `v0.1.0-alpha.4`
+- Yayımlanan Sprint 3 tag'i: `v0.1.0-alpha.4`
+- Planlanan Sprint 4 tag'i: `v0.1.0-alpha.5`
 
 Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşturulmaz.
 
@@ -198,8 +209,9 @@ Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşt
 - **Sprint 0 — Proje temeli:** tamamlandı
 - **Sprint 1 — Gezinme ve ana deneyim:** tamamlandı
 - **Sprint 2 — Antrenman alanı ve yerel kalıcılık:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 3 — Vücut gelişimi ve ölçüm geçmişi:** yerel olarak uygulandı; fiziksel cihaz doğrulaması bekliyor
-- **Önerilen Sprint 4 — Antrenman geçmişi detayı:** tamamlanan oturumların salt-okunur egzersiz ve set dökümü
+- **Sprint 3 — Vücut gelişimi ve ölçüm geçmişi:** yayımlandı ve fiziksel cihazda doğrulandı
+- **Sprint 4 — Kompakt antrenman tablosu:** yerel olarak uygulandı; fiziksel cihaz doğrulaması bekliyor
+- **Önerilen Sprint 5 — Antrenman geçmişi detayı:** tamamlanan oturumların salt-okunur egzersiz ve set dökümü
 
 ## Lisans
 
