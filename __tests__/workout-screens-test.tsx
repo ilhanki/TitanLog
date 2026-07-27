@@ -30,7 +30,7 @@ const workoutDay = {
       name: 'Dumbbell Curl',
       setCount: 3,
       sortOrder: 1,
-      targetReps: 10,
+      targetReps: 12,
       weightKg: 17.5,
       weightMode: 'per_hand' as const,
     },
@@ -39,6 +39,7 @@ const workoutDay = {
   name: 'Sırt + Biceps',
   scheduleWeekdays: [1, 4],
   sortOrder: 1,
+  totalSetCount: 3,
   subtitle: 'Sırt ve kol',
 };
 
@@ -165,7 +166,7 @@ describe('workout screens', () => {
 
     await waitFor(() => {
       expect(getByText('Dumbbell Curl')).toBeTruthy();
-      expect(getByText(/3 × 10 · 17,5 kg/)).toBeTruthy();
+      expect(getByText('12 tk · el')).toBeTruthy();
     });
   });
 

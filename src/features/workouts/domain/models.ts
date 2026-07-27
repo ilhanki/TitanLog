@@ -21,6 +21,7 @@ export type WorkoutDay = {
   scheduleWeekdays: readonly number[];
   sortOrder: number;
   subtitle: string;
+  totalSetCount: number;
 };
 
 export type WorkoutDayDetails = WorkoutDay & {

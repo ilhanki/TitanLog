@@ -23,7 +23,7 @@ type DayRow = {
 };
 
 type ScheduleRow = { iso_weekday: number };
-type ExercisePreviewRow = { name: string };
+type ExercisePreviewRow = { default_set_count: number; name: string };
 
 type ExerciseRow = {
   default_set_count: number;
@@ -58,7 +58,7 @@ async function mapDay(
   const [scheduleWeekdays, exerciseRows] = await Promise.all([
     getDaySchedules(database, row.id),
     database.getAllAsync<ExercisePreviewRow>(
-      `SELECT e.name
+      `SELECT e.name, wde.default_set_count
        FROM workout_day_exercises AS wde
        JOIN exercises AS e ON e.id = wde.exercise_id
        WHERE wde.workout_day_id = ?
@@ -75,6 +75,10 @@ async function mapDay(
     scheduleWeekdays,
     sortOrder: row.sort_order,
     subtitle: row.subtitle,
+    totalSetCount: exerciseRows.reduce(
+      (total, exercise) => total + exercise.default_set_count,
+      0
+    ),
   };
 }
 

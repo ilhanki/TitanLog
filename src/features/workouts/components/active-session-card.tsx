@@ -1,12 +1,12 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
+import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { appStrings } from '@/constants/strings';
 import type { WorkoutSession } from '@/features/workouts/domain/models';
 import { formatWorkoutTime } from '@/features/workouts/utils/workout-formatters';
 import { calculateSessionMetrics } from '@/features/workouts/utils/workout-values';
+import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
 type ActiveSessionCardProps = {
@@ -25,36 +25,43 @@ export function ActiveSessionCard({
   );
 
   return (
-    <AppCard style={styles.card} tone="accent">
-      <AppText tone="primary" variant="label">
-        {appStrings.workout.activeSession}
-      </AppText>
-      <AppText accessibilityRole="header" variant="heading">
-        {session.workoutName}
-      </AppText>
-      <View style={styles.summary}>
-        <AppText selectable tone="muted">
-          {appStrings.workout.startedAt}: {formatWorkoutTime(session.startedAt)}
+    <Pressable
+      accessibilityHint={`${session.workoutName}, ${metrics.completedSetCount}/${totalSets} ${appStrings.workout.sets}`}
+      accessibilityLabel={appStrings.workout.resumeWorkout}
+      accessibilityRole="button"
+      onPress={onResume}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      <View style={styles.copy}>
+        <AppText tone="primary" variant="label">
+          {appStrings.workout.activeSession}
         </AppText>
-        <AppText selectable tone="muted">
+        <AppText numberOfLines={1} variant="bodyStrong">
+          {session.workoutName}
+        </AppText>
+        <AppText numberOfLines={1} selectable tone="muted" variant="caption">
+          {appStrings.workout.startedAt}: {formatWorkoutTime(session.startedAt)}
+          {' · '}
           {metrics.completedSetCount}/{totalSets} {appStrings.workout.sets}
         </AppText>
       </View>
-      <AppButton
-        icon="play-circle-outline"
-        label={appStrings.workout.resumeWorkout}
-        onPress={onResume}
-      />
-    </AppCard>
+      <AppIcon color={theme.colors.primary} name="play-circle-outline" />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: theme.spacing.md },
-  summary: {
+  copy: { flex: 1, gap: theme.spacing.xs },
+  pressed: { opacity: 0.78 },
+  row: {
+    alignItems: 'center',
+    backgroundColor: workoutTheme.surfaceActive,
+    borderColor: workoutTheme.separator,
+    borderRadius: theme.radii.md,
+    borderWidth: theme.borders.thin,
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: theme.spacing.md,
-    justifyContent: 'space-between',
+    minHeight: theme.layout.touchTarget,
+    padding: theme.spacing.md,
   },
 });

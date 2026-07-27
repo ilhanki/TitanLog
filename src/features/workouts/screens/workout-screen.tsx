@@ -1,10 +1,10 @@
 import { useRouter, type Href } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
+import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
@@ -19,6 +19,7 @@ import {
   formatWorkoutDate,
   formatWorkoutWeekdays,
 } from '@/features/workouts/utils/workout-formatters';
+import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
 type WorkoutScreenProps = { now?: Date };
@@ -29,6 +30,7 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
   const { data, error, loading, retry } = useWorkoutOverview(now);
   const [starting, setStarting] = useState(false);
   const [writeError, setWriteError] = useState(false);
+  const startingRef = useRef(false);
 
   const openDay = (day: WorkoutDay) => {
     router.push(`/workout/day/${day.id}` as Href);
@@ -37,7 +39,8 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
     router.push(`/workout/session/${sessionId}` as Href);
   };
   const start = async (dayId: number) => {
-    if (starting) return;
+    if (startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     setWriteError(false);
     try {
@@ -49,13 +52,14 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
     } catch {
       setWriteError(true);
     } finally {
+      startingRef.current = false;
       setStarting(false);
     }
   };
 
   if (loading) {
     return (
-      <Screen>
+      <Screen backgroundColor={workoutTheme.background}>
         <AppText accessibilityRole="header" variant="title">
           {appStrings.workout.title}
         </AppText>
@@ -70,7 +74,7 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
 
   if (error) {
     return (
-      <Screen>
+      <Screen backgroundColor={workoutTheme.background}>
         <EmptyState
           description={appStrings.workout.loadError}
           icon="alert-circle-outline"
@@ -81,14 +85,21 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
     );
   }
 
+  const scheduled = data.scheduledWorkout;
+
   return (
-    <Screen>
+    <Screen backgroundColor={workoutTheme.background}>
       <AppText accessibilityRole="header" variant="title">
         {appStrings.workout.title}
       </AppText>
 
       {writeError ? (
-        <AppText accessibilityLiveRegion="polite" selectable tone="danger">
+        <AppText
+          accessibilityLiveRegion="polite"
+          accessibilityRole="alert"
+          selectable
+          tone="danger"
+        >
           {appStrings.workout.writeError}
         </AppText>
       ) : null}
@@ -102,33 +113,36 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
 
       <View style={styles.section}>
         <SectionHeader title={appStrings.workout.todayWorkout} />
-        {data.scheduledWorkout ? (
-          <AppCard style={styles.card} tone="raised">
-            <AppText accessibilityRole="header" variant="heading">
-              {data.scheduledWorkout.name}
-            </AppText>
-            <AppText selectable tone="primary" variant="bodyStrong">
-              {formatWorkoutWeekdays(data.scheduledWorkout.scheduleWeekdays)}
-            </AppText>
-            <AppText selectable tone="muted">
-              {data.scheduledWorkout.exerciseCount}{' '}
-              {appStrings.workout.exercises}
-            </AppText>
-            <View style={styles.actions}>
-              <AppButton
-                label={appStrings.workout.viewProgram}
-                onPress={() => openDay(data.scheduledWorkout!)}
-                style={styles.action}
-                variant="secondary"
-              />
-              <AppButton
-                disabled={starting || Boolean(data.activeSession)}
-                label={appStrings.workout.startWorkout}
-                onPress={() => void start(data.scheduledWorkout!.id)}
-                style={styles.action}
-              />
-            </View>
-          </AppCard>
+        {scheduled ? (
+          <View style={styles.todayRow}>
+            <Pressable
+              accessibilityLabel={`${appStrings.workout.viewProgram}: ${scheduled.name}`}
+              accessibilityRole="button"
+              onPress={() => openDay(scheduled)}
+              style={styles.todayCopy}
+            >
+              <AppText numberOfLines={1} variant="bodyStrong">
+                {scheduled.name}
+              </AppText>
+              <AppText
+                numberOfLines={1}
+                selectable
+                tone="muted"
+                variant="caption"
+              >
+                {formatWorkoutWeekdays(scheduled.scheduleWeekdays)} ·{' '}
+                {scheduled.exerciseCount} {appStrings.workout.exercises} ·{' '}
+                {scheduled.totalSetCount} {appStrings.workout.sets}
+              </AppText>
+            </Pressable>
+            <AppButton
+              disabled={starting || Boolean(data.activeSession)}
+              icon="play-outline"
+              label={appStrings.workout.startWorkout}
+              onPress={() => void start(scheduled.id)}
+              style={styles.todayAction}
+            />
+          </View>
         ) : (
           <EmptyState
             description={appStrings.workout.restDescription}
@@ -140,9 +154,15 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
 
       <View style={styles.section}>
         <SectionHeader title={appStrings.workout.myProgram} />
-        {data.plan?.days.map((day) => (
-          <WorkoutDayCard day={day} key={day.id} onOpen={() => openDay(day)} />
-        ))}
+        <View style={styles.flatList}>
+          {data.plan?.days.map((day) => (
+            <WorkoutDayCard
+              day={day}
+              key={day.id}
+              onOpen={() => openDay(day)}
+            />
+          ))}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -154,20 +174,25 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
             title={appStrings.workout.noHistoryTitle}
           />
         ) : (
-          data.recentSessions.map((session) => (
-            <AppCard key={session.id} style={styles.historyCard}>
-              <View style={styles.historyHeader}>
-                <AppText variant="bodyStrong">{session.workoutName}</AppText>
+          <View style={styles.flatList}>
+            {data.recentSessions.map((session) => (
+              <View key={session.id} style={styles.historyRow}>
+                <View style={styles.historyCopy}>
+                  <AppText numberOfLines={1} variant="bodyStrong">
+                    {session.workoutName}
+                  </AppText>
+                  <AppText selectable tone="muted" variant="caption">
+                    {session.completedSetCount} {appStrings.workout.sets} ·{' '}
+                    {session.totalRepetitions} {appStrings.workout.repetitions}
+                  </AppText>
+                </View>
                 <AppText tone="primary" variant="caption">
                   {formatWorkoutDate(session.completedAt)}
                 </AppText>
+                <AppIcon name="check-circle-outline" />
               </View>
-              <AppText selectable tone="muted">
-                {session.completedSetCount} {appStrings.workout.sets} ·{' '}
-                {session.totalRepetitions} {appStrings.workout.repetitions}
-              </AppText>
-            </AppCard>
-          ))
+            ))}
+          </View>
         )}
       </View>
     </Screen>
@@ -175,16 +200,38 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  action: { flexGrow: 1 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md },
-  card: { gap: theme.spacing.md },
-  historyCard: { gap: theme.spacing.sm },
-  historyHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-    justifyContent: 'space-between',
+  flatList: {
+    backgroundColor: workoutTheme.surface,
+    borderColor: workoutTheme.separator,
+    borderRadius: theme.radii.md,
+    borderWidth: theme.borders.thin,
+    overflow: 'hidden',
   },
-  section: { gap: theme.spacing.lg },
+  historyCopy: { flex: 1, gap: theme.spacing.xs },
+  historyRow: {
+    alignItems: 'center',
+    borderBottomColor: workoutTheme.separator,
+    borderBottomWidth: theme.borders.hairline,
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    minHeight: theme.layout.touchTarget,
+    padding: theme.spacing.md,
+  },
+  section: { gap: theme.spacing.md },
+  todayAction: { flexShrink: 0, minHeight: theme.layout.compactTouchTarget },
+  todayCopy: {
+    flex: 1,
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.xs,
+  },
+  todayRow: {
+    alignItems: 'center',
+    backgroundColor: workoutTheme.surfaceActive,
+    borderColor: workoutTheme.separator,
+    borderRadius: theme.radii.md,
+    borderWidth: theme.borders.thin,
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    padding: theme.spacing.md,
+  },
 });

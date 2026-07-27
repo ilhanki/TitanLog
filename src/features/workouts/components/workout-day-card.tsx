@@ -1,11 +1,11 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
+import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { appStrings } from '@/constants/strings';
 import type { WorkoutDay } from '@/features/workouts/domain/models';
 import { formatWorkoutWeekdays } from '@/features/workouts/utils/workout-formatters';
+import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
 type WorkoutDayCardProps = {
@@ -14,34 +14,43 @@ type WorkoutDayCardProps = {
 };
 
 export function WorkoutDayCard({ day, onOpen }: WorkoutDayCardProps) {
+  const weekdays = formatWorkoutWeekdays(day.scheduleWeekdays);
   return (
-    <AppCard style={styles.card}>
+    <Pressable
+      accessibilityLabel={`${day.name}, ${weekdays}, ${day.exerciseCount} ${appStrings.workout.exercises}, ${day.totalSetCount} ${appStrings.workout.sets}`}
+      accessibilityRole="button"
+      onPress={onOpen}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
       <View style={styles.copy}>
-        <AppText accessibilityRole="header" variant="heading">
+        <AppText numberOfLines={1} variant="bodyStrong">
           {day.name}
         </AppText>
-        <AppText selectable tone="primary" variant="bodyStrong">
-          {formatWorkoutWeekdays(day.scheduleWeekdays)}
+        <AppText numberOfLines={1} selectable tone="muted" variant="caption">
+          {weekdays} · {day.exerciseCount} {appStrings.workout.exercises} ·{' '}
+          {day.totalSetCount} {appStrings.workout.sets}
         </AppText>
-        <AppText selectable tone="muted">
-          {day.exerciseCount} {appStrings.workout.exercises} ·{' '}
+        <AppText numberOfLines={1} selectable tone="subtle" variant="caption">
           {day.exercisePreview.join(', ')}
         </AppText>
       </View>
-      <AppButton
-        label={appStrings.workout.viewProgram}
-        onPress={onOpen}
-        variant="secondary"
-      />
-    </AppCard>
+      <AppIcon name="chevron-right" />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: theme.spacing.lg,
-  },
-  copy: {
-    gap: theme.spacing.sm,
+  copy: { flex: 1, gap: theme.spacing.xs },
+  pressed: { backgroundColor: workoutTheme.surfaceActive },
+  row: {
+    alignItems: 'center',
+    backgroundColor: workoutTheme.surface,
+    borderBottomColor: workoutTheme.separator,
+    borderBottomWidth: theme.borders.hairline,
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    minHeight: theme.layout.touchTarget,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
 });

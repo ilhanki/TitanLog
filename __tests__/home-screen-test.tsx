@@ -41,6 +41,7 @@ const mockOverview = {
       name: 'Sırt + Biceps',
       scheduleWeekdays: [1, 4],
       sortOrder: 1,
+      totalSetCount: 21,
       subtitle: 'Sırt ve kol',
     },
   },

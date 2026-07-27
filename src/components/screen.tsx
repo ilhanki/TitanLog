@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   useWindowDimensions,
+  type ColorValue,
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
@@ -13,6 +14,7 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { theme } from '@/theme/tokens';
 
 type ScreenProps = PropsWithChildren<{
+  backgroundColor?: ColorValue;
   contentContainerStyle?: StyleProp<ViewStyle>;
   edges?: Edge[];
   keyboardAware?: boolean;
@@ -20,6 +22,7 @@ type ScreenProps = PropsWithChildren<{
 }>;
 
 export function Screen({
+  backgroundColor,
   children,
   contentContainerStyle,
   edges = ['top'],
@@ -50,7 +53,10 @@ export function Screen({
   );
 
   return (
-    <SafeAreaView edges={edges} style={styles.safeArea}>
+    <SafeAreaView
+      edges={edges}
+      style={[styles.safeArea, backgroundColor ? { backgroundColor } : null]}
+    >
       {keyboardAware ? (
         <KeyboardAvoidingView
           behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
