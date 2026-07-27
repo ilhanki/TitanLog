@@ -189,6 +189,48 @@ describe('workout session repository', () => {
     );
   });
 
+  it('removes only the final incomplete set', async () => {
+    const transaction = {
+      getAllAsync: jest.fn().mockResolvedValue([
+        { id: 30, is_completed: 1, set_number: 1 },
+        { id: 31, is_completed: 0, set_number: 2 },
+      ]),
+      runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
+    };
+    const database = createDatabase({
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await createWorkoutSessionRepository(database).removeLastIncompleteSet(20);
+
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      'DELETE FROM workout_sets WHERE id = ?',
+      31
+    );
+  });
+
+  it('rejects removing the final set when it is completed', async () => {
+    const transaction = {
+      getAllAsync: jest.fn().mockResolvedValue([
+        { id: 30, is_completed: 0, set_number: 1 },
+        { id: 31, is_completed: 1, set_number: 2 },
+      ]),
+      runAsync: jest.fn(),
+    };
+    const database = createDatabase({
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await expect(
+      createWorkoutSessionRepository(database).removeLastIncompleteSet(20)
+    ).rejects.toMatchObject({ code: 'set_not_removable' });
+    expect(transaction.runAsync).not.toHaveBeenCalled();
+  });
+
   it('completes a session only after a completed set and returns real metrics', async () => {
     const transaction = {
       getFirstAsync: jest.fn().mockResolvedValue({ count: 1 }),

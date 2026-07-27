@@ -174,10 +174,15 @@ describe('workout screens', () => {
     });
   });
 
-  it('renders active-session set inputs', async () => {
-    const { getByLabelText } = await render(<ActiveWorkoutScreen />);
+  it('renders the compact active-session table without legacy set cards', async () => {
+    const { getByLabelText, getByText, queryByRole, queryByText } =
+      await render(<ActiveWorkoutScreen />);
 
     await waitFor(() => {
+      expect(getByText(appStrings.workout.tableExercise)).toBeTruthy();
+      expect(getByText(appStrings.workout.tableSet)).toBeTruthy();
+      expect(getByText(appStrings.workout.tableWeight)).toBeTruthy();
+      expect(getByText(appStrings.workout.tableRepetitions)).toBeTruthy();
       expect(
         getByLabelText(`Dumbbell Curl ${appStrings.workout.weightLabel}`)
       ).toBeTruthy();
@@ -185,6 +190,10 @@ describe('workout screens', () => {
         getByLabelText(`Dumbbell Curl ${appStrings.workout.repetitionLabel}`)
       ).toBeTruthy();
     });
+    expect(queryByText('Set 1')).toBeNull();
+    expect(
+      queryByRole('button', { name: appStrings.workout.markComplete })
+    ).toBeNull();
   });
 
   it('shows a Turkish validation message for an incomplete set', async () => {
