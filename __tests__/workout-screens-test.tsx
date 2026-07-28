@@ -166,16 +166,20 @@ describe('workout screens', () => {
   });
 
   it('renders workout-day exercises with defaults and per-hand weight', async () => {
-    const { getByText } = await render(<WorkoutDayScreen />);
+    const { getByLabelText, getByText } = await render(<WorkoutDayScreen />);
 
     await waitFor(() => {
-      expect(getByText('Dumbbell Curl')).toBeTruthy();
-      expect(getByText('12 tk · el')).toBeTruthy();
+      expect(getByText(/Dumbbell Curl/)).toBeTruthy();
+      expect(getByText('12 tk')).toBeTruthy();
+      expect(getByText('17,5 kg')).toBeTruthy();
+      expect(
+        getByLabelText('Dumbbell Curl, 3 set, 12 tekrar, 17,5 kg, her el')
+      ).toBeTruthy();
     });
   });
 
   it('renders the compact active-session table without legacy set cards', async () => {
-    const { getByLabelText, getByText, queryByRole, queryByText } =
+    const { getByLabelText, getByText, queryByRole, queryByText, toJSON } =
       await render(<ActiveWorkoutScreen />);
 
     await waitFor(() => {
@@ -185,19 +189,29 @@ describe('workout screens', () => {
       expect(getByText(appStrings.workout.tableRepetitions)).toBeTruthy();
       expect(
         getByLabelText(`Dumbbell Curl ${appStrings.workout.weightLabel}`)
-      ).toBeTruthy();
+      ).toHaveProp('value', '17,5');
       expect(
         getByLabelText(`Dumbbell Curl ${appStrings.workout.repetitionLabel}`)
-      ).toBeTruthy();
+      ).toHaveProp('value', '12');
     });
     expect(queryByText('Set 1')).toBeNull();
     expect(
       queryByRole('button', { name: appStrings.workout.markComplete })
     ).toBeNull();
+    const renderedTable = JSON.stringify(toJSON());
+    expect(renderedTable.indexOf('"children":["Tk"]')).toBeLessThan(
+      renderedTable.indexOf('"children":["Kg"]')
+    );
+    expect(
+      renderedTable.indexOf('"accessibilityLabel":"Dumbbell Curl Tekrar"')
+    ).toBeLessThan(
+      renderedTable.indexOf('"accessibilityLabel":"Dumbbell Curl Kilo (kg)"')
+    );
+    expect(renderedTable).not.toContain('"horizontal":true');
   });
 
   it('shows a Turkish validation message for an incomplete set', async () => {
-    const { getByRole, getByText } = await render(
+    const { getByLabelText, getByRole, getByText } = await render(
       <WorkoutExerciseRow
         exercise={{
           ...activeSession.exercises[0]!,
@@ -212,6 +226,8 @@ describe('workout screens', () => {
         onOpenEditor={jest.fn()}
       />
     );
+
+    await fireEvent.changeText(getByLabelText('Dumbbell Curl Tekrar'), '');
 
     await fireEvent.press(
       getByRole('button', { name: 'Dumbbell Curl setini tamamla' })

@@ -275,15 +275,15 @@ export function ActiveWorkoutScreen() {
           <AppText style={styles.headerCounter} tone="muted" variant="caption">
             {appStrings.workout.tableSet}
           </AppText>
-          <AppText style={styles.headerWeight} tone="muted" variant="caption">
-            {appStrings.workout.tableWeight}
-          </AppText>
           <AppText
             style={styles.headerRepetitions}
             tone="muted"
             variant="caption"
           >
             {appStrings.workout.tableRepetitions}
+          </AppText>
+          <AppText style={styles.headerWeight} tone="muted" variant="caption">
+            {appStrings.workout.tableWeight}
           </AppText>
           <View
             accessibilityLabel={appStrings.workout.completeSet}

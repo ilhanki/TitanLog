@@ -38,16 +38,16 @@ export function WorkoutExerciseRow({
   const nextSet = exercise.sets.find((set) => !set.isCompleted) ?? null;
   const finalSet = exercise.sets.at(-1) ?? null;
   const displayedSet = nextSet ?? finalSet;
-  const displayedActualReps = displayedSet?.actualReps ?? null;
+  const displayedRepetitions = displayedSet
+    ? (displayedSet.actualReps ?? displayedSet.targetReps ?? 12)
+    : null;
   const displayedSetId = displayedSet?.id ?? null;
   const displayedWeightKg = displayedSet?.weightKg ?? null;
   const [weight, setWeight] = useState(
     displayedSet ? formatWorkoutWeight(displayedSet.weightKg) : ''
   );
   const [repetitions, setRepetitions] = useState(
-    displayedSet?.actualReps === null || !displayedSet
-      ? ''
-      : String(displayedSet.actualReps)
+    displayedRepetitions === null ? '' : String(displayedRepetitions)
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +59,10 @@ export function WorkoutExerciseRow({
       displayedWeightKg === null ? '' : formatWorkoutWeight(displayedWeightKg)
     );
     setRepetitions(
-      displayedActualReps === null ? '' : String(displayedActualReps)
+      displayedRepetitions === null ? '' : String(displayedRepetitions)
     );
     setError(null);
-  }, [displayedActualReps, displayedSetId, displayedWeightKg]);
+  }, [displayedRepetitions, displayedSetId, displayedWeightKg]);
 
   const submit = async () => {
     if (!nextSet || pendingRef.current) return;
@@ -136,20 +136,6 @@ export function WorkoutExerciseRow({
         </AppText>
       </Pressable>
       <TextInput
-        accessibilityLabel={`${exercise.name} ${appStrings.workout.weightLabel}`}
-        editable={!complete && !pending}
-        inputMode="decimal"
-        keyboardType="decimal-pad"
-        onChangeText={setWeight}
-        selectTextOnFocus
-        style={[
-          styles.input,
-          styles.weightInput,
-          complete && styles.completedInput,
-        ]}
-        value={weight}
-      />
-      <TextInput
         accessibilityLabel={`${exercise.name} ${appStrings.workout.repetitionLabel}`}
         editable={!complete && !pending}
         inputMode="numeric"
@@ -162,6 +148,20 @@ export function WorkoutExerciseRow({
           complete && styles.completedInput,
         ]}
         value={repetitions}
+      />
+      <TextInput
+        accessibilityLabel={`${exercise.name} ${appStrings.workout.weightLabel}`}
+        editable={!complete && !pending}
+        inputMode="decimal"
+        keyboardType="decimal-pad"
+        onChangeText={setWeight}
+        selectTextOnFocus
+        style={[
+          styles.input,
+          styles.weightInput,
+          complete && styles.completedInput,
+        ]}
+        value={weight}
       />
       <Pressable
         accessibilityLabel={

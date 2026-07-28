@@ -197,7 +197,7 @@ export function WorkoutDayScreen() {
       <View style={styles.exerciseList}>
         {day.exercises.map((exercise) => (
           <View
-            accessibilityLabel={`${exercise.name}, ${exercise.setCount} ${appStrings.workout.sets}, ${formatWorkoutWeight(exercise.weightKg)} kg, ${exercise.targetReps} ${appStrings.workout.repetitions}${exercise.weightMode === 'per_hand' ? `, ${appStrings.workout.perHand}` : ''}`}
+            accessibilityLabel={`${exercise.name}, ${exercise.setCount} ${appStrings.workout.sets}, ${exercise.targetReps} ${appStrings.workout.repetitions}, ${formatWorkoutWeight(exercise.weightKg)} kg${exercise.weightMode === 'per_hand' ? `, ${appStrings.workout.perHand}` : ''}`}
             accessible
             key={exercise.id}
             style={styles.exerciseRow}
@@ -208,16 +208,20 @@ export function WorkoutDayScreen() {
               variant="bodyStrong"
             >
               {exercise.name}
+              {exercise.weightMode === 'per_hand' ? ' · el' : ''}
             </AppText>
-            <AppText style={styles.metric} tone="muted" variant="caption">
+            <AppText style={styles.setMetric} tone="muted" variant="caption">
               {exercise.setCount} set
             </AppText>
-            <AppText style={styles.metric} tone="muted" variant="caption">
-              {formatWorkoutWeight(exercise.weightKg)} kg
-            </AppText>
-            <AppText style={styles.reps} tone="muted" variant="caption">
+            <AppText
+              style={styles.repetitionMetric}
+              tone="muted"
+              variant="caption"
+            >
               {exercise.targetReps} tk
-              {exercise.weightMode === 'per_hand' ? ' · el' : ''}
+            </AppText>
+            <AppText style={styles.weightMetric} tone="muted" variant="caption">
+              {formatWorkoutWeight(exercise.weightKg)} kg
             </AppText>
           </View>
         ))}
@@ -251,13 +255,14 @@ const styles = StyleSheet.create({
     borderBottomColor: workoutTheme.separator,
     borderBottomWidth: theme.borders.hairline,
     flexDirection: 'row',
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
     minHeight: theme.layout.touchTarget,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
   },
   header: { gap: theme.spacing.xs },
-  metric: { fontVariant: ['tabular-nums'], width: 48 },
   noticeCopy: { flex: 1, gap: theme.spacing.xs },
-  reps: { fontVariant: ['tabular-nums'], width: 52 },
+  repetitionMetric: { fontVariant: ['tabular-nums'], width: 44 },
+  setMetric: { fontVariant: ['tabular-nums'], width: 48 },
+  weightMetric: { fontVariant: ['tabular-nums'], width: 60 },
 });

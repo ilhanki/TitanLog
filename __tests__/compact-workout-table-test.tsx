@@ -118,6 +118,86 @@ describe('compact workout table', () => {
     expect(JSON.stringify(toJSON())).not.toContain('"horizontal":true');
   });
 
+  it('uses target repetitions when persisted actual repetitions are absent', async () => {
+    const exercise = createExercise(1, 'Lat Pulldown', {
+      sets: [createSet(11, 1, { actualReps: null, targetReps: 12 })],
+    });
+    const { getByLabelText } = await render(
+      <WorkoutExerciseRow
+        exercise={exercise}
+        onComplete={jest.fn()}
+        onOpenEditor={jest.fn()}
+      />
+    );
+
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '12');
+    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp('value', '50');
+  });
+
+  it('preserves an older active session target repetition value', async () => {
+    const exercise = createExercise(1, 'Lat Pulldown', {
+      sets: [createSet(11, 1, { actualReps: null, targetReps: 10 })],
+    });
+    const { getByLabelText } = await render(
+      <WorkoutExerciseRow
+        exercise={exercise}
+        onComplete={jest.fn()}
+        onOpenEditor={jest.fn()}
+      />
+    );
+
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '10');
+  });
+
+  it('prefers persisted actual repetitions and preserves an edited draft', async () => {
+    const exercise = createExercise(1, 'Lat Pulldown', {
+      sets: [createSet(11, 1, { actualReps: 8, targetReps: 12 })],
+    });
+    const onComplete = jest.fn();
+    const onOpenEditor = jest.fn();
+    const { getByLabelText, rerender } = await render(
+      <WorkoutExerciseRow
+        exercise={exercise}
+        onComplete={onComplete}
+        onOpenEditor={onOpenEditor}
+      />
+    );
+    const repetitionInput = getByLabelText('Lat Pulldown Tekrar');
+
+    expect(repetitionInput).toHaveProp('value', '8');
+    expect(repetitionInput).toHaveProp('editable', true);
+    await fireEvent.changeText(repetitionInput, '9');
+    await rerender(
+      <WorkoutExerciseRow
+        exercise={{ ...exercise }}
+        onComplete={onComplete}
+        onOpenEditor={onOpenEditor}
+      />
+    );
+
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '9');
+  });
+
+  it('falls back to twelve only when no persisted repetition exists', async () => {
+    const exercise = createExercise(1, 'Lat Pulldown', {
+      sets: [
+        createSet(11, 1, {
+          actualReps: null,
+          targetReps: undefined as unknown as number,
+        }),
+      ],
+    });
+    const { getByLabelText } = await render(
+      <WorkoutExerciseRow
+        exercise={exercise}
+        onComplete={jest.fn()}
+        onOpenEditor={jest.fn()}
+      />
+    );
+
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '12');
+  });
+
   it('advances the same row and inherits values after completion', async () => {
     const { getByLabelText, getByText } = await render(
       <StatefulExerciseRow exercise={createExercise(1, 'Lat Pulldown')} />
