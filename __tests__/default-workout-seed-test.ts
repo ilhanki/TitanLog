@@ -1,8 +1,10 @@
 import { defaultWorkoutPlanSeed } from '@/database/seed/default-workout-plan';
 import {
   seedDefaultPlan,
+  seedDefaultWorkoutPlan,
   type WorkoutSeedStore,
 } from '@/database/seed/seed-default-plan';
+import type { SQLiteDatabase } from 'expo-sqlite';
 
 function createMemorySeedStore() {
   const plans = new Map<string, number>();
@@ -78,5 +80,19 @@ describe('default workout plan seed', () => {
     expect(memory.schedules.size).toBe(6);
     expect(memory.exercises.size).toBe(20);
     expect(memory.dayExercises.size).toBe(20);
+  });
+
+  it('does not reseed or overwrite a personalized active plan on restart', async () => {
+    const database = {
+      getFirstAsync: jest.fn().mockResolvedValue({ id: 1 }),
+      withExclusiveTransactionAsync: jest.fn(),
+    } as unknown as SQLiteDatabase;
+
+    await seedDefaultWorkoutPlan(database);
+
+    expect(database.getFirstAsync).toHaveBeenCalledWith(
+      'SELECT id FROM workout_plans WHERE is_active = 1 LIMIT 1'
+    );
+    expect(database.withExclusiveTransactionAsync).not.toHaveBeenCalled();
   });
 });

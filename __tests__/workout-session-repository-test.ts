@@ -447,4 +447,72 @@ describe('workout session repository', () => {
     );
     expect(getFirstAsync.mock.calls[1]?.[0]).toContain("status = 'completed'");
   });
+
+  it('snapshots updated future defaults and exercise order without rewriting older sessions', async () => {
+    const futureExercises = [
+      {
+        ...dayExerciseRow,
+        default_set_count: 2,
+        default_target_reps: 8,
+        default_weight_kg: 60,
+        exercise_id: 3,
+        name: 'Low Row',
+        sort_order: 1,
+        weight_mode: 'total',
+      },
+      {
+        ...dayExerciseRow,
+        default_set_count: 4,
+        default_target_reps: 15,
+        default_weight_kg: 20,
+        sort_order: 2,
+      },
+    ];
+    const transaction = {
+      getAllAsync: jest.fn().mockResolvedValue(futureExercises),
+      getFirstAsync: jest.fn().mockResolvedValue(null),
+      runAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ lastInsertRowId: 10 })
+        .mockResolvedValueOnce({ lastInsertRowId: 20 })
+        .mockResolvedValue({ lastInsertRowId: 30 }),
+    };
+    const database = createDatabase({
+      getAllAsync: jest.fn().mockResolvedValue([]),
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await createWorkoutSessionRepository(database).startSessionFromWorkoutDay(
+      1
+    );
+
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workout_session_exercises'),
+      10,
+      3,
+      'Low Row',
+      expect.any(String),
+      'total',
+      1,
+      expect.any(String)
+    );
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workout_sets'),
+      20,
+      1,
+      8,
+      8,
+      60,
+      expect.any(String),
+      expect.any(String)
+    );
+    const writtenSql = transaction.runAsync.mock.calls
+      .map(([sql]) => sql)
+      .join(' ');
+    expect(writtenSql).not.toMatch(
+      /UPDATE workout_sessions|DELETE FROM workout_/
+    );
+  });
 });

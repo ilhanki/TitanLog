@@ -4,6 +4,7 @@ import {
   createWorkoutProgramRepository,
   WorkoutProgramError,
 } from '@/features/workouts/data/workout-program-repository';
+import { createWorkoutPlanRepository } from '@/features/workouts/data/workout-plan-repository';
 
 const defaults = {
   setCount: 3,
@@ -33,6 +34,46 @@ function createDatabase(transaction = createTransaction()) {
 }
 
 describe('workout program repository', () => {
+  it('loads the active plan with editable day schedule and totals', async () => {
+    const database = {
+      getAllAsync: jest
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            id: 1,
+            name: 'Sırt + Biceps',
+            plan_id: 1,
+            sort_order: 1,
+            subtitle: 'Çekiş',
+          },
+        ])
+        .mockResolvedValueOnce([{ iso_weekday: 1 }, { iso_weekday: 5 }])
+        .mockResolvedValueOnce([
+          { default_set_count: 3, name: 'Lat Pulldown' },
+          { default_set_count: 2, name: 'Low Row' },
+        ]),
+      getFirstAsync: jest.fn().mockResolvedValue({
+        description: 'Yerel plan',
+        id: 1,
+        name: 'Titan',
+      }),
+    } as unknown as SQLiteDatabase;
+
+    const plan = await createWorkoutPlanRepository(database).getActivePlan();
+
+    expect(plan).toMatchObject({
+      days: [
+        {
+          exerciseCount: 2,
+          scheduleWeekdays: [1, 5],
+          totalSetCount: 5,
+        },
+      ],
+      id: 1,
+      name: 'Titan',
+    });
+  });
+
   it('updates day metadata and replaces the schedule transactionally', async () => {
     const transaction = createTransaction({
       getFirstAsync: jest

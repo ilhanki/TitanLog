@@ -344,4 +344,14 @@ describe('workout screens', () => {
     );
     expect(mockRouter.push).toHaveBeenCalledWith('/workout/history/77');
   });
+
+  it('opens workout program management from the Workout tab', async () => {
+    const { getByRole } = await render(<WorkoutScreen />);
+
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.workout.editProgram })
+    );
+
+    expect(mockRouter.push).toHaveBeenCalledWith('/workout/program');
+  });
 });
