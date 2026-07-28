@@ -28,3 +28,20 @@ export function formatWorkoutTime(value: string): string {
     minute: '2-digit',
   }).format(new Date(value));
 }
+
+export function formatWorkoutDuration(minutes: number | null): string {
+  if (minutes === null) return 'Süre bilgisi yok';
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return hours > 0
+    ? `${hours} sa ${remainingMinutes} dk`
+    : `${remainingMinutes} dk`;
+}
+
+export function formatWorkoutDifference(value: number, unit = ''): string {
+  const formatted = new Intl.NumberFormat('tr-TR', {
+    maximumFractionDigits: 1,
+    signDisplay: 'always',
+  }).format(value);
+  return unit ? `${formatted} ${unit}` : formatted;
+}

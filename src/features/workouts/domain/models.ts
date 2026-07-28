@@ -69,9 +69,47 @@ export type WorkoutSession = {
 export type CompletedWorkoutSummary = {
   completedAt: string;
   completedSetCount: number;
+  durationMinutes: number | null;
   exerciseNames: readonly string[];
   id: number;
+  startedAt: string;
   totalRepetitions: number;
   totalVolume: number;
+  workoutDayId: number;
+  workoutName: string;
+};
+
+export type CompletedWorkoutHistoryItem = Omit<
+  CompletedWorkoutSummary,
+  'exerciseNames'
+>;
+
+export type CompletedWorkoutExerciseDetail = WorkoutSessionExercise & {
+  completedSetCount: number;
+  totalRepetitions: number;
+  totalVolume: number;
+};
+
+export type CompletedWorkoutComparison = {
+  completedSetDifference: number;
+  durationDifferenceMinutes: number | null;
+  previousCompletedAt: string;
+  previousSessionId: number;
+  totalRepetitionDifference: number;
+  totalVolumeDifference: number;
+  volumePercentageDifference: number | null;
+};
+
+export type CompletedWorkoutDetail = {
+  comparison: CompletedWorkoutComparison | null;
+  completedAt: string;
+  completedSetCount: number;
+  durationMinutes: number | null;
+  exercises: readonly CompletedWorkoutExerciseDetail[];
+  id: number;
+  startedAt: string;
+  totalRepetitions: number;
+  totalVolume: number;
+  workoutDayId: number;
   workoutName: string;
 };

@@ -1,6 +1,8 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type {
+  CompletedWorkoutDetail,
+  CompletedWorkoutHistoryItem,
   CompletedWorkoutSummary,
   WorkoutSession,
   WorkoutSessionExercise,
@@ -8,6 +10,10 @@ import type {
   WorkoutSet,
   WeightMode,
 } from '@/features/workouts/domain/models';
+import {
+  calculateWorkoutDurationMinutes,
+  createCompletedWorkoutDetail,
+} from '@/features/workouts/utils/workout-history';
 import {
   calculateSessionMetrics,
   canCompleteSet,
@@ -54,6 +60,17 @@ type DayExerciseRow = {
   sort_order: number;
   weight_mode: WeightMode;
   workout_day_name: string;
+};
+
+type CompletedHistoryRow = {
+  completed_at: string;
+  completed_set_count: number;
+  id: number;
+  started_at: string;
+  total_repetitions: number;
+  total_volume: number;
+  workout_day_id: number;
+  workout_name_snapshot: string;
 };
 
 export type WorkoutSessionErrorCode =
@@ -148,10 +165,16 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
     return {
       completedAt: session.completedAt,
       completedSetCount: metrics.completedSetCount,
+      durationMinutes: calculateWorkoutDurationMinutes(
+        session.startedAt,
+        session.completedAt
+      ),
       exerciseNames: session.exercises.slice(0, 3).map((item) => item.name),
       id: session.id,
+      startedAt: session.startedAt,
       totalRepetitions: metrics.totalRepetitions,
       totalVolume: metrics.totalVolume,
+      workoutDayId: session.workoutDayId,
       workoutName: session.workoutName,
     };
   }
@@ -474,6 +497,80 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
       if (result.changes !== 1) {
         throw new WorkoutSessionError('session_not_active');
       }
+    },
+
+    async getCompletedWorkoutHistory(
+      limit = 20,
+      offset = 0
+    ): Promise<CompletedWorkoutHistoryItem[]> {
+      const safeLimit = Number.isSafeInteger(limit)
+        ? Math.min(Math.max(limit, 1), 50)
+        : 20;
+      const safeOffset = Number.isSafeInteger(offset) ? Math.max(offset, 0) : 0;
+      const rows = await database.getAllAsync<CompletedHistoryRow>(
+        `SELECT session.id, session.workout_day_id,
+                session.workout_name_snapshot, session.started_at,
+                session.completed_at,
+                COALESCE(SUM(CASE WHEN workout_set.is_completed = 1 THEN 1 ELSE 0 END), 0)
+                  AS completed_set_count,
+                COALESCE(SUM(CASE
+                  WHEN workout_set.is_completed = 1
+                    AND workout_set.actual_reps IS NOT NULL
+                  THEN workout_set.actual_reps ELSE 0 END), 0)
+                  AS total_repetitions,
+                COALESCE(SUM(CASE
+                  WHEN workout_set.is_completed = 1
+                    AND workout_set.actual_reps IS NOT NULL
+                  THEN workout_set.weight_kg * workout_set.actual_reps
+                  ELSE 0 END), 0) AS total_volume
+         FROM workout_sessions AS session
+         LEFT JOIN workout_session_exercises AS session_exercise
+           ON session_exercise.session_id = session.id
+         LEFT JOIN workout_sets AS workout_set
+           ON workout_set.session_exercise_id = session_exercise.id
+         WHERE session.status = 'completed' AND session.completed_at IS NOT NULL
+         GROUP BY session.id
+         ORDER BY session.completed_at DESC, session.id DESC
+         LIMIT ? OFFSET ?`,
+        safeLimit,
+        safeOffset
+      );
+      return rows.map((row) => ({
+        completedAt: row.completed_at,
+        completedSetCount: row.completed_set_count,
+        durationMinutes: calculateWorkoutDurationMinutes(
+          row.started_at,
+          row.completed_at
+        ),
+        id: row.id,
+        startedAt: row.started_at,
+        totalRepetitions: row.total_repetitions,
+        totalVolume: row.total_volume,
+        workoutDayId: row.workout_day_id,
+        workoutName: row.workout_name_snapshot,
+      }));
+    },
+
+    async getCompletedWorkoutDetail(
+      sessionId: number
+    ): Promise<CompletedWorkoutDetail | null> {
+      const session = await getSessionDetails(sessionId);
+      if (!session?.completedAt || session.status !== 'completed') return null;
+      const previousRow = await database.getFirstAsync<{ id: number }>(
+        `SELECT id FROM workout_sessions
+         WHERE workout_day_id = ?
+           AND status = 'completed'
+           AND completed_at IS NOT NULL
+           AND completed_at < ?
+         ORDER BY completed_at DESC, id DESC
+         LIMIT 1`,
+        session.workoutDayId,
+        session.completedAt
+      );
+      const previousSession = previousRow
+        ? await getSessionDetails(previousRow.id)
+        : null;
+      return createCompletedWorkoutDetail(session, previousSession);
     },
 
     async getRecentCompletedSessions(

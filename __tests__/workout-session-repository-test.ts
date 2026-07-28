@@ -340,4 +340,111 @@ describe('workout session repository', () => {
       5
     );
   });
+
+  it('lists completed history newest first with bounded pagination', async () => {
+    const getAllAsync = jest.fn().mockResolvedValue([
+      {
+        completed_at: '2026-07-28T19:12:00.000Z',
+        completed_set_count: 19,
+        id: 10,
+        started_at: '2026-07-28T18:00:00.000Z',
+        total_repetitions: 228,
+        total_volume: 8640,
+        workout_day_id: 1,
+        workout_name_snapshot: 'Sırt + Biceps',
+      },
+    ]);
+    const database = createDatabase({ getAllAsync });
+
+    const history = await createWorkoutSessionRepository(
+      database
+    ).getCompletedWorkoutHistory(100, -2);
+
+    expect(history[0]).toEqual({
+      completedAt: '2026-07-28T19:12:00.000Z',
+      completedSetCount: 19,
+      durationMinutes: 72,
+      id: 10,
+      startedAt: '2026-07-28T18:00:00.000Z',
+      totalRepetitions: 228,
+      totalVolume: 8640,
+      workoutDayId: 1,
+      workoutName: 'Sırt + Biceps',
+    });
+    expect(getAllAsync).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE session.status = 'completed'"),
+      50,
+      0
+    );
+    expect(getAllAsync).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'ORDER BY session.completed_at DESC, session.id DESC'
+      ),
+      50,
+      0
+    );
+  });
+
+  it('loads completed snapshots and the nearest earlier same-day workout', async () => {
+    const currentSession = {
+      ...activeSessionRow,
+      completed_at: '2026-07-28T19:12:00.000Z',
+      status: 'completed',
+    };
+    const previousSession = {
+      ...currentSession,
+      completed_at: '2026-07-21T19:00:00.000Z',
+      id: 9,
+      started_at: '2026-07-21T18:00:00.000Z',
+    };
+    const exerciseRow = {
+      exercise_id: 2,
+      exercise_name_snapshot: 'Dumbbell Curl',
+      id: 20,
+      muscle_group_snapshot: 'Biceps',
+      sort_order: 1,
+      weight_mode_snapshot: 'per_hand',
+    };
+    const completedSet = {
+      actual_reps: 10,
+      completed_at: '2026-07-28T18:30:00.000Z',
+      id: 30,
+      is_completed: 1,
+      set_number: 1,
+      target_reps: 12,
+      weight_kg: 17.5,
+    };
+    const getFirstAsync = jest
+      .fn()
+      .mockResolvedValueOnce(currentSession)
+      .mockResolvedValueOnce({ id: 9 })
+      .mockResolvedValueOnce(previousSession);
+    const getAllAsync = jest
+      .fn()
+      .mockResolvedValueOnce([exerciseRow])
+      .mockResolvedValueOnce([completedSet])
+      .mockResolvedValueOnce([{ ...exerciseRow, id: 19 }])
+      .mockResolvedValueOnce([{ ...completedSet, id: 29 }]);
+    const database = createDatabase({ getAllAsync, getFirstAsync });
+
+    const detail =
+      await createWorkoutSessionRepository(database).getCompletedWorkoutDetail(
+        10
+      );
+
+    expect(detail).toMatchObject({
+      completedSetCount: 1,
+      id: 10,
+      totalRepetitions: 10,
+      totalVolume: 175,
+    });
+    expect(detail?.comparison).toMatchObject({ previousSessionId: 9 });
+    expect(getFirstAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('workout_day_id = ?'),
+      1,
+      '2026-07-28T19:12:00.000Z'
+    );
+    expect(getFirstAsync.mock.calls[1]?.[0]).toContain("status = 'completed'");
+  });
 });
