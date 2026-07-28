@@ -15,6 +15,10 @@ export function formatWorkoutWeekdays(weekdays: readonly number[]): string {
     .join(' · ');
 }
 
+export function getWorkoutWeekdayLabel(weekday: number): string {
+  return weekdayNames[weekday - 1] ?? '';
+}
+
 export function formatWorkoutDate(value: string): string {
   return new Intl.DateTimeFormat('tr-TR', {
     dateStyle: 'medium',

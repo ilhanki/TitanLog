@@ -38,6 +38,9 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
   const openHistory = () => {
     router.push('/workout/history' as Href);
   };
+  const openProgram = () => {
+    router.push('/workout/program' as Href);
+  };
   const openCompletedWorkout = (sessionId: number) => {
     router.push(`/workout/history/${sessionId}` as Href);
   };
@@ -156,7 +159,11 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
       </View>
 
       <View style={styles.section}>
-        <SectionHeader title={appStrings.workout.myProgram} />
+        <SectionHeader
+          actionLabel={appStrings.workout.editProgram}
+          onActionPress={openProgram}
+          title={appStrings.workout.myProgram}
+        />
         <View style={styles.flatList}>
           {data.plan?.days.map((day) => (
             <WorkoutDayCard
