@@ -35,6 +35,32 @@ export type WorkoutPlan = {
   name: string;
 };
 
+export type AvailableExercise = {
+  equipment: string;
+  id: number;
+  muscleGroup: string;
+  name: string;
+};
+
+export type WorkoutDayDraft = {
+  name: string;
+  scheduleWeekdays: readonly number[];
+  subtitle: string;
+};
+
+export type ExerciseDefaultsDraft = {
+  setCount: number;
+  targetReps: number;
+  weightKg: number;
+  weightMode: WeightMode;
+};
+
+export type CustomExerciseDraft = ExerciseDefaultsDraft & {
+  equipment: string;
+  muscleGroup: string;
+  name: string;
+};
+
 export type WorkoutSet = {
   actualReps: number | null;
   completedAt: string | null;

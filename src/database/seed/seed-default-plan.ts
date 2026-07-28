@@ -184,6 +184,11 @@ function createSQLiteSeedStore(transaction: SQLiteDatabase): WorkoutSeedStore {
 export async function seedDefaultWorkoutPlan(
   database: SQLiteDatabase
 ): Promise<void> {
+  const existingActivePlan = await database.getFirstAsync<IdRow>(
+    'SELECT id FROM workout_plans WHERE is_active = 1 LIMIT 1'
+  );
+  if (existingActivePlan) return;
+
   const timestamp = new Date().toISOString();
 
   await database.withExclusiveTransactionAsync(async (transaction) => {
