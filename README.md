@@ -9,6 +9,17 @@ TitanLog, antrenman ve fiziksel gelişim takibini tek bir Android öncelikli mob
 
 ## Proje durumu
 
+### Sprint 6 — Antrenman programı düzenleyici
+
+- Tek yerel aktif program için `Programım` yönetim ekranı
+- Antrenman günü adı, açıklaması ve Pazartesi–Pazar programlaması
+- Aynı hafta gününün iki antrenmana atanmasını engelleyen açık çakışma bildirimi
+- Varsayılan set, tekrar, kilo ve toplam/her-el kilo biçimi düzenleme
+- Açık yukarı/aşağı eylemleriyle transaction içinde kararlı egzersiz sıralama
+- Yerel kütüphaneden egzersiz ekleme ve özel egzersizi atomik olarak oluşturup güne bağlama
+- Global egzersiz kaydını ve snapshot'ları koruyarak egzersizi yalnızca program gününden kaldırma
+- Kaydedilmemiş taslak uyarısı ve değişiklikleri yalnızca gelecekteki oturumlara uygulama
+
 ### Sprint 5 — Antrenman geçmişi ve oturum detayları
 
 - Tamamlanan antrenmanları en yeniden eskiye gösteren sayfalı, salt-okunur geçmiş ekranı
@@ -57,7 +68,7 @@ Sprint 1'de eklenen dört sekmeli Expo Router gezinmesi, Türkçe ana panel, UI-
 
 ## Yerel veritabanı
 
-Veritabanı adı `titanlog.db`, güncel şema sürümü `3`'tür. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve ardından varsayılan programı seed eder. Var olan v2 kurulumlarında yalnızca migration v3 uygulanır; gelecekte oluşturulacak oturumların program varsayılanı 12 tekrara yükseltilirken geçmiş, iptal edilmiş ve aktif oturum setleri ile bütün vücut verileri korunur. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
+Veritabanı adı `titanlog.db`, güncel şema sürümü `3`'tür. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve aktif plan yoksa varsayılan programı seed eder. Mevcut aktif plan yeniden seed edilmez; böylece kullanıcı düzenlemeleri uygulama yeniden açıldığında korunur. Var olan v2 kurulumlarında yalnızca migration v3 uygulanır; geçmiş, iptal edilmiş ve aktif oturum setleri ile bütün vücut verileri korunur. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
 
 Şema şu tabloları içerir:
 
@@ -72,7 +83,7 @@ Veritabanı adı `titanlog.db`, güncel şema sürümü `3`'tür. Uygulama kök�
 - `body_profiles`
 - `body_measurements`
 
-Çalışma zamanı değerleri bağlı SQL parametreleriyle yazılır. Çok adımlı seed, oturum başlatma, set ekleme/kaldırma ve tamamlama işlemleri transaction içinde yürütülür. Geçmiş oturumlar, gelecekte program değişse bile eski kaydı korumak için antrenman ve egzersiz snapshot'ları taşır. Sprint 5 geçmiş sorguları bu mevcut snapshot'ları ve tamamlanmış oturum indeksini kullandığı için şema sürümü `3` olarak kalır; yeni migrasyon gerekmez.
+Çalışma zamanı değerleri bağlı SQL parametreleriyle yazılır. Çok adımlı seed, oturum başlatma, program/schedule güncelleme, egzersiz sıralama, ilişkilendirme ve tamamlama işlemleri transaction içinde yürütülür. Geçmiş oturumlar, gelecekte program değişse bile eski kaydı korumak için antrenman ve egzersiz snapshot'ları taşır. Sprint 5 geçmişi ve Sprint 6 program düzenleyicisi mevcut tabloları kullandığı için şema sürümü `3` olarak kalır; yeni migrasyon gerekmez.
 
 ## Varsayılan program
 
@@ -85,7 +96,15 @@ Veritabanı adı `titanlog.db`, güncel şema sürümü `3`'tür. Uygulama kök�
 | Çarşamba ve Pazar     | Bacak + Omuz    | 7        |
 | Cuma                  | Dinlenme        | —        |
 
-Her egzersiz 3 set ve 12 hedef tekrar ile başlar. Yeni oturumlarda gerçek tekrar alanı da 12 ile önceden doldurulur; bu değer set tamamlanana kadar toplam tekrar veya hacme katılmaz. Kilo değerleri kilogram olarak sayısal saklanır. Dambıl egzersizlerindeki değer `her el` olarak açıkça gösterilir. Hacim hesabı, girilen her-el kilosunu sessizce ikiyle çarpmaz; tamamlanan setler için `kilo × gerçek tekrar` toplamını kullanır.
+Her egzersiz 3 set ve 12 hedef tekrar ile başlar. Kullanıcı program günlerini, hafta içi/hafta sonu eşlemelerini ve egzersiz varsayılanlarını daha sonra değiştirebilir; Cuma kalıcı bir dinlenme günü değildir. Yeni oturumlarda gerçek tekrar alanı hedef tekrar ile önceden doldurulur; bu değer set tamamlanana kadar toplam tekrar veya hacme katılmaz. Kilo değerleri kilogram olarak sayısal saklanır. Dambıl egzersizlerindeki değer `her el` olarak açıkça gösterilir. Hacim hesabı, girilen her-el kilosunu sessizce ikiyle çarpmaz; tamamlanan setler için `kilo × gerçek tekrar` toplamını kullanır.
+
+## Program düzenleme
+
+Workout sekmesindeki `Programı Düzenle` eylemi tek aktif yerel programı açar. Antrenman günü adı ve açıklaması yerel taslakta düzenlenir; hafta günleri ISO 1–7 değerleriyle atanır. Bir gün başka bir antrenmana aitse kayıt transaction başlamadan açık Türkçe çakışma mesajıyla engellenir. Atanmayan günler dinlenme günüdür.
+
+Egzersiz varsayılanlarında set 1–10, tekrar 1–100 ve kilo 0'dan büyük, en fazla 2000 kg olacak biçimde doğrulanır; kilo virgül veya noktayla girilebilir. Egzersizler yukarı/aşağı kontrolleriyle sıralanır. Mevcut egzersizler yerel aramayla eklenebilir; özel egzersiz ve gün bağlantısı tek transaction içinde oluşturulur. Günden kaldırma yalnızca `workout_day_exercises` ilişkisini siler, global egzersizi silmez. Son egzersiz için daha güçlü native onay gösterilir.
+
+Program değişiklikleri yeni başlatılan oturumların gün adı, sırası ve varsayılanlarında kullanılır. Var olan aktif oturum ile tamamlanmış veya iptal edilmiş geçmiş snapshot'ları yeniden yazılmaz. Geçmiş ekranları salt okunur kalır. Çoklu program, plan kopyalama ve global egzersiz silme desteklenmez.
 
 ## Oturum yaşam döngüsü
 
@@ -122,14 +141,14 @@ Vücut profili yoksa hiçbir örnek kişisel ölçüm gösterilmez; kullanıcı 
 
 - Gerçek kayıt, giriş, çoklu kullanıcı veya şifre yenileme
 - Backend, bulut yedekleme veya cihazlar arası eşitleme
-- Program ve egzersiz kütüphanesi düzenleme
+- Birden fazla program, program kopyalama veya global egzersiz silme
 - Beslenme, boy, BMI veya kalori önerileri
 - Sağlık platformu, bildirim, analytics veya sosyal özellikler
 - Şifreli veritabanı, SQLCipher veya ORM
 
 ## Android ve web durumu
 
-Android Expo Go birincil çalışma hedefidir. Sprint 2, Sprint 3 ve Sprint 4 akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 5 antrenman geçmişi ve oturum detayları için fiziksel cihaz doğrulaması henüz yapılmadı.
+Android Expo Go birincil çalışma hedefidir. Sprint 2–Sprint 5 akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 6 program düzenleyicisi için fiziksel cihaz doğrulaması henüz yapılmadı.
 
 Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandırmasıyla üretilir. Expo SQLite'ın web desteği alfa durumundadır; tarayıcıda kalıcılık çalışma zamanı doğrulanmadığından web veri güvenilirliği kaynağı değildir ve sahte web persistence katmanı kullanılmaz.
 
@@ -143,6 +162,8 @@ Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandı
 - Jest ve React Native Testing Library
 - ESLint ve Prettier
 
+Otomatik doğrulama 20 test paketinde 126 testi kapsar.
+
 ## Proje yapısı
 
 ```text
@@ -152,7 +173,7 @@ TitanLog/
 │   ├── (tabs)/                        # Dört ana alt sekme
 │   ├── auth/                          # UI-only hesap rotaları
 │   ├── progress/                      # Ölçüm ekleme, düzenleme ve hedef rotaları
-│   ├── workout/                       # Gün, aktif oturum, özet ve geçmiş rotaları
+│   ├── workout/                       # Gün, oturum, geçmiş ve program düzenleme rotaları
 │   └── _layout.tsx                    # SQLiteProvider içeren kök Stack
 ├── src/
 │   ├── components/                    # Ortak mobil tasarım sistemi
@@ -206,12 +227,12 @@ Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilirsiniz. iOS komutu macOS
 
 TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kullanır.
 
-- Paket ön sürümü: `0.1.0-alpha.6`
+- Paket ön sürümü: `0.1.0-alpha.7`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
-- Yayımlanan Sprint 4 tag'i: `v0.1.0-alpha.5`
-- Planlanan Sprint 5 tag'i: `v0.1.0-alpha.6`
+- Yayımlanan Sprint 5 tag'i: `v0.1.0-alpha.6`
+- Planlanan Sprint 6 tag'i: `v0.1.0-alpha.7`
 
 Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşturulmaz.
 
@@ -222,7 +243,8 @@ Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşt
 - **Sprint 2 — Antrenman alanı ve yerel kalıcılık:** yayımlandı ve fiziksel cihazda doğrulandı
 - **Sprint 3 — Vücut gelişimi ve ölçüm geçmişi:** yayımlandı ve fiziksel cihazda doğrulandı
 - **Sprint 4 — Kompakt antrenman tablosu:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 5 — Antrenman geçmişi ve oturum detayları:** yerel olarak uygulandı; fiziksel cihaz doğrulaması ve yayın onayı bekliyor
+- **Sprint 5 — Antrenman geçmişi ve oturum detayları:** yayımlandı ve fiziksel cihazda doğrulandı
+- **Sprint 6 — Antrenman programı düzenleyici:** yerel olarak uygulandı; fiziksel cihaz doğrulaması ve yayın onayı bekliyor
 
 ## Lisans
 
