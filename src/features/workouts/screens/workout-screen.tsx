@@ -4,21 +4,18 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
-import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/section-header';
 import { appStrings } from '@/constants/strings';
 import { ActiveSessionCard } from '@/features/workouts/components/active-session-card';
+import { CompletedWorkoutRow } from '@/features/workouts/components/completed-workout-row';
 import { WorkoutDayCard } from '@/features/workouts/components/workout-day-card';
 import { createWorkoutSessionRepository } from '@/features/workouts/data/workout-session-repository';
 import type { WorkoutDay } from '@/features/workouts/domain/models';
 import { useWorkoutOverview } from '@/features/workouts/hooks/use-workout-overview';
-import {
-  formatWorkoutDate,
-  formatWorkoutWeekdays,
-} from '@/features/workouts/utils/workout-formatters';
+import { formatWorkoutWeekdays } from '@/features/workouts/utils/workout-formatters';
 import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
@@ -37,6 +34,12 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
   };
   const resume = (sessionId: number) => {
     router.push(`/workout/session/${sessionId}` as Href);
+  };
+  const openHistory = () => {
+    router.push('/workout/history' as Href);
+  };
+  const openCompletedWorkout = (sessionId: number) => {
+    router.push(`/workout/history/${sessionId}` as Href);
   };
   const start = async (dayId: number) => {
     if (startingRef.current) return;
@@ -166,7 +169,11 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
       </View>
 
       <View style={styles.section}>
-        <SectionHeader title={appStrings.workout.recentWorkouts} />
+        <SectionHeader
+          actionLabel={appStrings.workout.viewAllHistory}
+          onActionPress={openHistory}
+          title={appStrings.workout.recentWorkouts}
+        />
         {data.recentSessions.length === 0 ? (
           <EmptyState
             description={appStrings.workout.noHistoryDescription}
@@ -176,21 +183,11 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
         ) : (
           <View style={styles.flatList}>
             {data.recentSessions.map((session) => (
-              <View key={session.id} style={styles.historyRow}>
-                <View style={styles.historyCopy}>
-                  <AppText numberOfLines={1} variant="bodyStrong">
-                    {session.workoutName}
-                  </AppText>
-                  <AppText selectable tone="muted" variant="caption">
-                    {session.completedSetCount} {appStrings.workout.sets} ·{' '}
-                    {session.totalRepetitions} {appStrings.workout.repetitions}
-                  </AppText>
-                </View>
-                <AppText tone="primary" variant="caption">
-                  {formatWorkoutDate(session.completedAt)}
-                </AppText>
-                <AppIcon name="check-circle-outline" />
-              </View>
+              <CompletedWorkoutRow
+                key={session.id}
+                onPress={() => openCompletedWorkout(session.id)}
+                workout={session}
+              />
             ))}
           </View>
         )}
@@ -206,16 +203,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.md,
     borderWidth: theme.borders.thin,
     overflow: 'hidden',
-  },
-  historyCopy: { flex: 1, gap: theme.spacing.xs },
-  historyRow: {
-    alignItems: 'center',
-    borderBottomColor: workoutTheme.separator,
-    borderBottomWidth: theme.borders.hairline,
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-    minHeight: theme.layout.touchTarget,
-    padding: theme.spacing.md,
   },
   section: { gap: theme.spacing.md },
   todayAction: { flexShrink: 0, minHeight: theme.layout.compactTouchTarget },

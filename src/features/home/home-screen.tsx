@@ -185,7 +185,15 @@ export function HomeScreen() {
           />
         </AppCard>
       )}
-      <LastWorkoutCard workout={latestWorkout} />
+      <LastWorkoutCard
+        onOpen={
+          latestWorkout
+            ? () =>
+                router.navigate(`/workout/history/${latestWorkout.id}` as Href)
+            : undefined
+        }
+        workout={latestWorkout}
+      />
       <MotivationBanner />
     </Screen>
   );

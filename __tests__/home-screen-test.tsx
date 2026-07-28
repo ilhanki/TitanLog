@@ -3,6 +3,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { appStrings } from '@/constants/strings';
 import type { BodyOverview } from '@/features/body/hooks/use-body-overview';
 import { HomeScreen } from '@/features/home/home-screen';
+import type { CompletedWorkoutSummary } from '@/features/workouts/domain/models';
 
 const mockRouter = {
   navigate: jest.fn(),
@@ -71,6 +72,7 @@ jest.mock('@/features/workouts/data/workout-session-repository', () => ({
 describe('HomeScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockOverview.data.recentSessions.splice(0);
     mockStartSession.mockResolvedValue({ id: 88 });
     mockBodyOverview = {
       data: {
@@ -158,5 +160,30 @@ describe('HomeScreen', () => {
       expect(mockStartSession).toHaveBeenCalledWith(1);
       expect(mockRouter.navigate).toHaveBeenCalledWith('/workout/session/88');
     });
+  });
+
+  it('opens the latest completed workout from Home', async () => {
+    const latestWorkout: CompletedWorkoutSummary = {
+      completedAt: '2026-07-28T19:12:00.000Z',
+      completedSetCount: 19,
+      durationMinutes: 72,
+      exerciseNames: ['Lat Pulldown'],
+      id: 77,
+      startedAt: '2026-07-28T18:00:00.000Z',
+      totalRepetitions: 228,
+      totalVolume: 8640,
+      workoutDayId: 1,
+      workoutName: 'Sırt + Biceps',
+    };
+    mockOverview.data.recentSessions.push(latestWorkout as never);
+    const { getByRole } = await render(<HomeScreen />);
+
+    await fireEvent.press(
+      getByRole('button', {
+        name: `${appStrings.workout.openWorkoutDetails}: Sırt + Biceps`,
+      })
+    );
+
+    expect(mockRouter.navigate).toHaveBeenCalledWith('/workout/history/77');
   });
 });

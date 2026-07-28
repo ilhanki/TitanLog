@@ -308,4 +308,40 @@ describe('workout screens', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/workout/session/9');
     expect(mockStartSession).not.toHaveBeenCalled();
   });
+
+  it('opens the full history and a recent completed workout', async () => {
+    mockUseWorkoutOverview.mockReturnValue({
+      ...baseOverview,
+      data: {
+        ...baseOverview.data,
+        recentSessions: [
+          {
+            completedAt: '2026-07-28T19:12:00.000Z',
+            completedSetCount: 19,
+            durationMinutes: 72,
+            exerciseNames: ['Lat Pulldown'],
+            id: 77,
+            startedAt: '2026-07-28T18:00:00.000Z',
+            totalRepetitions: 228,
+            totalVolume: 8640,
+            workoutDayId: 1,
+            workoutName: 'Sırt + Biceps',
+          },
+        ],
+      },
+    });
+    const { getByRole } = await render(<WorkoutScreen />);
+
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.workout.viewAllHistory })
+    );
+    expect(mockRouter.push).toHaveBeenCalledWith('/workout/history');
+
+    await fireEvent.press(
+      getByRole('button', {
+        name: `${appStrings.workout.openWorkoutDetails}: Sırt + Biceps`,
+      })
+    );
+    expect(mockRouter.push).toHaveBeenCalledWith('/workout/history/77');
+  });
 });
