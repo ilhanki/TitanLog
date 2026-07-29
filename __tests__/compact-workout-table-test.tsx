@@ -134,6 +134,32 @@ describe('compact workout table', () => {
     expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp('value', '50');
   });
 
+  it('updates only the active row draft after wheel confirmation', async () => {
+    const exercise = createExercise(1, 'Lat Pulldown');
+    const onComplete = jest.fn();
+    const { getByLabelText, getByRole } = await render(
+      <WorkoutExerciseRow
+        exercise={exercise}
+        onComplete={onComplete}
+        onOpenEditor={jest.fn()}
+      />
+    );
+    await fireEvent(getByLabelText('Lat Pulldown Kilo (kg)'), 'focus');
+    const wheel = await waitFor(() => getByLabelText('Lat Pulldown Ağırlığı'));
+    await fireEvent(wheel, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.common.apply })
+    );
+
+    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
+      'value',
+      '52,5'
+    );
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
   it('preserves an older active session target repetition value', async () => {
     const exercise = createExercise(1, 'Lat Pulldown', {
       sets: [createSet(11, 1, { actualReps: null, targetReps: 10 })],

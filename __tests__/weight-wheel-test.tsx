@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { useState } from 'react';
 
 import {
   WheelPicker,
@@ -11,6 +12,30 @@ import {
   createExerciseWeightOptions,
 } from '@/components/weight-wheel-modal';
 import { appStrings } from '@/constants/strings';
+import { WeightSelectorField } from '@/components/weight-selector-field';
+
+function BodyWeightHarness() {
+  const [weight, setWeight] = useState('114,8');
+  const [target, setTarget] = useState('99,9');
+  return (
+    <>
+      <WeightSelectorField
+        kind="body"
+        label="Vücut kilosu"
+        onChangeText={setWeight}
+        title="Kilonu Seç"
+        value={weight}
+      />
+      <WeightSelectorField
+        kind="body"
+        label="Hedef kilosu"
+        onChangeText={setTarget}
+        title="Hedef Kilonu Seç"
+        value={target}
+      />
+    </>
+  );
+}
 
 describe('weight wheels', () => {
   it('orders larger values above smaller values and resolves exact snaps', () => {
@@ -182,5 +207,45 @@ describe('weight wheels', () => {
     expect(onApply).not.toHaveBeenCalled();
     await fireEvent.press(getAllByLabelText(appStrings.common.cancel)[0]!);
     expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('applies body wheel confirmation without resetting unrelated fields', async () => {
+    const { getByLabelText, getByRole } = await render(<BodyWeightHarness />);
+    await fireEvent(getByLabelText('Vücut kilosu'), 'focus');
+    const decimalWheel = await waitFor(() =>
+      getByLabelText('Kilonu Seç ondalık')
+    );
+    await fireEvent(decimalWheel, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.common.apply })
+    );
+
+    expect(getByLabelText('Vücut kilosu')).toHaveProp('value', '114,9');
+    expect(getByLabelText('Hedef kilosu')).toHaveProp('value', '99,9');
+  });
+
+  it('discards wheel changes on cancel', async () => {
+    const { getAllByLabelText, getByLabelText } = await render(
+      <BodyWeightHarness />
+    );
+    await fireEvent(getByLabelText('Vücut kilosu'), 'focus');
+    const decimalWheel = await waitFor(() =>
+      getByLabelText('Kilonu Seç ondalık')
+    );
+    await fireEvent(decimalWheel, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    await fireEvent.press(getAllByLabelText(appStrings.common.cancel)[0]!);
+
+    expect(getByLabelText('Vücut kilosu')).toHaveProp('value', '114,8');
+  });
+
+  it('does not include external wheel or legacy gradient packages', () => {
+    const dependencies = require('../package.json').dependencies;
+
+    expect(dependencies).not.toHaveProperty('react-native-wheel-picker');
+    expect(dependencies).not.toHaveProperty('expo-linear-gradient');
   });
 });
