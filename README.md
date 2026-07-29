@@ -1,271 +1,263 @@
 # TitanLog
 
-> **Train. Track. Transform.**
+TitanLog; antrenman programını, aktif set takibini, vücut ölçümlerini ve geçmiş karşılaştırmalarını cihaz üzerinde saklayan Android öncelikli, çevrimdışı çalışan bir fitness takip uygulamasıdır.
 
-TitanLog, antrenman ve fiziksel gelişim takibini tek bir Android öncelikli mobil deneyimde buluşturmayı hedefleyen açık kaynaklı bir fitness uygulamasıdır. Proje erken alfa aşamasındadır ve aktif olarak geliştirilmektedir.
+Proje aktif alfa geliştirme aşamasındadır. Güncel yerel hazırlık sürümü `0.1.0-alpha.8` henüz yayımlanmamıştır. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
 
-> [!IMPORTANT]
-> Bu depo üretime hazır bir ürün sunmaz. Antrenmanlar ve vücut ölçümleri tek cihazda yerel olarak saklanır; hesap, bulut yedekleme ve cihazlar arası eşitleme henüz yoktur.
+[![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
+[![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-20232A?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
+[![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Status: Alpha](https://img.shields.io/badge/Status-Alpha-E58A3B)](#sürümleme)
 
-## Proje durumu
+## Arayüz kimliği
 
-### Sprint 7 — Titan Iron arayüzü ve dokunsal ağırlık çarkları
+Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı yerleşimlerle uzun kullanımda gözü yormayan bir mobil deneyim hedefler. Ortak tasarım token'ları ve yeniden kullanılabilir bileşenler, ekranlar arasındaki durum, boşluk ve erişilebilirlik davranışını tutarlı tutar.
 
-- Elektrik mavisi, mor gradient ve parlak dashboard yaklaşımının yerine graphite yüzeyler ile ölçülü sıcak bakır vurgular kullanan `Titan Iron` görsel kimliği
-- Arka plan, yüzey, sınır, metin, odak, başarı, uyarı, bilgi ve tehlike durumları için merkezî semantik tasarım tokenları
-- Ortak düğme, input, kart, header, tab, metrik ve boş/yükleniyor/hata durumlarında tutarlı pressed, focused, disabled ve destructive davranışlar
-- Harici wheel-picker paketi kullanmadan virtualized dikey listelerle geliştirilen, bisiklet şifre kilidi hissindeki snap’li ağırlık çarkları
-- Vücut kilosu için tam kilogram ve ondalık basamak çarkları; antrenman ağırlıkları için 2,5 kg adımlar ve adımla hizalanmayan mevcut değerleri koruma
-- Başlangıç, hedef ve ölçüm kilosu ile aktif antrenman, program varsayılanı, mevcut egzersiz ekleme ve özel egzersiz akışlarında ortak seçim deneyimi
-- `Elle Gir` alternatifiyle virgül veya nokta kabul eden sayısal giriş; iptalde taslağı koruyan, onayda yalnız yerel form taslağını güncelleyen modal davranışı
-- Ekran okuyucular için ayarlanabilir kontrol rolü, birimli değer metni ve adım uyumlu artır/azalt eylemleri
-- Sabit satır yüksekliği, `getItemLayout`, sınırlı seçenek üretimi ve snap sonrası güncelleme ile Samsung Galaxy A55 hedefli performans yaklaşımı
-- SQLite şema sürümü `3` olarak korunur; aktif oturum, geçmiş snapshot’ları ve vücut verileri yeniden yazılmaz
+## Temel özellikler
 
-Sprint 7 henüz Samsung Galaxy A55 üzerinde fiziksel olarak doğrulanmadı. `v0.1.0-alpha.8` yalnız planlanan tag’dir; fiziksel cihaz onayı ve açık yayın izni olmadan oluşturulmaz veya push edilmez.
+### Antrenman takibi
 
-### Sprint 6 — Antrenman programı düzenleyici
+- Çevrimdışı aktif antrenman oturumları
+- Egzersiz, set, tekrar ve ağırlığı tek satırda gösteren kompakt tablo
+- Set tamamlama, oturum bitirme ve güvenli iptal akışları
+- Uygulama yeniden açıldığında aktif oturumu geri yükleme
+- Egzersiz ve oturum toplamları için tekrar, set, süre ve hacim hesapları
 
-- Tek yerel aktif program için `Programım` yönetim ekranı
-- Antrenman günü adı, açıklaması ve Pazartesi–Pazar programlaması
-- Aynı hafta gününün iki antrenmana atanmasını engelleyen açık çakışma bildirimi
-- Varsayılan set, tekrar, kilo ve toplam/her-el kilo biçimi düzenleme
-- Açık yukarı/aşağı eylemleriyle transaction içinde kararlı egzersiz sıralama
-- Yerel kütüphaneden egzersiz ekleme ve özel egzersizi atomik olarak oluşturup güne bağlama
-- Global egzersiz kaydını ve snapshot'ları koruyarak egzersizi yalnızca program gününden kaldırma
-- Kaydedilmemiş taslak uyarısı ve değişiklikleri yalnızca gelecekteki oturumlara uygulama
+### Program yönetimi
 
-### Sprint 5 — Antrenman geçmişi ve oturum detayları
+- Antrenman günlerini ve haftalık planı düzenleme
+- Bir güne bir veya daha fazla hafta günü atama
+- Egzersiz varsayılanlarını değiştirme
+- Katalogdan egzersiz ekleme veya özel egzersiz oluşturma
+- Egzersizleri yeniden sıralama ve program ilişkisini kaldırma
+- Program değişikliklerini yalnız gelecekteki oturumlara uygulama
 
-- Tamamlanan antrenmanları en yeniden eskiye gösteren sayfalı, salt-okunur geçmiş ekranı
-- Program ve egzersiz snapshot'larını koruyan ayrıntılı oturum görünümü
-- Tamamlanan set, tekrar, süre ve hacim özetleri
-- Aynı program günündeki bir önceki tamamlanmış oturumla tarafsız fark karşılaştırması
-- Eksik zaman bilgisini tahmin üretmeden açıkça belirten süre gösterimi
-- Workout ve ana paneldeki son antrenman alanlarından geçmiş detayına doğrudan geçiş
+### Antrenman geçmişi
 
-### Sprint 4 — Kompakt antrenman tablosu
+- Tamamlanan oturumları en yeniden eskiye listeleme
+- Salt okunur oturum, egzersiz ve set snapshot'ları
+- Süre, tamamlanan set, tekrar ve hacim özetleri
+- Aynı program günündeki önceki tamamlanmış antrenmanla karşılaştırma
 
-- Düşük parlaklıklı siyah/kömür yüzeyler ve ince ayırıcılarla sadeleştirilmiş antrenman ekranları
-- Bütün egzersizleri aynı anda gösteren, egzersiz başına tek kalıcı satırlı aktif antrenman tablosu
-- Önceden doldurulmuş ve düzenlenebilir kilo/tekrar alanları, canlı set sayacı ve satır içi tamamlama
-- Tamamlanan egzersizi yerinde tutan, yalnızca işlem yapılan satırı bekleten hızlı set akışı
-- Tamamlanan setleri düzenleyen; değer devralarak set ekleyen ve yalnızca son tamamlanmamış seti kaldıran kompakt düzenleyici
-- Uygulama yeniden açıldığında aktif oturumun, sayaçların ve sıradaki set değerlerinin geri yüklenmesi
+### Vücut takibi
 
-### Sprint 3 — Vücut gelişimi ve ölçüm geçmişi
+- Yerel vücut profili ve hedef kilo
+- Kilo ile isteğe bağlı çevre ölçümlerini kaydetme
+- Ölçüm ekleme, düzenleme ve korumalı silme
+- Güncel durum, toplam değişim ve hedef ilerlemesi
+- Yeni ölçümde en son kalıcı kiloyu başlangıç değeri olarak kullanma
 
-- Kişisel değer seed etmeden yerel başlangıç ve hedef kilo kurulumu
-- Kilo, isteğe bağlı çevre ölçümleri ve 250 karakterlik not kaydı
-- En yeni ölçümün güncel kilo olarak kullanıldığı düzenlenebilir ölçüm geçmişi
-- İlk/tek ölçümü koruyan destructive onaylı silme akışı
-- Kilo verme ve kilo alma hedeflerini destekleyen yön duyarlı ilerleme hesabı
-- Başlangıç, güncel, hedef, kalan, toplam değişim ve önceki ölçüm farkı
-- Progress sekmesinde gerçek özet, geçmiş, yeni ölçüm ve hedef ayarları
-- Ana sayfadaki bütün vücut değerlerinin gerçek SQLite verisine bağlanması
-- Profil yokken örnek sayı yerine hedef kurulum çağrısı
+### Ağırlık seçim çarkları
 
-### Sprint 2 — Çevrimdışı antrenman takibi
+- Bisiklet kilidi benzeri dikey ve kademeli seçim
+- Vücut kilosunda tam sayı ve tek ondalık basamak
+- Egzersiz ağırlığında `2,5 kg` adımlar
+- Adıma uymayan mevcut egzersiz değerlerini kaybetmeden koruma
+- Virgül veya nokta kabul eden kesin elle giriş
+- Erişilebilir artırma ve azaltma eylemleri
 
-- Expo SQLite ile tek cihazda çevrimdışı antrenman planı ve oturum saklama
-- `PRAGMA user_version` tabanlı, sıralı ve tekrar çalıştırılabilir migrasyon sistemi
-- Her açılışta güvenle kontrol edilen idempotent Titan Başlangıç Programı seed'i
-- Cihazın yerel gününe göre bugünün programı ve Cuma dinlenme durumu
-- Program günü detayı, egzersiz sırası, varsayılan set/tekrar/kilo değerleri
-- Tek aktif oturum kuralı ve uygulama yeniden açıldığında oturuma devam etme
-- Set kilosu ve tekrar girişi, set tamamlama, güvenli set ekleme/kaldırma
-- Yerel geçmişi koruyan antrenman tamamlama ve iptal akışları
-- Tamamlanan set, toplam tekrar ve antrenman hacmi özeti
-- Ana sayfada gerçek bugünkü program, aktif oturum, spor günü sayısı ve son antrenman
-- Android klavye yeniden boyutlandırması ve alt güvenli alan çözümünün korunması
+## Ekranlar ve rotalar
 
-Sprint 1'de eklenen dört sekmeli Expo Router gezinmesi, Türkçe ana panel, UI-only hesap ekranları ve ortak tasarım sistemi kullanılmaya devam eder.
+Expo Router'daki parantezli gruplar URL'nin parçası değildir. Aşağıdaki tablo önemli uygulama rotalarını özetler.
 
-## Yerel veritabanı
+| Rota                                    | Amaç                                              |
+| --------------------------------------- | ------------------------------------------------- |
+| `/`                                     | Ana ekran, günün antrenmanı ve son durum özetleri |
+| `/workout`                              | Antrenman alanı ve aktif program günü             |
+| `/workout/session/[sessionId]`          | Aktif antrenman ve set girişi                     |
+| `/workout/session/[sessionId]/summary`  | Tamamlanan oturum özeti                           |
+| `/workout/history`                      | Tamamlanmış antrenman geçmişi                     |
+| `/workout/history/[sessionId]`          | Salt okunur antrenman detayı                      |
+| `/workout/program`                      | Program yönetimi                                  |
+| `/workout/program/day/[dayId]`          | Program günü ve egzersiz düzenleme                |
+| `/progress`                             | Vücut ilerlemesi ve ölçüm geçmişi                 |
+| `/progress/add`                         | Yeni vücut ölçümü                                 |
+| `/progress/measurement/[measurementId]` | Mevcut ölçümü düzenleme                           |
+| `/progress/settings`                    | Başlangıç ve hedef kilo ayarları                  |
+| `/profile`                              | Yerel profil ve uygulama bilgileri                |
 
-Veritabanı adı `titanlog.db`, güncel şema sürümü `3`'tür. Uygulama kökündeki tek `SQLiteProvider`, açılış sırasında yabancı anahtar denetimini etkinleştirir, WAL kipini ister, migrasyonları sırayla çalıştırır ve aktif plan yoksa varsayılan programı seed eder. Mevcut aktif plan yeniden seed edilmez; böylece kullanıcı düzenlemeleri uygulama yeniden açıldığında korunur. Var olan v2 kurulumlarında yalnızca migration v3 uygulanır; geçmiş, iptal edilmiş ve aktif oturum setleri ile bütün vücut verileri korunur. Başlatma başarısız olursa uygulama sahte veriye geçmez; Türkçe hata ve yeniden deneme durumu gösterir.
-
-Şema şu tabloları içerir:
-
-- `workout_plans`
-- `workout_days`
-- `workout_day_schedules`
-- `exercises`
-- `workout_day_exercises`
-- `workout_sessions`
-- `workout_session_exercises`
-- `workout_sets`
-- `body_profiles`
-- `body_measurements`
-
-Çalışma zamanı değerleri bağlı SQL parametreleriyle yazılır. Çok adımlı seed, oturum başlatma, program/schedule güncelleme, egzersiz sıralama, ilişkilendirme ve tamamlama işlemleri transaction içinde yürütülür. Geçmiş oturumlar, gelecekte program değişse bile eski kaydı korumak için antrenman ve egzersiz snapshot'ları taşır. Sprint 5 geçmişi ve Sprint 6 program düzenleyicisi mevcut tabloları kullandığı için şema sürümü `3` olarak kalır; yeni migrasyon gerekmez.
-
-## Varsayılan program
-
-`Titan Başlangıç Programı` tek aktif plan olarak eklenir:
-
-| Günler                | Program         | Egzersiz |
-| --------------------- | --------------- | -------- |
-| Pazartesi ve Perşembe | Sırt + Biceps   | 7        |
-| Salı ve Cumartesi     | Göğüs + Triceps | 6        |
-| Çarşamba ve Pazar     | Bacak + Omuz    | 7        |
-| Cuma                  | Dinlenme        | —        |
-
-Her egzersiz 3 set ve 12 hedef tekrar ile başlar. Kullanıcı program günlerini, hafta içi/hafta sonu eşlemelerini ve egzersiz varsayılanlarını daha sonra değiştirebilir; Cuma kalıcı bir dinlenme günü değildir. Yeni oturumlarda gerçek tekrar alanı hedef tekrar ile önceden doldurulur; bu değer set tamamlanana kadar toplam tekrar veya hacme katılmaz. Kilo değerleri kilogram olarak sayısal saklanır. Dambıl egzersizlerindeki değer `her el` olarak açıkça gösterilir. Hacim hesabı, girilen her-el kilosunu sessizce ikiyle çarpmaz; tamamlanan setler için `kilo × gerçek tekrar` toplamını kullanır.
-
-## Program düzenleme
-
-Workout sekmesindeki `Programı Düzenle` eylemi tek aktif yerel programı açar. Antrenman günü adı ve açıklaması yerel taslakta düzenlenir; hafta günleri ISO 1–7 değerleriyle atanır. Bir gün başka bir antrenmana aitse kayıt transaction başlamadan açık Türkçe çakışma mesajıyla engellenir. Atanmayan günler dinlenme günüdür.
-
-Egzersiz varsayılanlarında set 1–10, tekrar 1–100 ve kilo 0'dan büyük, en fazla 2000 kg olacak biçimde doğrulanır; kilo virgül veya noktayla girilebilir. Egzersizler yukarı/aşağı kontrolleriyle sıralanır. Mevcut egzersizler yerel aramayla eklenebilir; özel egzersiz ve gün bağlantısı tek transaction içinde oluşturulur. Günden kaldırma yalnızca `workout_day_exercises` ilişkisini siler, global egzersizi silmez. Son egzersiz için daha güçlü native onay gösterilir.
-
-Program değişiklikleri yeni başlatılan oturumların gün adı, sırası ve varsayılanlarında kullanılır. Var olan aktif oturum ile tamamlanmış veya iptal edilmiş geçmiş snapshot'ları yeniden yazılmaz. Geçmiş ekranları salt okunur kalır. Çoklu program, plan kopyalama ve global egzersiz silme desteklenmez.
-
-## Oturum yaşam döngüsü
-
-Antrenman başlatıldığında program ve egzersizler transaction içinde snapshot'lanır, varsayılan set satırları oluşturulur ve oturum `active` olur. Veritabanı kısıtı ile uygulama kontrolü birlikte ikinci bir aktif oturumu engeller.
-
-Kilo ve tekrar değişiklikleri input düzenlemesi bittiğinde, tamamlama durumu ise düğmeye basıldığında yazılır. Tamamlanan bir set geçerli kilo ve sıfırdan büyük gerçek tekrar gerektirir. Oturumu bitirmek için en az bir tamamlanmış set gerekir. İptal edilen oturum silinmez, normal tamamlanan geçmişine ve spor günü sayısına katılmaz.
-
-Aktif antrenmanda her egzersiz tek satırda kalır. Satır, sıradaki tamamlanmamış setin kilo ve tekrar değerlerini gösterir; tamamlama sonrasında sayaç yerinde güncellenir ve sonraki set son girilen değerleri devralır. Bütün setler tamamlandığında satır kaldırılmaz, tamamlandı durumu metin ve simgeyle belirtilir. Set sayacına dokunulduğunda açılan kompakt düzenleyicide tamamlanan setler değiştirilebilir, son setin değerlerini devralan yeni bir set eklenebilir ve yalnızca son tamamlanmamış set güvenle kaldırılabilir.
-
-Tamamlanan oturum geçmişi salt okunurdur. Geçmiş listesi yalnızca `completed` durumundaki oturumları gösterir; ayrıntı ekranı oturum ve egzersiz snapshot'larını, bütün set satırlarını ve yalnızca tamamlanmış setlerden hesaplanan toplamları sunar. Karşılaştırma, aynı program gününün en yakın önceki tamamlanmış oturumunu kullanır. Dambıl hacminde kayıtlı her-el kilosu bir kez sayılır; sessizce ikiyle çarpılmaz. Süre veya önceki karşılaştırma verisi yoksa arayüz tahminde bulunmaz.
-
-## Vücut profili ve ölçümler
-
-Profil kurulumu başlangıç ve hedef kilosunu doğrular, singleton `body_profiles` kaydını ve başlangıç kilosunu taşıyan ilk `body_measurements` kaydını tek transaction içinde oluşturur. Başlangıç ve hedef aynı olamaz. Kilo aralığı 20–400 kg, isteğe bağlı çevre ölçümleri 20–300 cm'dir; hem virgül hem nokta ondalık ayırıcı kabul edilir.
-
-Ölçümler en yeniden eskiye sıralanır, düzenlenebilir ve uygun olduğunda silinebilir. Profilin başlangıç temelini koruyan ilk ölçüm ile tek kalan ölçüm silinemez. Hedef ayarları değiştirildiğinde geçmiş ölçümler yeniden yazılmaz; ilerleme yeni başlangıç/hedef değerlerine göre yeniden hesaplanır.
-
-Kilo verme ilerlemesi `(başlangıç - güncel) / (başlangıç - hedef)`, kilo alma ilerlemesi `(güncel - başlangıç) / (hedef - başlangıç)` olarak hesaplanır ve 0–1 aralığında sınırlandırılır.
-
-## Ana panel verileri
-
-Şu alanlar gerçek SQLite verisidir:
-
-- bugünün programı veya dinlenme durumu
-- aktif oturum ve `Antrenmana Devam Et` eylemi
-- tamamlanan spor günü sayısı
-- son tamamlanan antrenman, ilk üç egzersizi, set sayısı ve hacmi
-- güncel, başlangıç ve hedef kilo ile hedefe kalan mesafe
-- gerçek vücut hedefi ilerlemesi
-
-Vücut profili yoksa hiçbir örnek kişisel ölçüm gösterilmez; kullanıcı Progress kurulumuna yönlendirilir.
-
-## Desteklenmeyen özellikler
-
-- Gerçek kayıt, giriş, çoklu kullanıcı veya şifre yenileme
-- Backend, bulut yedekleme veya cihazlar arası eşitleme
-- Birden fazla program, program kopyalama veya global egzersiz silme
-- Beslenme, boy, BMI veya kalori önerileri
-- Sağlık platformu, bildirim, analytics veya sosyal özellikler
-- Şifreli veritabanı, SQLCipher veya ORM
-
-## Android ve web durumu
-
-Android Expo Go birincil çalışma hedefidir. Sprint 2–Sprint 6 akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 7 Titan Iron arayüzü ve ağırlık çarkları için fiziksel cihaz doğrulaması henüz yapılmadı.
-
-Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandırmasıyla üretilir. Expo SQLite'ın web desteği alfa durumundadır; tarayıcıda kalıcılık çalışma zamanı doğrulanmadığından web veri güvenilirliği kaynağı değildir ve sahte web persistence katmanı kullanılmaz.
+`/auth/sign-in` ve `/auth/sign-up` rotaları yalnız arayüz hazırlığıdır; mevcut yerel işlevler hesap gerektirmez.
 
 ## Teknoloji yığını
 
-- React Native 0.81
-- React 19.1
-- Expo SDK 54 ve Expo Router 6
-- Expo SQLite 16
-- TypeScript 5.9
-- Jest ve React Native Testing Library
-- ESLint ve Prettier
+| Teknoloji                    | Sürüm / rol                          |
+| ---------------------------- | ------------------------------------ |
+| React                        | `19.1.0`                             |
+| React Native                 | `0.81.5`                             |
+| Expo                         | SDK `54` (`~54.0.35`)                |
+| Expo Router                  | `~6.0.24`, dosya tabanlı yönlendirme |
+| Expo SQLite                  | `~16.0.10`, yerel kalıcılık          |
+| TypeScript                   | `~5.9.2`, sıkı statik kontrol        |
+| Jest                         | `~29.7.0`, otomatik testler          |
+| React Native Testing Library | `^14.0.1`, etkileşim testleri        |
+| ESLint / Prettier            | Kod kalitesi ve biçim tutarlılığı    |
 
-Otomatik doğrulama 20 test paketinde 126 testi kapsar.
+## Mimari
 
-## Proje yapısı
+Rota dosyaları ince sarmalayıcılar olarak özellik ekranlarını açar. İş kuralları ve veri erişimi özellik modüllerinde; SQLite kurulumu, migration'lar ve seed işlemleri ortak veritabanı katmanında tutulur.
 
-```text
-TitanLog/
-├── __tests__/                         # Migrasyon, seed, repository, ekran ve yardımcı testleri
-├── app/
-│   ├── (tabs)/                        # Dört ana alt sekme
-│   ├── auth/                          # UI-only hesap rotaları
-│   ├── progress/                      # Ölçüm ekleme, düzenleme ve hedef rotaları
-│   ├── workout/                       # Gün, oturum, geçmiş ve program düzenleme rotaları
-│   └── _layout.tsx                    # SQLiteProvider içeren kök Stack
-├── src/
-│   ├── components/                    # Ortak mobil tasarım sistemi
-│   ├── constants/                     # Merkezi Türkçe metinler
-│   ├── database/
-│   │   ├── migrations/                # user_version tabanlı şema adımları
-│   │   └── seed/                      # İdempotent varsayılan program
-│   ├── features/
-│   │   ├── body/                      # Profil, ölçüm, hesaplama ve form akışları
-│   │   ├── home/                      # SQLite bağlantılı ana panel
-│   │   └── workouts/                  # Domain, repository, hook, ekran ve yardımcılar
-│   └── theme/                         # Paylaşılan tasarım token'ları
-├── app.json                           # Expo uygulama ve build sürümleri
-├── metro.config.js                    # Expo SQLite web WASM asset ayarı
-└── package.json                       # Komutlar ve bağımlılıklar
+```mermaid
+flowchart LR
+    Routes["Expo Router rotaları<br/>app/"] --> Screens["Özellik ekranları<br/>src/features/"]
+    Screens --> Components["Ortak bileşenler ve tema<br/>src/components/ · src/theme/"]
+    Screens --> Repositories["Tipli repository'ler<br/>src/features/*/data/"]
+    Repositories --> SQLite["Expo SQLite"]
+    Migrations["Sıralı migration'lar ve seed<br/>src/database/"] --> SQLite
+    Tests["Jest ve RNTL<br/>__tests__/"] -. doğrular .-> Screens
+    Tests -. doğrular .-> Repositories
 ```
 
-## Yerel kurulum
+Başlıca yapı taşları:
+
+- Expo Router rota sarmalayıcıları
+- Özellik tabanlı ekran, domain, veri ve yardımcı modülleri
+- Tipli repository arayüzleri ve SQLite sorguları
+- Sıralı, `PRAGMA user_version` tabanlı migration sistemi
+- Ortak Titan Iron tasarım token'ları ve bileşenleri
+- Repository, ekran ve etkileşim odaklı testler
+
+## Veri ve gizlilik
+
+- Veriler uygulamanın yerel SQLite veritabanında tutulur.
+- Mevcut sürümde bulut eşitlemesi veya bulut yedeği yoktur.
+- Yerel antrenman ve vücut takibi için hesap gerekmez.
+- Uygulamayı kaldırmak veya uygulama verilerini temizlemek yerel kayıtları silebilir.
+- Depoya kişisel veritabanı dosyaları dahil edilmez.
+
+Bu yaklaşım ağ bağlantısı olmadan çalışmayı sağlar; tek başına şifreleme, yedekleme veya mutlak veri güvenliği garantisi vermez.
+
+## Kurulum ve geliştirme
 
 ### Gereksinimler
 
-- Node.js 20.19 veya üzeri
+- Node.js `20.19.0` veya üzeri
 - npm
-- Fiziksel Android kontrolü için Expo SDK 54 ile uyumlu Expo Go
+- Android geliştirme akışı için Expo SDK 54 ile uyumlu Expo Go
 
 ```bash
 git clone https://github.com/ilhanki/TitanLog.git
 cd TitanLog
 npm ci
-npm start
+npx expo start
 ```
 
-Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilirsiniz. iOS komutu macOS ve uygun iOS araç zinciri gerektirir.
+Metro'nun gösterdiği QR kodu Android cihazdaki Expo Go ile tarayın. Ağ erişimini kapatarak yerel başlangıcı sınamak için:
+
+```bash
+npx expo start --offline
+```
+
+Web hedefi statik dışa aktarılabilir; ancak Expo SQLite'ın web kalıcılığı projenin birincil desteklenen veri ortamı değildir. Veri güvenliği ve fiziksel etkileşim kontrolleri Android üzerinde yapılır.
 
 ## Kullanılabilir komutlar
 
-| Komut                            | Açıklama                                      |
-| -------------------------------- | --------------------------------------------- |
-| `npm start`                      | Expo Metro geliştirme sunucusunu başlatır     |
-| `npm run android`                | Android hedefini açar                         |
-| `npm run ios`                    | iOS hedefini açar                             |
-| `npm run web`                    | Web geliştirme hedefini açar                  |
-| `npm run typecheck`              | Sıkı TypeScript kontrolünü çalıştırır         |
-| `npm run lint`                   | Kaynakları ESLint ile denetler                |
-| `npm run format:check`           | Prettier tutarlılığını değiştirmeden denetler |
-| `npm test -- --runInBand`        | Testleri tek süreçte çalıştırır               |
-| `npx expo-doctor`                | Expo proje sağlığını denetler                 |
-| `npx expo export --platform web` | Statik web çıktısını doğrular                 |
+| Komut                  | Amaç                                               |
+| ---------------------- | -------------------------------------------------- |
+| `npm start`            | Expo geliştirme sunucusunu başlatır.               |
+| `npm run android`      | Metro'yu Android hedefiyle başlatır.               |
+| `npm run ios`          | Metro'yu iOS hedefiyle başlatır.                   |
+| `npm run web`          | Metro'yu web hedefiyle başlatır.                   |
+| `npm run typecheck`    | TypeScript tip kontrolünü çalıştırır.              |
+| `npm run lint`         | `app/` ve `src/` kaynaklarını ESLint ile denetler. |
+| `npm run format`       | Desteklenen dosyaları Prettier ile biçimlendirir.  |
+| `npm run format:check` | Biçimi dosya değiştirmeden denetler.               |
+| `npm test`             | Jest test paketini tek süreçte çalıştırır.         |
+
+## Doğrulama
+
+Yayımlama hazırlığından önce aşağıdaki kontroller çalıştırılır:
+
+```bash
+npm run typecheck
+npm run lint
+npm run format:check
+npm test -- --runInBand
+npx expo-doctor
+```
+
+Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed akışlarını, ekran etkileşimlerini, program düzenlemeyi, antrenman geçmişini, Titan Iron temasını ve ağırlık seçim çarklarını kapsar. Fiziksel cihaz testi otomatik kontrollerin yerine geçmez; ikisi birlikte kullanılır.
+
+## Veritabanı ve migration'lar
+
+- Güncel şema sürümü `3`'tür.
+- Migration'lar sürüm sırasıyla ve işlem içinde uygulanır.
+- Migration 1–3 yayımlanmış şema geçmişidir ve geriye dönük olarak düzenlenmemelidir.
+- Tamamlanan antrenmanlar, sonradan değişen programdan bağımsız salt okunur snapshot'lar saklar.
+- Program değişiklikleri geçmiş oturumları değiştirmez; gelecekte başlatılan oturumları etkiler.
+- Kilo ve ölçüm değerleri SQLite'ta sayısal olarak saklanır; Türkçe ondalık gösterim arayüz katmanında uygulanır.
+
+## Proje yapısı
+
+```text
+TitanLog/
+├── app/                         # Expo Router rota sarmalayıcıları
+│   ├── (tabs)/                  # Ana, antrenman, gelişim ve profil sekmeleri
+│   ├── auth/                    # UI-only hesap ekranları
+│   ├── progress/                # Ölçüm ve hedef rotaları
+│   └── workout/                 # Oturum, geçmiş ve program rotaları
+├── src/
+│   ├── components/              # Ortak arayüz bileşenleri
+│   ├── constants/               # Merkezi Türkçe metinler
+│   ├── database/                # Migration, seed ve veritabanı kurulumu
+│   ├── features/                # Body, home, progress ve workouts modülleri
+│   └── theme/                   # Titan Iron tasarım token'ları
+├── __tests__/                   # Repository, ekran ve davranış testleri
+├── assets/                      # Uygulama görsel varlıkları
+├── app.json                     # Expo yapılandırması
+├── metro.config.js              # Metro ve SQLite web asset ayarları
+└── package.json                 # Komutlar ve bağımlılıklar
+```
 
 ## Sürümleme
 
-TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kullanır.
+TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelini kullanır. Yayımlanan kilometre taşları mevcut HEAD üzerinde açıklamalı Git tag'leriyle işaretlenir ve fiziksel cihaz doğrulamasından sonra yayımlanır.
 
-- Paket ön sürümü: `0.1.0-alpha.8`
+- Yerel paket hazırlığı: `0.1.0-alpha.8`
+- Son yayımlanan tag: `v0.1.0-alpha.7`
+- Planlanan sonraki tag: `v0.1.0-alpha.8`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
-- Yayımlanan Sprint 6 tag'i: `v0.1.0-alpha.7`
-- Planlanan Sprint 7 tag'i: `v0.1.0-alpha.8`
 
-Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşturulmaz.
+`v0.1.0-alpha.8` henüz oluşturulmamış veya origin'e gönderilmemiştir. Son fiziksel cihaz düzeltmeleri Samsung Galaxy A55 üzerinde yeniden doğrulanmayı beklemektedir.
 
 ## Yol haritası
 
-- **Sprint 0 — Proje temeli:** tamamlandı
-- **Sprint 1 — Gezinme ve ana deneyim:** tamamlandı
-- **Sprint 2 — Antrenman alanı ve yerel kalıcılık:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 3 — Vücut gelişimi ve ölçüm geçmişi:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 4 — Kompakt antrenman tablosu:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 5 — Antrenman geçmişi ve oturum detayları:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 6 — Antrenman programı düzenleyici:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 7 — Titan Iron arayüzü ve dokunsal ağırlık çarkları:** yerel olarak uygulandı; fiziksel cihaz doğrulaması ve yayın onayı bekliyor
+- [x] Çevrimdışı antrenman ve aktif oturum takibi
+- [x] Vücut profili, hedef ve ölçüm geçmişi
+- [x] Tamamlanmış antrenman geçmişi ve karşılaştırma
+- [x] Antrenman programı yönetimi
+- [x] Titan Iron görsel sistemi
+- [x] Vücut ve egzersiz ağırlığı seçim çarkları
+- [ ] Birden fazla antrenman programı
+- [ ] Kullanıcı kontrollü veri dışa aktarma
+- [ ] Bulut eşitlemesi ve yedekleme
+- [ ] Sağlık platformu entegrasyonları
+- [ ] Üretim mağazası derlemesi ve dağıtımı
+
+Tarihler ve teslim kapsamları fiziksel doğrulama sonuçlarına göre belirlenir.
+
+## Bilinen sınırlamalar
+
+- Geliştirme ve fiziksel test önceliği Android'dir.
+- Uygulama erken alfa aşamasında ve Expo Go tabanlı geliştirme akışındadır.
+- Bulut yedeği veya cihazlar arası eşitleme yoktur.
+- Google Play üzerinde üretim sürümü yayımlanmamıştır.
+- Bu düzeltmeden sonra çark merkezlemesi Samsung Galaxy A55 üzerinde yeniden doğrulanmalıdır.
+- Expo SQLite web kalıcılığı birincil desteklenen kullanım ortamı değildir.
+- Hesap ekranları arayüz hazırlığıdır; kimlik doğrulama altyapısı uygulanmamıştır.
+
+## Katkıda bulunma
+
+Katkılar için önce kapsamı açıklayan bir issue açın; özellikle büyük özellikleri uygulamadan önce yaklaşımı netleştirin.
+
+- Değişiklikleri küçük ve odaklı tutun.
+- İngilizce [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) mesajları kullanın.
+- Typecheck, lint, format ve test kontrollerini çalıştırın.
+- Secret, kişisel veri, yerel veritabanı veya makineye özgü yol eklemeyin.
+- Yayımlanmış migration dosyalarını değiştirmeyin; yeni şema ihtiyacı için yeni migration ekleyin.
 
 ## Lisans
 
-Bu proje [MIT Lisansı](LICENSE) ile lisanslanmıştır.
-
----
-
-TitanLog aktif geliştirme altındadır. Erken alfa sürecinde kırıcı değişiklikler görülebilir.
+TitanLog, [MIT Lisansı](LICENSE) kapsamında yayımlanır.
