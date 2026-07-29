@@ -2,7 +2,7 @@
 
 TitanLog; antrenman programını, aktif set takibini, vücut ölçümlerini ve geçmiş karşılaştırmalarını cihaz üzerinde saklayan Android öncelikli, çevrimdışı çalışan bir fitness takip uygulamasıdır.
 
-Proje aktif alfa geliştirme aşamasındadır. Güncel yerel hazırlık sürümü `0.1.0-alpha.8` henüz yayımlanmamıştır. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
+Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1.0-alpha.8`, güncel yerel geliştirme sürümü ise Sprint 8 için hazırlanan `0.1.0-alpha.9`'dur. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
 
 [![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
 [![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-20232A?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
@@ -23,6 +23,8 @@ Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı y
 - Set tamamlama, oturum bitirme ve güvenli iptal akışları
 - Uygulama yeniden açıldığında aktif oturumu geri yükleme
 - Egzersiz ve oturum toplamları için tekrar, set, süre ve hacim hesapları
+- Aktif sette son tamamlanan performansı kesintisiz gösterme
+- Önceki tamamlanmış kayda göre ağırlık, tekrar ve oturum hacmi rekoru bildirimi
 
 ### Program yönetimi
 
@@ -39,6 +41,9 @@ Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı y
 - Salt okunur oturum, egzersiz ve set snapshot'ları
 - Süre, tamamlanan set, tekrar ve hacim özetleri
 - Aynı program günündeki önceki tamamlanmış antrenmanla karşılaştırma
+- Egzersiz bazında en yeni kayıttan eskiye tamamlanmış performans geçmişi
+- En yüksek ağırlık, tekrar ve oturum hacmi ile son performans özeti
+- Aktif antrenman, program, gün ve tamamlanmış oturum ekranlarından egzersiz geçmişine erişim
 
 ### Vücut takibi
 
@@ -61,21 +66,22 @@ Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı y
 
 Expo Router'daki parantezli gruplar URL'nin parçası değildir. Aşağıdaki tablo önemli uygulama rotalarını özetler.
 
-| Rota                                    | Amaç                                              |
-| --------------------------------------- | ------------------------------------------------- |
-| `/`                                     | Ana ekran, günün antrenmanı ve son durum özetleri |
-| `/workout`                              | Antrenman alanı ve aktif program günü             |
-| `/workout/session/[sessionId]`          | Aktif antrenman ve set girişi                     |
-| `/workout/session/[sessionId]/summary`  | Tamamlanan oturum özeti                           |
-| `/workout/history`                      | Tamamlanmış antrenman geçmişi                     |
-| `/workout/history/[sessionId]`          | Salt okunur antrenman detayı                      |
-| `/workout/program`                      | Program yönetimi                                  |
-| `/workout/program/day/[dayId]`          | Program günü ve egzersiz düzenleme                |
-| `/progress`                             | Vücut ilerlemesi ve ölçüm geçmişi                 |
-| `/progress/add`                         | Yeni vücut ölçümü                                 |
-| `/progress/measurement/[measurementId]` | Mevcut ölçümü düzenleme                           |
-| `/progress/settings`                    | Başlangıç ve hedef kilo ayarları                  |
-| `/profile`                              | Yerel profil ve uygulama bilgileri                |
+| Rota                                     | Amaç                                              |
+| ---------------------------------------- | ------------------------------------------------- |
+| `/`                                      | Ana ekran, günün antrenmanı ve son durum özetleri |
+| `/workout`                               | Antrenman alanı ve aktif program günü             |
+| `/workout/session/[sessionId]`           | Aktif antrenman ve set girişi                     |
+| `/workout/session/[sessionId]/summary`   | Tamamlanan oturum özeti                           |
+| `/workout/history`                       | Tamamlanmış antrenman geçmişi                     |
+| `/workout/history/[sessionId]`           | Salt okunur antrenman detayı                      |
+| `/workout/exercise/[exerciseId]/history` | Salt okunur egzersiz performans geçmişi           |
+| `/workout/program`                       | Program yönetimi                                  |
+| `/workout/program/day/[dayId]`           | Program günü ve egzersiz düzenleme                |
+| `/progress`                              | Vücut ilerlemesi ve ölçüm geçmişi                 |
+| `/progress/add`                          | Yeni vücut ölçümü                                 |
+| `/progress/measurement/[measurementId]`  | Mevcut ölçümü düzenleme                           |
+| `/progress/settings`                     | Başlangıç ve hedef kilo ayarları                  |
+| `/profile`                               | Yerel profil ve uygulama bilgileri                |
 
 `/auth/sign-in` ve `/auth/sign-up` rotaları yalnız arayüz hazırlığıdır; mevcut yerel işlevler hesap gerektirmez.
 
@@ -184,6 +190,8 @@ Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed ak
 - Migration'lar sürüm sırasıyla ve işlem içinde uygulanır.
 - Migration 1–3 yayımlanmış şema geçmişidir ve geriye dönük olarak düzenlenmemelidir.
 - Tamamlanan antrenmanlar, sonradan değişen programdan bağımsız salt okunur snapshot'lar saklar.
+- Oturum egzersizi snapshot'ları kalıcı egzersiz kimliğini korur; böylece yeniden adlandırma geçmiş bağlantısını bozmaz.
+- Önceki performans ve rekor sorguları yalnız tamamlanmış, aktif oturumdan daha eski kayıtları kullanır.
 - Program değişiklikleri geçmiş oturumları değiştirmez; gelecekte başlatılan oturumları etkiler.
 - Kilo ve ölçüm değerleri SQLite'ta sayısal olarak saklanır; Türkçe ondalık gösterim arayüz katmanında uygulanır.
 
@@ -213,20 +221,21 @@ TitanLog/
 
 TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelini kullanır. Yayımlanan kilometre taşları mevcut HEAD üzerinde açıklamalı Git tag'leriyle işaretlenir ve fiziksel cihaz doğrulamasından sonra yayımlanır.
 
-- Yerel paket hazırlığı: `0.1.0-alpha.8`
-- Son yayımlanan tag: `v0.1.0-alpha.7`
-- Planlanan sonraki tag: `v0.1.0-alpha.8`
+- Yerel paket hazırlığı: `0.1.0-alpha.9`
+- Son yayımlanan tag: `v0.1.0-alpha.8`
+- Planlanan sonraki tag: `v0.1.0-alpha.9`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
 
-`v0.1.0-alpha.8` henüz oluşturulmamış veya origin'e gönderilmemiştir. Son fiziksel cihaz düzeltmeleri Samsung Galaxy A55 üzerinde yeniden doğrulanmayı beklemektedir.
+`v0.1.0-alpha.9` henüz oluşturulmamış veya origin'e gönderilmemiştir. Sprint 8 egzersiz geçmişi, önceki performans ve kişisel rekor deneyimi Samsung Galaxy A55 üzerinde fiziksel doğrulama beklemektedir.
 
 ## Yol haritası
 
 - [x] Çevrimdışı antrenman ve aktif oturum takibi
 - [x] Vücut profili, hedef ve ölçüm geçmişi
 - [x] Tamamlanmış antrenman geçmişi ve karşılaştırma
+- [x] Egzersiz geçmişi, önceki performans ve kişisel rekorlar
 - [x] Antrenman programı yönetimi
 - [x] Titan Iron görsel sistemi
 - [x] Vücut ve egzersiz ağırlığı seçim çarkları
@@ -244,7 +253,7 @@ Tarihler ve teslim kapsamları fiziksel doğrulama sonuçlarına göre belirleni
 - Uygulama erken alfa aşamasında ve Expo Go tabanlı geliştirme akışındadır.
 - Bulut yedeği veya cihazlar arası eşitleme yoktur.
 - Google Play üzerinde üretim sürümü yayımlanmamıştır.
-- Bu düzeltmeden sonra çark merkezlemesi Samsung Galaxy A55 üzerinde yeniden doğrulanmalıdır.
+- Sprint 8 egzersiz geçmişi, önceki performans ve rekor geri bildirimi Samsung Galaxy A55 üzerinde henüz doğrulanmamıştır.
 - Expo SQLite web kalıcılığı birincil desteklenen kullanım ortamı değildir.
 - Hesap ekranları arayüz hazırlığıdır; kimlik doğrulama altyapısı uygulanmamıştır.
 
