@@ -9,6 +9,21 @@ TitanLog, antrenman ve fiziksel gelişim takibini tek bir Android öncelikli mob
 
 ## Proje durumu
 
+### Sprint 7 — Titan Iron arayüzü ve dokunsal ağırlık çarkları
+
+- Elektrik mavisi, mor gradient ve parlak dashboard yaklaşımının yerine graphite yüzeyler ile ölçülü sıcak bakır vurgular kullanan `Titan Iron` görsel kimliği
+- Arka plan, yüzey, sınır, metin, odak, başarı, uyarı, bilgi ve tehlike durumları için merkezî semantik tasarım tokenları
+- Ortak düğme, input, kart, header, tab, metrik ve boş/yükleniyor/hata durumlarında tutarlı pressed, focused, disabled ve destructive davranışlar
+- Harici wheel-picker paketi kullanmadan virtualized dikey listelerle geliştirilen, bisiklet şifre kilidi hissindeki snap’li ağırlık çarkları
+- Vücut kilosu için tam kilogram ve ondalık basamak çarkları; antrenman ağırlıkları için 2,5 kg adımlar ve adımla hizalanmayan mevcut değerleri koruma
+- Başlangıç, hedef ve ölçüm kilosu ile aktif antrenman, program varsayılanı, mevcut egzersiz ekleme ve özel egzersiz akışlarında ortak seçim deneyimi
+- `Elle Gir` alternatifiyle virgül veya nokta kabul eden sayısal giriş; iptalde taslağı koruyan, onayda yalnız yerel form taslağını güncelleyen modal davranışı
+- Ekran okuyucular için ayarlanabilir kontrol rolü, birimli değer metni ve adım uyumlu artır/azalt eylemleri
+- Sabit satır yüksekliği, `getItemLayout`, sınırlı seçenek üretimi ve snap sonrası güncelleme ile Samsung Galaxy A55 hedefli performans yaklaşımı
+- SQLite şema sürümü `3` olarak korunur; aktif oturum, geçmiş snapshot’ları ve vücut verileri yeniden yazılmaz
+
+Sprint 7 henüz Samsung Galaxy A55 üzerinde fiziksel olarak doğrulanmadı. `v0.1.0-alpha.8` yalnız planlanan tag’dir; fiziksel cihaz onayı ve açık yayın izni olmadan oluşturulmaz veya push edilmez.
+
 ### Sprint 6 — Antrenman programı düzenleyici
 
 - Tek yerel aktif program için `Programım` yönetim ekranı
@@ -148,7 +163,7 @@ Vücut profili yoksa hiçbir örnek kişisel ölçüm gösterilmez; kullanıcı 
 
 ## Android ve web durumu
 
-Android Expo Go birincil çalışma hedefidir. Sprint 2–Sprint 5 akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 6 program düzenleyicisi için fiziksel cihaz doğrulaması henüz yapılmadı.
+Android Expo Go birincil çalışma hedefidir. Sprint 2–Sprint 6 akışları Samsung Galaxy A55 üzerinde fiziksel olarak doğrulandı. Sprint 7 Titan Iron arayüzü ve ağırlık çarkları için fiziksel cihaz doğrulaması henüz yapılmadı.
 
 Statik web export, Expo SQLite WASM asset'i için resmi asgari Metro yapılandırmasıyla üretilir. Expo SQLite'ın web desteği alfa durumundadır; tarayıcıda kalıcılık çalışma zamanı doğrulanmadığından web veri güvenilirliği kaynağı değildir ve sahte web persistence katmanı kullanılmaz.
 
@@ -227,12 +242,12 @@ Expo CLI çıktısındaki QR kodu Expo Go ile tarayabilirsiniz. iOS komutu macOS
 
 TitanLog [Semantic Versioning](https://semver.org/lang/tr/) yaklaşımını kullanır.
 
-- Paket ön sürümü: `0.1.0-alpha.7`
+- Paket ön sürümü: `0.1.0-alpha.8`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
-- Yayımlanan Sprint 5 tag'i: `v0.1.0-alpha.6`
-- Planlanan Sprint 6 tag'i: `v0.1.0-alpha.7`
+- Yayımlanan Sprint 6 tag'i: `v0.1.0-alpha.7`
+- Planlanan Sprint 7 tag'i: `v0.1.0-alpha.8`
 
 Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşturulmaz.
 
@@ -244,7 +259,8 @@ Planlanan tag, GitHub Release veya Pull Request bu geliştirme adımında oluşt
 - **Sprint 3 — Vücut gelişimi ve ölçüm geçmişi:** yayımlandı ve fiziksel cihazda doğrulandı
 - **Sprint 4 — Kompakt antrenman tablosu:** yayımlandı ve fiziksel cihazda doğrulandı
 - **Sprint 5 — Antrenman geçmişi ve oturum detayları:** yayımlandı ve fiziksel cihazda doğrulandı
-- **Sprint 6 — Antrenman programı düzenleyici:** yerel olarak uygulandı; fiziksel cihaz doğrulaması ve yayın onayı bekliyor
+- **Sprint 6 — Antrenman programı düzenleyici:** yayımlandı ve fiziksel cihazda doğrulandı
+- **Sprint 7 — Titan Iron arayüzü ve dokunsal ağırlık çarkları:** yerel olarak uygulandı; fiziksel cihaz doğrulaması ve yayın onayı bekliyor
 
 ## Lisans
 
