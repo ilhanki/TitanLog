@@ -45,6 +45,8 @@ Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı y
 - En yüksek ağırlık, tekrar ve oturum hacmi ile son performans özeti
 - Aktif antrenman, program, gün ve tamamlanmış oturum ekranlarından egzersiz geçmişine erişim
 
+Egzersiz rekorları yalnız geçerli ve tamamlanmış setlerden hesaplanır; eşit değer yeni rekor sayılmaz ve ilk ulaşılan kayıt tarihi korunur. Hacim hesabı `ağırlık × tekrar` toplamıdır. “Her el” egzersizlerinde girilen ağırlık geriye dönük olarak ikiye katlanmaz. Geçmiş ve rekorlar mevcut kayıtlardan salt okunur olarak türetilir; ayrı bir başarı kaydı oluşturulmaz.
+
 ### Vücut takibi
 
 - Yerel vücut profili ve hedef kilo
@@ -182,7 +184,7 @@ npm test -- --runInBand
 npx expo-doctor
 ```
 
-Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed akışlarını, ekran etkileşimlerini, program düzenlemeyi, antrenman geçmişini, Titan Iron temasını ve ağırlık seçim çarklarını kapsar. Fiziksel cihaz testi otomatik kontrollerin yerine geçmez; ikisi birlikte kullanılır.
+Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed akışlarını, ekran etkileşimlerini, program düzenlemeyi, antrenman ve egzersiz geçmişini, kimlik eşleştirmeyi, önceki performans ile kişisel rekor kurallarını, Titan Iron temasını ve ağırlık seçim çarklarını kapsar. Fiziksel cihaz testi otomatik kontrollerin yerine geçmez; ikisi birlikte kullanılır.
 
 ## Veritabanı ve migration'lar
 
@@ -192,6 +194,7 @@ Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed ak
 - Tamamlanan antrenmanlar, sonradan değişen programdan bağımsız salt okunur snapshot'lar saklar.
 - Oturum egzersizi snapshot'ları kalıcı egzersiz kimliğini korur; böylece yeniden adlandırma geçmiş bağlantısını bozmaz.
 - Önceki performans ve rekor sorguları yalnız tamamlanmış, aktif oturumdan daha eski kayıtları kullanır.
+- Kalıcı kimliği bulunmayan eski bir snapshot yalnız Türkçe uyumlu, tam ve tekil ad eşleşmesiyle ilişkilendirilebilir; belirsiz eşleşmeler birleştirilmez ve arayüzde kayıt olarak sunulmaz.
 - Program değişiklikleri geçmiş oturumları değiştirmez; gelecekte başlatılan oturumları etkiler.
 - Kilo ve ölçüm değerleri SQLite'ta sayısal olarak saklanır; Türkçe ondalık gösterim arayüz katmanında uygulanır.
 
@@ -254,6 +257,7 @@ Tarihler ve teslim kapsamları fiziksel doğrulama sonuçlarına göre belirleni
 - Bulut yedeği veya cihazlar arası eşitleme yoktur.
 - Google Play üzerinde üretim sürümü yayımlanmamıştır.
 - Sprint 8 egzersiz geçmişi, önceki performans ve rekor geri bildirimi Samsung Galaxy A55 üzerinde henüz doğrulanmamıştır.
+- Egzersiz geçmişinde grafik veya otomatik ağırlık/antrenman önerisi yoktur; kayıtlar yalnız geçmiş performansı açıklar.
 - Expo SQLite web kalıcılığı birincil desteklenen kullanım ortamı değildir.
 - Hesap ekranları arayüz hazırlığıdır; kimlik doğrulama altyapısı uygulanmamıştır.
 
