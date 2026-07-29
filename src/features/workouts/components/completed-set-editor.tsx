@@ -250,7 +250,7 @@ export function CompletedSetEditor({
                 label={appStrings.workout.removeSet}
                 onPress={() => void runAction('remove', onRemoveSet)}
                 style={styles.action}
-                variant="ghost"
+                variant="danger"
               />
             </View>
           </ScrollView>

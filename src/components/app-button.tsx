@@ -14,7 +14,7 @@ type AppButtonProps = Omit<PressableProps, 'children' | 'style'> & {
   icon?: AppIconName;
   label: string;
   style?: StyleProp<ViewStyle>;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
 };
 
 export function AppButton({
@@ -27,7 +27,11 @@ export function AppButton({
   ...props
 }: AppButtonProps) {
   const iconColor =
-    variant === 'primary' ? theme.colors.accentOnColor : theme.colors.primary;
+    variant === 'primary'
+      ? theme.colors.accentOnColor
+      : variant === 'danger'
+        ? theme.colors.danger
+        : theme.colors.primary;
 
   return (
     <Pressable
@@ -51,7 +55,11 @@ export function AppButton({
       <AppText
         selectable={false}
         style={
-          variant === 'primary' ? styles.primaryText : styles.secondaryText
+          variant === 'primary'
+            ? styles.primaryText
+            : variant === 'danger'
+              ? styles.dangerText
+              : styles.secondaryText
         }
         variant="button"
       >
@@ -86,6 +94,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.transparent,
     borderColor: theme.colors.border,
   },
+  danger: {
+    backgroundColor: theme.colors.dangerSoft,
+    borderColor: theme.colors.danger,
+  },
   pressed: {
     opacity: 0.86,
     transform: [{ scale: 0.98 }],
@@ -100,5 +112,8 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: theme.colors.primary,
+  },
+  dangerText: {
+    color: theme.colors.danger,
   },
 });

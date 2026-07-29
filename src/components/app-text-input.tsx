@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { AppText } from '@/components/app-text';
@@ -10,20 +11,40 @@ type AppTextInputProps = TextInputProps & {
 
 export function AppTextInput({
   accessibilityLabel,
+  editable = true,
   error,
   label,
+  onBlur,
+  onFocus,
   style,
   ...props
 }: AppTextInputProps) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.container}>
       <AppText variant="bodyStrong">{label}</AppText>
       <TextInput
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityHint={error}
+        accessibilityState={{ disabled: !editable }}
+        editable={editable}
+        onBlur={(event) => {
+          setFocused(false);
+          onBlur?.(event);
+        }}
+        onFocus={(event) => {
+          setFocused(true);
+          onFocus?.(event);
+        }}
         placeholderTextColor={theme.colors.textSubtle}
         selectionColor={theme.colors.primary}
-        style={[styles.input, error && styles.inputError, style]}
+        style={[
+          styles.input,
+          focused && styles.inputFocused,
+          !editable && styles.inputDisabled,
+          error && styles.inputError,
+          style,
+        ]}
         {...props}
       />
       {error ? (
@@ -58,5 +79,13 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: theme.colors.danger,
+  },
+  inputDisabled: {
+    backgroundColor: theme.colors.surfaceMuted,
+    color: theme.colors.textDisabled,
+  },
+  inputFocused: {
+    borderColor: theme.colors.primary,
+    borderWidth: theme.borders.strong,
   },
 });

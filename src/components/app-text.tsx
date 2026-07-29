@@ -15,7 +15,15 @@ type TextVariant =
   | 'button';
 
 type TextTone =
-  'default' | 'muted' | 'subtle' | 'primary' | 'success' | 'danger';
+  | 'default'
+  | 'muted'
+  | 'subtle'
+  | 'disabled'
+  | 'primary'
+  | 'success'
+  | 'warning'
+  | 'information'
+  | 'danger';
 
 export type AppTextProps = TextProps & {
   tone?: TextTone;
@@ -26,8 +34,11 @@ const toneStyles: Record<TextTone, TextStyle> = {
   default: { color: theme.colors.text },
   muted: { color: theme.colors.textMuted },
   subtle: { color: theme.colors.textSubtle },
+  disabled: { color: theme.colors.textDisabled },
   primary: { color: theme.colors.primary },
   success: { color: theme.colors.success },
+  warning: { color: theme.colors.warning },
+  information: { color: theme.colors.information },
   danger: { color: theme.colors.danger },
 };
 
