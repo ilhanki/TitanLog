@@ -2,7 +2,7 @@
   "name": "titanlog",
   "description": "Antrenman, beslenme ve ilerleme takibi için geliştirilen mobil fitness uygulaması.",
   "main": "expo-router/entry",
-  "version": "0.1.0-alpha.8",
+  "version": "0.1.0-alpha.9",
   "private": true,
   "scripts": {
     "start": "expo start",
