@@ -339,6 +339,23 @@ describe('workout program screens', () => {
     );
   });
 
+  it('handles invalid add and custom route IDs truthfully', async () => {
+    mockLocalParams = { dayId: 'invalid' };
+
+    const addScreen = await render(<AddWorkoutExerciseScreen />);
+    await waitFor(() =>
+      expect(addScreen.getByText(appStrings.workout.dayNotFound)).toBeTruthy()
+    );
+
+    const customScreen = await render(<CustomWorkoutExerciseScreen />);
+    await waitFor(() =>
+      expect(
+        customScreen.getByText(appStrings.workout.dayNotFound)
+      ).toBeTruthy()
+    );
+    expect(mockCreateCustomExerciseAndAdd).not.toHaveBeenCalled();
+  });
+
   it('ignores rapid repeated custom-exercise submissions', async () => {
     let finishSave: ((value: number) => void) | undefined;
     mockCreateCustomExerciseAndAdd.mockImplementation(

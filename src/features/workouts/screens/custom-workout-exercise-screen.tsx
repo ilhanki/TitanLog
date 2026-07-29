@@ -1,11 +1,12 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
 import { AppTextInput } from '@/components/app-text-input';
+import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
 import {
@@ -16,6 +17,7 @@ import {
   createWorkoutProgramRepository,
   WorkoutProgramError,
 } from '@/features/workouts/data/workout-program-repository';
+import { createWorkoutPlanRepository } from '@/features/workouts/data/workout-plan-repository';
 import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
 import {
   createExerciseDefaultsDraft,
@@ -55,6 +57,10 @@ export function CustomWorkoutExerciseScreen() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [loadingDay, setLoadingDay] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [dayMissing, setDayMissing] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const savingRef = useRef(false);
   const dirty =
     name.length > 0 ||
@@ -62,6 +68,37 @@ export function CustomWorkoutExerciseScreen() {
     equipment.length > 0 ||
     JSON.stringify(defaults) !== JSON.stringify(initialDefaults);
   const allowNavigation = useUnsavedChangesGuard(dirty);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reloadKey;
+      let active = true;
+      setLoadingDay(true);
+      setLoadError(false);
+      setDayMissing(false);
+      if (!Number.isSafeInteger(dayId) || dayId <= 0) {
+        setDayMissing(true);
+        setLoadingDay(false);
+        return () => {
+          active = false;
+        };
+      }
+      void createWorkoutPlanRepository(database)
+        .getWorkoutDayDetails(dayId)
+        .then((day) => {
+          if (active) setDayMissing(!day);
+        })
+        .catch(() => {
+          if (active) setLoadError(true);
+        })
+        .finally(() => {
+          if (active) setLoadingDay(false);
+        });
+      return () => {
+        active = false;
+      };
+    }, [database, dayId, reloadKey])
+  );
 
   const save = async () => {
     if (savingRef.current) return;
@@ -135,6 +172,59 @@ export function CustomWorkoutExerciseScreen() {
       setSaving(false);
     }
   };
+
+  if (loadingDay) {
+    return (
+      <Screen
+        backgroundColor={workoutTheme.background}
+        edges={['top', 'bottom']}
+      >
+        <EmptyState
+          description={appStrings.workout.loading}
+          icon="dumbbell"
+          title={appStrings.database.loadingTitle}
+        />
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen
+        backgroundColor={workoutTheme.background}
+        edges={['top', 'bottom']}
+      >
+        <EmptyState
+          description={appStrings.workout.loadError}
+          icon="alert-circle-outline"
+          title={appStrings.database.errorTitle}
+        />
+        <AppButton
+          label={appStrings.workout.retry}
+          onPress={() => setReloadKey((value) => value + 1)}
+        />
+      </Screen>
+    );
+  }
+
+  if (dayMissing) {
+    return (
+      <Screen
+        backgroundColor={workoutTheme.background}
+        edges={['top', 'bottom']}
+      >
+        <EmptyState
+          description={appStrings.workout.dayNotFoundDescription}
+          icon="calendar-remove"
+          title={appStrings.workout.dayNotFound}
+        />
+        <AppButton
+          label={appStrings.common.goBack}
+          onPress={() => router.back()}
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen

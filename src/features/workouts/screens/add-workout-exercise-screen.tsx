@@ -55,6 +55,7 @@ export function AddWorkoutExerciseScreen() {
   >({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [dayMissing, setDayMissing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -64,18 +65,27 @@ export function AddWorkoutExerciseScreen() {
   const load = useCallback(async () => {
     if (!Number.isSafeInteger(dayId) || dayId <= 0) {
       setExercises([]);
+      setDayMissing(true);
       setLoading(false);
       return;
     }
     setLoading(true);
     setLoadError(false);
+    setDayMissing(false);
     try {
       const next = await createWorkoutProgramRepository(
         database
       ).getAvailableExercises(dayId, query);
       setExercises(next);
-    } catch {
-      setLoadError(true);
+    } catch (error) {
+      if (
+        error instanceof WorkoutProgramError &&
+        error.code === 'day_not_found'
+      ) {
+        setDayMissing(true);
+      } else {
+        setLoadError(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -183,6 +193,25 @@ export function AddWorkoutExerciseScreen() {
             onPress={() => void save()}
           />
         </View>
+      </Screen>
+    );
+  }
+
+  if (dayMissing) {
+    return (
+      <Screen
+        backgroundColor={workoutTheme.background}
+        edges={['top', 'bottom']}
+      >
+        <EmptyState
+          description={appStrings.workout.dayNotFoundDescription}
+          icon="calendar-remove"
+          title={appStrings.workout.dayNotFound}
+        />
+        <AppButton
+          label={appStrings.common.goBack}
+          onPress={() => router.back()}
+        />
       </Screen>
     );
   }
