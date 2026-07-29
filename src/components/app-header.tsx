@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   brandMark: {
     backgroundColor: theme.colors.primary,
-    borderRadius: theme.radii.pill,
+    borderRadius: theme.radii.md,
     height: theme.iconSizes.md,
     width: theme.spacing.xs,
   },

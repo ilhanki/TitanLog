@@ -15,7 +15,7 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderRadius: theme.radii.lg,
     borderWidth: theme.borders.thin,
-    padding: theme.spacing.xl,
+    padding: theme.spacing.lg,
   },
   default: {
     backgroundColor: theme.colors.surface,
@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
   raised: {
     backgroundColor: theme.colors.surfaceRaised,
     borderColor: theme.colors.borderStrong,
-    boxShadow: theme.shadows.card,
+    boxShadow: theme.shadows.raised,
   },
   accent: {
     backgroundColor: theme.colors.primarySoft,

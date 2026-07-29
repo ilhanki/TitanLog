@@ -18,7 +18,7 @@ export function EmptyState({ description, icon, title }: EmptyStateProps) {
         <AppIcon
           color={theme.colors.primary}
           name={icon}
-          size={theme.iconSizes.xl}
+          size={theme.iconSizes.md}
         />
       </View>
       <AppText
@@ -39,15 +39,15 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     gap: theme.spacing.md,
-    paddingVertical: theme.spacing.xxxl,
+    paddingVertical: theme.spacing.xxl,
   },
   iconContainer: {
     alignItems: 'center',
     backgroundColor: theme.colors.primarySoft,
-    borderRadius: theme.radii.pill,
-    height: 64,
+    borderRadius: theme.radii.md,
+    height: theme.layout.compactTouchTarget,
     justifyContent: 'center',
-    width: 64,
+    width: theme.layout.compactTouchTarget,
   },
   centeredText: {
     textAlign: 'center',

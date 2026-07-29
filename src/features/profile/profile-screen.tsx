@@ -22,7 +22,7 @@ export function ProfileScreen() {
           <AppIcon
             color={theme.colors.primary}
             name="account-circle-outline"
-            size={theme.iconSizes.hero}
+            size={theme.iconSizes.xl}
           />
         </View>
         <AppText style={styles.centeredText} variant="heading">
@@ -58,10 +58,10 @@ const styles = StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     backgroundColor: theme.colors.primarySoft,
-    borderRadius: theme.radii.pill,
-    height: 80,
+    borderRadius: theme.radii.lg,
+    height: 56,
     justifyContent: 'center',
-    width: 80,
+    width: 56,
   },
   centeredText: {
     textAlign: 'center',

@@ -25,12 +25,15 @@ export function TabBarIcon({ color, focused, name, size }: TabBarIconProps) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    borderRadius: theme.radii.pill,
+    borderBottomWidth: theme.borders.strong,
+    borderColor: theme.colors.transparent,
+    borderRadius: theme.radii.sm,
     height: theme.spacing.xxxl,
     justifyContent: 'center',
     width: theme.spacing.giant,
   },
   focused: {
     backgroundColor: theme.colors.primarySoft,
+    borderColor: theme.colors.primary,
   },
 });

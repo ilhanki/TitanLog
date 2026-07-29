@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: theme.colors.surfaceInteractive,
     borderColor: theme.colors.border,
-    borderRadius: theme.radii.pill,
+    borderRadius: theme.radii.md,
     borderWidth: theme.borders.thin,
     height: theme.layout.compactTouchTarget,
     justifyContent: 'center',

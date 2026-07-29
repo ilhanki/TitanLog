@@ -18,27 +18,32 @@ export function StatCard({ icon, label, style, value }: StatCardProps) {
       <View style={styles.iconContainer}>
         <AppIcon color={theme.colors.accent} name={icon} />
       </View>
-      <AppText selectable tone="muted" variant="caption">
-        {label}
-      </AppText>
-      <AppText selectable variant="metric">
-        {value}
-      </AppText>
+      <View style={styles.copy}>
+        <AppText selectable tone="muted" variant="caption">
+          {label}
+        </AppText>
+        <AppText selectable variant="metric">
+          {value}
+        </AppText>
+      </View>
     </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: theme.spacing.sm,
-    minHeight: 142,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    minHeight: 88,
   },
+  copy: { flex: 1, gap: theme.spacing.xs },
   iconContainer: {
     alignItems: 'center',
     backgroundColor: theme.colors.primarySoft,
     borderRadius: theme.radii.md,
-    height: theme.layout.touchTarget,
+    height: 40,
     justifyContent: 'center',
-    width: theme.layout.touchTarget,
+    width: 40,
   },
 });
