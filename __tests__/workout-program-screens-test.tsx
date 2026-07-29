@@ -219,6 +219,37 @@ describe('workout program screens', () => {
     );
   });
 
+  it('preserves drafts and blocks rapid saves when every weekday is cleared', async () => {
+    const { getByLabelText, getByRole, getByText } = await render(
+      <WorkoutProgramDayScreen />
+    );
+    const nameInput = await waitFor(() =>
+      getByLabelText(appStrings.workout.dayName)
+    );
+    const descriptionInput = getByLabelText(appStrings.workout.dayDescription);
+    await fireEvent.changeText(nameInput, 'Yeni Sırt Günü');
+    await fireEvent.changeText(descriptionInput, 'Taslak açıklama');
+    await fireEvent.press(getByLabelText('Pazartesi'));
+    await fireEvent.press(getByLabelText('Perşembe'));
+    const saveButton = getByRole('button', {
+      name: appStrings.workout.saveDay,
+    });
+
+    await fireEvent.press(saveButton);
+    await fireEvent.press(saveButton);
+
+    expect(getByText('En az bir antrenman günü seçmelisin.')).toBeTruthy();
+    expect(nameInput).toHaveProp('value', 'Yeni Sırt Günü');
+    expect(descriptionInput).toHaveProp('value', 'Taslak açıklama');
+    expect(getByLabelText('Pazartesi')).toHaveProp('accessibilityState', {
+      checked: false,
+    });
+    expect(getByLabelText('Perşembe')).toHaveProp('accessibilityState', {
+      checked: false,
+    });
+    expect(mockUpdateWorkoutDay).not.toHaveBeenCalled();
+  });
+
   it('updates exercise defaults and invokes explicit reorder controls', async () => {
     const { getByLabelText, getByRole } = await render(
       <WorkoutProgramDayScreen />

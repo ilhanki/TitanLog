@@ -109,6 +109,58 @@ describe('workout program repository', () => {
     );
   });
 
+  it('rejects an empty schedule before opening a transaction or changing persisted rows', async () => {
+    const transaction = createTransaction();
+    const database = createDatabase(transaction) as SQLiteDatabase & {
+      withExclusiveTransactionAsync: jest.Mock;
+    };
+
+    await expect(
+      createWorkoutProgramRepository(database).updateWorkoutDay(1, {
+        name: 'Sırt ve Kol',
+        scheduleWeekdays: [],
+        subtitle: 'Taslak açıklama',
+      })
+    ).rejects.toMatchObject({ code: 'invalid_schedule' });
+
+    expect(database.withExclusiveTransactionAsync).not.toHaveBeenCalled();
+    expect(transaction.runAsync).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['one weekday', [1]],
+    ['Friday only', [5]],
+    ['multiple weekdays', [1, 5]],
+  ])('saves %s schedules atomically', async (_case, scheduleWeekdays) => {
+    const transaction = createTransaction({
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(null),
+    });
+
+    await createWorkoutProgramRepository(
+      createDatabase(transaction)
+    ).updateWorkoutDay(1, {
+      name: 'Sırt ve Kol',
+      scheduleWeekdays,
+      subtitle: '',
+    });
+
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      'DELETE FROM workout_day_schedules WHERE workout_day_id = ?',
+      1
+    );
+    for (const weekday of scheduleWeekdays) {
+      expect(transaction.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO workout_day_schedules'),
+        1,
+        weekday
+      );
+    }
+  });
+
   it('rejects an occupied weekday before replacing any schedule rows', async () => {
     const transaction = createTransaction({
       getFirstAsync: jest

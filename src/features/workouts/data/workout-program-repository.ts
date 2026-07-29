@@ -23,6 +23,7 @@ export type WorkoutProgramErrorCode =
   | 'invalid_defaults'
   | 'invalid_day'
   | 'invalid_exercise'
+  | 'invalid_schedule'
   | 'reorder_unavailable'
   | 'schedule_conflict';
 
@@ -111,6 +112,9 @@ export function createWorkoutProgramRepository(database: SQLiteDatabase) {
       const weekdays = normalizeWeekdays(draft.scheduleWeekdays);
       if (!name || subtitle === null) {
         throw new WorkoutProgramError('invalid_day');
+      }
+      if (weekdays.length === 0) {
+        throw new WorkoutProgramError('invalid_schedule');
       }
 
       await database.withExclusiveTransactionAsync(async (transaction) => {

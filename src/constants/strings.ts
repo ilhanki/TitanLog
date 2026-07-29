@@ -95,6 +95,7 @@ export const appStrings = {
     daySaved: 'Antrenman günü kaydedildi.',
     invalidDayName: '1–60 karakter arasında bir ad gir.',
     invalidDayDescription: 'Açıklama en fazla 120 karakter olabilir.',
+    invalidDaySchedule: 'En az bir antrenman günü seçmelisin.',
     duplicateDayName: 'Bu programda aynı adlı başka bir gün var.',
     scheduleConflict: 'Bu gün başka bir antrenmana atanmış.',
     noScheduledDays: 'Planlanmış gün yok',

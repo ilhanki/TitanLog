@@ -168,6 +168,7 @@ export function WorkoutProgramDayScreen() {
     if (!draft || savingDayRef.current) return;
     const name = normalizeRequiredName(draft.name, MAX_WORKOUT_DAY_NAME_LENGTH);
     const subtitle = normalizeOptionalText(draft.subtitle);
+    const scheduleWeekdays = normalizeWeekdays(draft.scheduleWeekdays);
     if (!name) {
       setSaveError(appStrings.workout.invalidDayName);
       return;
@@ -176,13 +177,17 @@ export function WorkoutProgramDayScreen() {
       setSaveError(appStrings.workout.invalidDayDescription);
       return;
     }
+    if (scheduleWeekdays.length === 0) {
+      setSaveError(appStrings.workout.invalidDaySchedule);
+      return;
+    }
     savingDayRef.current = true;
     setSavingDay(true);
     setSaveError(null);
     try {
       const normalized = {
         name,
-        scheduleWeekdays: normalizeWeekdays(draft.scheduleWeekdays),
+        scheduleWeekdays,
         subtitle,
       };
       await createWorkoutProgramRepository(database).updateWorkoutDay(
