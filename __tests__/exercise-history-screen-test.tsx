@@ -92,6 +92,7 @@ describe('exercise history screen', () => {
     expect(getAllByText('12 tekrar').length).toBeGreaterThanOrEqual(1);
     expect(getByText('410 kg')).toBeTruthy();
     expect(getByText('17,5 kg')).toBeTruthy();
+    expect(getByText(/20 kg en yüksek/)).toBeTruthy();
     expect(getByText(/her el/)).toBeTruthy();
     expect(
       queryByRole('button', { name: appStrings.workout.markComplete })

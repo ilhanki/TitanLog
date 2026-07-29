@@ -276,6 +276,7 @@ export const appStrings = {
     highestWeightRecord: 'En Yüksek Ağırlık',
     highestRepetitionRecord: 'En Yüksek Tekrar',
     highestVolumeRecord: 'En Yüksek Hacim',
+    highestWeightCompact: 'en yüksek',
     lastExerciseWorkout: 'Son Antrenman',
     legacyExerciseHistoryNote:
       'Bazı eski kayıtlar egzersiz adına göre eşleştirildi.',

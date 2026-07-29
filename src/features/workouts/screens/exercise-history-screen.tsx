@@ -99,7 +99,8 @@ export function ExerciseHistoryScreen() {
           current.recentAppearances.map((item) => item.sessionExerciseId)
         );
         return {
-          ...next,
+          ...current,
+          hasMore: next.hasMore,
           recentAppearances: [
             ...current.recentAppearances,
             ...next.recentAppearances.filter(
@@ -269,7 +270,10 @@ export function ExerciseHistoryScreen() {
               <AppText selectable tone="muted" variant="caption">
                 {appearance.completedSetCount} set ·{' '}
                 {appearance.totalRepetitions} tekrar ·{' '}
-                {formatWorkoutWeight(appearance.totalVolume)} kg
+                {appearance.highestWeightKg === null
+                  ? '—'
+                  : `${formatWorkoutWeight(appearance.highestWeightKg)} kg ${appStrings.workout.highestWeightCompact}`}{' '}
+                · {formatWorkoutWeight(appearance.totalVolume)} kg
               </AppText>
               {appearance.sets.map((set) => (
                 <View key={set.setNumber} style={styles.setRow}>
