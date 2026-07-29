@@ -46,6 +46,7 @@ export function combineBodyWeight(whole: number, decimal: number): number {
 
 type WeightWheelModalProps = {
   accessibilityLabel: string;
+  context?: string;
   kind: WeightWheelKind;
   onApply: (value: number) => void;
   onCancel: () => void;
@@ -56,6 +57,7 @@ type WeightWheelModalProps = {
 
 export function WeightWheelModal({
   accessibilityLabel,
+  context,
   kind,
   onApply,
   onCancel,
@@ -68,6 +70,7 @@ export function WeightWheelModal({
   return (
     <VisibleWeightWheelModal
       accessibilityLabel={accessibilityLabel}
+      context={context}
       kind={kind}
       onApply={onApply}
       onCancel={onCancel}
@@ -81,6 +84,7 @@ type VisibleWeightWheelModalProps = Omit<WeightWheelModalProps, 'visible'>;
 
 function VisibleWeightWheelModal({
   accessibilityLabel,
+  context,
   kind,
   onApply,
   onCancel,
@@ -149,6 +153,11 @@ function VisibleWeightWheelModal({
               <AppText selectable tone="muted" variant="caption">
                 {appStrings.common.wheelHint}
               </AppText>
+              {context ? (
+                <AppText selectable tone="primary" variant="caption">
+                  {context}
+                </AppText>
+              ) : null}
             </View>
             {manual ? (
               <AppTextInput

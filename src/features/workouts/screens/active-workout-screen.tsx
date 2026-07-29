@@ -6,7 +6,7 @@ import {
 } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Alert, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
@@ -23,7 +23,14 @@ import {
   createWorkoutSessionRepository,
   WorkoutSessionError,
 } from '@/features/workouts/data/workout-session-repository';
+import { createExercisePerformanceRepository } from '@/features/workouts/data/exercise-performance-repository';
+import type {
+  ExerciseAppearance,
+  ExerciseRecords,
+  PersonalRecordResult,
+} from '@/features/workouts/domain/exercise-performance';
 import type { WorkoutSession } from '@/features/workouts/domain/models';
+import { comparePersonalRecords } from '@/features/workouts/utils/exercise-performance';
 import { calculateSessionMetrics } from '@/features/workouts/utils/workout-values';
 import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
@@ -52,6 +59,18 @@ export function ActiveWorkoutScreen() {
   const [sessionPending, setSessionPending] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [editorExerciseId, setEditorExerciseId] = useState<number | null>(null);
+  const [previous, setPrevious] = useState<
+    ReadonlyMap<number, ExerciseAppearance>
+  >(new Map());
+  const [recordBaselines, setRecordBaselines] = useState<
+    ReadonlyMap<number, ExerciseRecords>
+  >(new Map());
+  const [performanceLoading, setPerformanceLoading] = useState(true);
+  const [performanceError, setPerformanceError] = useState(false);
+  const [recordMessage, setRecordMessage] = useState<string | null>(null);
+  const announcedRecords = useRef(
+    new Map<number, Map<PersonalRecordResult['kind'], number>>()
+  );
   const sessionPendingRef = useRef(false);
 
   const refreshSession = async () => {
@@ -61,6 +80,7 @@ export function ActiveWorkoutScreen() {
       );
     if (!nextSession) throw new WorkoutSessionError('session_not_active');
     setSession(nextSession);
+    return nextSession;
   };
 
   useFocusEffect(
@@ -68,6 +88,8 @@ export function ActiveWorkoutScreen() {
       let active = true;
       setLoading(true);
       setError(null);
+      setPerformanceLoading(true);
+      setPerformanceError(false);
       if (!Number.isSafeInteger(sessionId) || sessionId <= 0) {
         setSession(null);
         setLoading(false);
@@ -77,14 +99,35 @@ export function ActiveWorkoutScreen() {
       }
       void createWorkoutSessionRepository(database)
         .getSessionDetails(sessionId)
-        .then((nextSession) => {
-          if (active) setSession(nextSession);
+        .then(async (nextSession) => {
+          if (!active) return;
+          setSession(nextSession);
+          if (!nextSession || nextSession.status !== 'active') return;
+          try {
+            const performance = await createExercisePerformanceRepository(
+              database
+            ).getActiveExercisePerformance(
+              nextSession.id,
+              nextSession.exercises.map((exercise) => exercise.exerciseId)
+            );
+            if (active) {
+              setPrevious(performance.previous);
+              setRecordBaselines(performance.records);
+            }
+          } catch {
+            if (active) setPerformanceError(true);
+          } finally {
+            if (active) setPerformanceLoading(false);
+          }
         })
         .catch(() => {
           if (active) setError(appStrings.workout.loadError);
         })
         .finally(() => {
-          if (active) setLoading(false);
+          if (active) {
+            setLoading(false);
+            setPerformanceLoading(false);
+          }
         });
       return () => {
         active = false;
@@ -96,6 +139,38 @@ export function ActiveWorkoutScreen() {
     const interval = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!recordMessage) return;
+    const timeout = setTimeout(() => setRecordMessage(null), 5000);
+    return () => clearTimeout(timeout);
+  }, [recordMessage]);
+
+  const announceRecords = (
+    exerciseId: number,
+    records: readonly PersonalRecordResult[]
+  ) => {
+    const announced = announcedRecords.current.get(exerciseId) ?? new Map();
+    const fresh = records.filter(
+      (record) => record.value > (announced.get(record.kind) ?? -Infinity)
+    );
+    if (fresh.length === 0) return;
+    for (const record of fresh) announced.set(record.kind, record.value);
+    announcedRecords.current.set(exerciseId, announced);
+    const message = fresh
+      .map((record) => {
+        if (record.kind === 'weight') {
+          return `${appStrings.workout.newWeightRecord} · ${record.value} kg`;
+        }
+        if (record.kind === 'repetitions') {
+          return `${appStrings.workout.newRepetitionRecord} · ${record.value} tekrar`;
+        }
+        return `${appStrings.workout.newVolumeRecord} · ${record.value} kg`;
+      })
+      .join(' · ');
+    setRecordMessage(message);
+    AccessibilityInfo.announceForAccessibility(message);
+  };
 
   const runSessionWrite = async (operation: () => Promise<void>) => {
     if (sessionPendingRef.current) return;
@@ -267,6 +342,18 @@ export function ActiveWorkoutScreen() {
         </AppText>
       ) : null}
 
+      {recordMessage ? (
+        <View
+          accessibilityLiveRegion="polite"
+          accessibilityRole="alert"
+          style={styles.recordBanner}
+        >
+          <AppText selectable tone="primary" variant="bodyStrong">
+            {recordMessage}
+          </AppText>
+        </View>
+      ) : null}
+
       <View style={styles.table}>
         <View accessibilityRole="header" style={styles.tableHeader}>
           <AppText style={styles.headerName} tone="muted" variant="caption">
@@ -300,9 +387,48 @@ export function ActiveWorkoutScreen() {
                 weightKg,
                 actualReps
               );
-              await refreshSession();
+              const refreshed = await refreshSession();
+              const refreshedExercise = refreshed.exercises.find(
+                (item) => item.exerciseId === exercise.exerciseId
+              );
+              const savedSet = refreshedExercise?.sets.find(
+                (item) => item.id === setId && item.isCompleted
+              );
+              if (
+                refreshedExercise &&
+                savedSet &&
+                savedSet.actualReps !== null
+              ) {
+                const volume = refreshedExercise.sets.reduce(
+                  (total, item) =>
+                    item.isCompleted && item.actualReps !== null
+                      ? total + item.weightKg * item.actualReps
+                      : total,
+                  0
+                );
+                announceRecords(
+                  exercise.exerciseId,
+                  comparePersonalRecords(
+                    {
+                      actualReps: savedSet.actualReps,
+                      setNumber: savedSet.setNumber,
+                      weightKg: savedSet.weightKg,
+                    },
+                    volume,
+                    recordBaselines.get(exercise.exerciseId) ?? null
+                  )
+                );
+              }
             }}
+            onOpenHistory={() =>
+              router.push(
+                `/workout/exercise/${exercise.exerciseId}/history` as Href
+              )
+            }
             onOpenEditor={() => setEditorExerciseId(exercise.id)}
+            previousPerformance={previous.get(exercise.exerciseId) ?? null}
+            previousPerformanceError={performanceError}
+            previousPerformanceLoading={performanceLoading}
           />
         ))}
       </View>
@@ -348,6 +474,13 @@ const styles = StyleSheet.create({
   screenContent: { gap: theme.spacing.md, paddingHorizontal: theme.spacing.sm },
   sessionAction: { flex: 1, minHeight: theme.layout.compactTouchTarget },
   sessionActions: { flexDirection: 'row', gap: theme.spacing.sm },
+  recordBanner: {
+    backgroundColor: theme.colors.primarySoft,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radii.md,
+    borderWidth: theme.borders.thin,
+    padding: theme.spacing.md,
+  },
   table: {
     backgroundColor: workoutTheme.surface,
     borderColor: workoutTheme.separator,

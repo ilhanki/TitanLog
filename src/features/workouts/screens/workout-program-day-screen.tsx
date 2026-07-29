@@ -510,6 +510,18 @@ export function WorkoutProgramDayScreen() {
                 </View>
                 <View style={styles.actions}>
                   <AppButton
+                    accessibilityLabel={`${exercise.name}: ${appStrings.workout.exerciseHistoryAction}`}
+                    disabled={pending}
+                    label={appStrings.workout.exerciseHistoryAction}
+                    onPress={() =>
+                      router.push(
+                        `/workout/exercise/${exercise.id}/history` as Href
+                      )
+                    }
+                    style={styles.wideAction}
+                    variant="secondary"
+                  />
+                  <AppButton
                     accessibilityLabel={`${exercise.name}: ${appStrings.workout.editDefaults}`}
                     disabled={pending}
                     label={appStrings.workout.editDefaults}

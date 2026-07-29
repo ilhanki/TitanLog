@@ -1,4 +1,9 @@
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+  type Href,
+} from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -289,6 +294,16 @@ export function CompletedWorkoutDetailScreen() {
                   {formatWorkoutWeight(exercise.totalVolume)} kg
                 </AppText>
               </View>
+              <AppButton
+                accessibilityLabel={`${exercise.name}: ${appStrings.workout.exerciseHistoryAction}`}
+                label={appStrings.workout.exerciseHistoryAction}
+                onPress={() =>
+                  router.push(
+                    `/workout/exercise/${exercise.exerciseId}/history` as Href
+                  )
+                }
+                variant="ghost"
+              />
             </View>
             <View accessibilityRole="header" style={styles.setHeader}>
               <AppText style={styles.setNumber} tone="subtle" variant="caption">

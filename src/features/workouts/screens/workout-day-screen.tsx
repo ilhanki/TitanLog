@@ -6,7 +6,7 @@ import {
 } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
@@ -221,10 +221,13 @@ export function WorkoutDayScreen() {
 
       <View style={styles.exerciseList}>
         {day.exercises.map((exercise) => (
-          <View
-            accessibilityLabel={`${exercise.name}, ${exercise.setCount} ${appStrings.workout.sets}, ${exercise.targetReps} ${appStrings.workout.repetitions}, ${formatWorkoutWeight(exercise.weightKg)} kg${exercise.weightMode === 'per_hand' ? `, ${appStrings.workout.perHand}` : ''}`}
-            accessible
+          <Pressable
+            accessibilityLabel={`${exercise.name} geçmişini aç. ${exercise.setCount} ${appStrings.workout.sets}, ${exercise.targetReps} ${appStrings.workout.repetitions}, ${formatWorkoutWeight(exercise.weightKg)} kg${exercise.weightMode === 'per_hand' ? `, ${appStrings.workout.perHand}` : ''}`}
+            accessibilityRole="button"
             key={exercise.id}
+            onPress={() =>
+              router.push(`/workout/exercise/${exercise.id}/history` as Href)
+            }
             style={styles.exerciseRow}
           >
             <AppText
@@ -248,7 +251,7 @@ export function WorkoutDayScreen() {
             <AppText style={styles.weightMetric} tone="muted" variant="caption">
               {formatWorkoutWeight(exercise.weightKg)} kg
             </AppText>
-          </View>
+          </Pressable>
         ))}
       </View>
     </Screen>

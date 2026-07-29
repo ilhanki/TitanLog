@@ -142,11 +142,13 @@ export function calculateExerciseRecords(
         appearance
       );
     }
-    highestSessionVolume = updateRecord(
-      highestSessionVolume,
-      appearance.totalVolume,
-      appearance
-    );
+    if (appearance.completedSetCount > 0) {
+      highestSessionVolume = updateRecord(
+        highestSessionVolume,
+        appearance.totalVolume,
+        appearance
+      );
+    }
   }
 
   return {

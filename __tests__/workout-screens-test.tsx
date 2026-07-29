@@ -16,10 +16,12 @@ const mockGetWorkoutDayDetails = jest.fn();
 const mockGetActiveSession = jest.fn();
 const mockGetSessionDetails = jest.fn();
 const mockStartSession = jest.fn();
+const mockCompleteSet = jest.fn();
 const mockAddSet = jest.fn();
 const mockRemoveSet = jest.fn();
 const mockUpdateSetValues = jest.fn();
 const mockUseWorkoutOverview = jest.fn();
+const mockGetActiveExercisePerformance = jest.fn();
 let mockLocalParams = { dayId: '1', sessionId: '9' };
 
 const workoutDay = {
@@ -124,7 +126,7 @@ jest.mock('@/features/workouts/data/workout-session-repository', () => {
     createWorkoutSessionRepository: () => ({
       addSet: mockAddSet,
       cancelSession: jest.fn(),
-      completeSetAndPrefillNext: jest.fn(),
+      completeSetAndPrefillNext: mockCompleteSet,
       completeSession: jest.fn(),
       getActiveSession: mockGetActiveSession,
       getSessionDetails: mockGetSessionDetails,
@@ -135,6 +137,11 @@ jest.mock('@/features/workouts/data/workout-session-repository', () => {
     }),
   };
 });
+jest.mock('@/features/workouts/data/exercise-performance-repository', () => ({
+  createExercisePerformanceRepository: () => ({
+    getActiveExercisePerformance: mockGetActiveExercisePerformance,
+  }),
+}));
 
 describe('workout screens', () => {
   beforeEach(() => {
@@ -144,6 +151,11 @@ describe('workout screens', () => {
     mockGetWorkoutDayDetails.mockResolvedValue(workoutDay);
     mockGetActiveSession.mockResolvedValue(null);
     mockGetSessionDetails.mockResolvedValue(activeSession);
+    mockCompleteSet.mockResolvedValue(undefined);
+    mockGetActiveExercisePerformance.mockResolvedValue({
+      previous: new Map(),
+      records: new Map(),
+    });
   });
 
   it('renders the seeded plan and truthful empty history', async () => {
@@ -173,7 +185,9 @@ describe('workout screens', () => {
       expect(getByText('12 tk')).toBeTruthy();
       expect(getByText('17,5 kg')).toBeTruthy();
       expect(
-        getByLabelText('Dumbbell Curl, 3 set, 12 tekrar, 17,5 kg, her el')
+        getByLabelText(
+          'Dumbbell Curl geçmişini aç. 3 set, 12 tekrar, 17,5 kg, her el'
+        )
       ).toBeTruthy();
     });
   });
@@ -238,6 +252,83 @@ describe('workout screens', () => {
       renderedTable.indexOf('"accessibilityLabel":"Dumbbell Curl Kilo (kg)"')
     );
     expect(renderedTable).not.toContain('"horizontal":true');
+  });
+
+  it('announces strict personal records only after a successful set write', async () => {
+    const refreshedSession = {
+      ...activeSession,
+      exercises: [
+        {
+          ...activeSession.exercises[0]!,
+          sets: [
+            {
+              ...activeSession.exercises[0]!.sets[0]!,
+              completedAt: '2026-07-31T10:10:00.000Z',
+              isCompleted: true,
+              weightKg: 17.5,
+            },
+          ],
+        },
+      ],
+    };
+    mockGetSessionDetails
+      .mockResolvedValueOnce(activeSession)
+      .mockResolvedValue(refreshedSession);
+    mockGetActiveExercisePerformance.mockResolvedValue({
+      previous: new Map(),
+      records: new Map([
+        [
+          11,
+          {
+            appearanceCount: 1,
+            highestRepetitions: {
+              achievedAt: '2026-07-20T10:00:00.000Z',
+              sessionId: 8,
+              value: 10,
+            },
+            highestSessionVolume: {
+              achievedAt: '2026-07-20T10:00:00.000Z',
+              sessionId: 8,
+              value: 150,
+            },
+            highestWeight: {
+              achievedAt: '2026-07-20T10:00:00.000Z',
+              sessionId: 8,
+              value: 15,
+            },
+            lastPerformance: null,
+            legacyMatched: false,
+          },
+        ],
+      ]),
+    });
+    const { getByLabelText, getByText } = await render(<ActiveWorkoutScreen />);
+
+    await waitFor(() =>
+      expect(getByLabelText('Dumbbell Curl setini tamamla')).toBeTruthy()
+    );
+    await fireEvent.press(getByLabelText('Dumbbell Curl setini tamamla'));
+
+    await waitFor(() => expect(getByText(/Yeni ağırlık rekoru/)).toBeTruthy());
+    expect(getByText(/Yeni tekrar rekoru/)).toBeTruthy();
+    expect(getByText(/Yeni hacim rekoru/)).toBeTruthy();
+  });
+
+  it('does not announce a record when the set write fails', async () => {
+    mockCompleteSet.mockRejectedValue(new Error('write failed'));
+    const { getByLabelText, queryByText } = await render(
+      <ActiveWorkoutScreen />
+    );
+
+    await waitFor(() =>
+      expect(getByLabelText('Dumbbell Curl setini tamamla')).toBeTruthy()
+    );
+    await fireEvent.press(getByLabelText('Dumbbell Curl setini tamamla'));
+
+    await waitFor(() =>
+      expect(queryByText(appStrings.workout.writeError)).toBeTruthy()
+    );
+    expect(queryByText(/Yeni .* rekoru/)).toBeNull();
   });
 
   it('shows a Turkish validation message for an incomplete set', async () => {

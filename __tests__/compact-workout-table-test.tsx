@@ -9,6 +9,7 @@ import type {
   WorkoutSessionExercise,
   WorkoutSet,
 } from '@/features/workouts/domain/models';
+import type { ExerciseAppearance } from '@/features/workouts/domain/exercise-performance';
 
 function createSet(
   id: number,
@@ -44,6 +45,29 @@ function createExercise(
     ],
     sortOrder: id,
     weightMode: 'total',
+    ...overrides,
+  };
+}
+
+function createPreviousAppearance(
+  overrides: Partial<ExerciseAppearance> = {}
+): ExerciseAppearance {
+  return {
+    completedAt: '2026-07-30T10:30:00.000Z',
+    completedSetCount: 2,
+    exerciseId: 1,
+    highestWeightKg: 55,
+    legacyMatched: false,
+    sessionExerciseId: 91,
+    sessionId: 9,
+    sets: [
+      { actualReps: 12, setNumber: 1, weightKg: 50 },
+      { actualReps: 10, setNumber: 2, weightKg: 55 },
+    ],
+    totalRepetitions: 22,
+    totalVolume: 1150,
+    weightMode: 'total',
+    workoutName: 'Sırt + Biceps',
     ...overrides,
   };
 }
@@ -86,6 +110,64 @@ function StatefulExerciseRow({
 }
 
 describe('compact workout table', () => {
+  it('shows previous performance and opens history without changing the draft', async () => {
+    const onOpenHistory = jest.fn();
+    const { getByLabelText, getByRole, getByText } = await render(
+      <WorkoutExerciseRow
+        exercise={createExercise(1, 'Lat Pulldown')}
+        onComplete={jest.fn()}
+        onOpenEditor={jest.fn()}
+        onOpenHistory={onOpenHistory}
+        previousPerformance={createPreviousAppearance()}
+      />
+    );
+
+    expect(getByText('Geçen: en yüksek 55 kg · 2 set')).toBeTruthy();
+    expect(
+      getByLabelText('Geçen antrenman: 50×12 · 55×10. Toplam 2 set.')
+    ).toBeTruthy();
+    await fireEvent.press(
+      getByRole('button', { name: 'Lat Pulldown geçmişini aç' })
+    );
+    expect(onOpenHistory).toHaveBeenCalledTimes(1);
+
+    await fireEvent(getByLabelText('Lat Pulldown Kilo (kg)'), 'focus');
+    expect(getByText('Geçen: en yüksek 55 kg · 2 set')).toBeTruthy();
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.common.cancel })
+    );
+    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp('value', '50');
+  });
+
+  it('keeps inputs usable while prior performance is loading or unavailable', async () => {
+    const exercise = createExercise(1, 'Lat Pulldown');
+    const { getByLabelText, getByText, rerender } = await render(
+      <WorkoutExerciseRow
+        exercise={exercise}
+        onComplete={jest.fn()}
+        onOpenEditor={jest.fn()}
+        previousPerformanceLoading
+      />
+    );
+
+    expect(getByText('Geçmiş yükleniyor')).toBeTruthy();
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('editable', true);
+    await rerender(
+      <WorkoutExerciseRow
+        exercise={exercise}
+        onComplete={jest.fn()}
+        onOpenEditor={jest.fn()}
+        previousPerformanceError
+      />
+    );
+    expect(
+      getByText(appStrings.workout.previousPerformanceUnavailable)
+    ).toBeTruthy();
+    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
+      'editable',
+      true
+    );
+  });
   it('renders every exercise simultaneously as one editable row', async () => {
     const exercises = [
       createExercise(1, 'Lat Pulldown'),

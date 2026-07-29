@@ -20,6 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="progress/measurement/[measurementId]" />
         <Stack.Screen name="progress/settings" />
         <Stack.Screen name="workout/day/[dayId]" />
+        <Stack.Screen name="workout/exercise/[exerciseId]/history" />
         <Stack.Screen name="workout/history/index" />
         <Stack.Screen name="workout/history/[sessionId]" />
         <Stack.Screen name="workout/program/index" />

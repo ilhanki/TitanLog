@@ -12,6 +12,8 @@ import { AppText } from '@/components/app-text';
 import { WeightWheelModal } from '@/components/weight-wheel-modal';
 import { appStrings } from '@/constants/strings';
 import type { WorkoutSessionExercise } from '@/features/workouts/domain/models';
+import type { ExerciseAppearance } from '@/features/workouts/domain/exercise-performance';
+import { formatPreviousPerformance } from '@/features/workouts/utils/exercise-performance';
 import {
   formatWorkoutWeight,
   parseRepetitionInput,
@@ -28,12 +30,20 @@ type WorkoutExerciseRowProps = {
     actualReps: number
   ) => Promise<void>;
   onOpenEditor: () => void;
+  onOpenHistory?: () => void;
+  previousPerformance?: ExerciseAppearance | null;
+  previousPerformanceError?: boolean;
+  previousPerformanceLoading?: boolean;
 };
 
 export function WorkoutExerciseRow({
   exercise,
   onComplete,
   onOpenEditor,
+  onOpenHistory,
+  previousPerformance = null,
+  previousPerformanceError = false,
+  previousPerformanceLoading = false,
 }: WorkoutExerciseRowProps) {
   const completedCount = exercise.sets.filter((set) => set.isCompleted).length;
   const nextSet = exercise.sets.find((set) => !set.isCompleted) ?? null;
@@ -55,6 +65,7 @@ export function WorkoutExerciseRow({
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef(false);
   const complete = completedCount === exercise.sets.length;
+  const previousSummary = formatPreviousPerformance(previousPerformance);
 
   useEffect(() => {
     setWeight(
@@ -100,7 +111,14 @@ export function WorkoutExerciseRow({
       accessibilityLabel={`${exercise.name}, ${completedLabel}${exercise.weightMode === 'per_hand' ? `, ${appStrings.workout.perHand}` : ''}`}
       style={[styles.row, complete && styles.completedRow]}
     >
-      <View style={styles.nameCell}>
+      <Pressable
+        accessibilityHint={previousSummary.accessibility}
+        accessibilityLabel={`${exercise.name} geçmişini aç`}
+        accessibilityRole="button"
+        disabled={!onOpenHistory}
+        onPress={onOpenHistory}
+        style={styles.nameCell}
+      >
         <AppText
           accessibilityLabel={exercise.name}
           numberOfLines={1}
@@ -109,6 +127,18 @@ export function WorkoutExerciseRow({
         >
           {exercise.name}
           {exercise.weightMode === 'per_hand' ? ' · el' : ''}
+        </AppText>
+        <AppText
+          accessibilityLabel={previousSummary.accessibility}
+          numberOfLines={1}
+          tone="muted"
+          variant="caption"
+        >
+          {previousPerformanceLoading
+            ? 'Geçmiş yükleniyor'
+            : previousPerformanceError
+              ? appStrings.workout.previousPerformanceUnavailable
+              : previousSummary.compact}
         </AppText>
         {error ? (
           <AppText
@@ -121,7 +151,7 @@ export function WorkoutExerciseRow({
             {error}
           </AppText>
         ) : null}
-      </View>
+      </Pressable>
       <Pressable
         accessibilityLabel={`${exercise.name}: ${completedLabel}. ${appStrings.workout.editSets}`}
         accessibilityRole="button"
@@ -169,6 +199,7 @@ export function WorkoutExerciseRow({
       />
       <WeightWheelModal
         accessibilityLabel={`${exercise.name} ${appStrings.workout.weightLabel}`}
+        context={previousPerformanceError ? undefined : previousSummary.wheel}
         kind="exercise"
         onApply={(nextWeight) => {
           setWeight(formatWorkoutWeight(nextWeight));
