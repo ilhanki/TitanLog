@@ -31,7 +31,10 @@ import type {
 } from '@/features/workouts/domain/exercise-performance';
 import type { WorkoutSession } from '@/features/workouts/domain/models';
 import { comparePersonalRecords } from '@/features/workouts/utils/exercise-performance';
-import { calculateSessionMetrics } from '@/features/workouts/utils/workout-values';
+import {
+  calculateSessionMetrics,
+  formatWorkoutWeight,
+} from '@/features/workouts/utils/workout-values';
 import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
@@ -160,12 +163,12 @@ export function ActiveWorkoutScreen() {
     const message = fresh
       .map((record) => {
         if (record.kind === 'weight') {
-          return `${appStrings.workout.newWeightRecord} · ${record.value} kg`;
+          return `${appStrings.workout.newWeightRecord} · ${formatWorkoutWeight(record.value)} kg`;
         }
         if (record.kind === 'repetitions') {
           return `${appStrings.workout.newRepetitionRecord} · ${record.value} tekrar`;
         }
-        return `${appStrings.workout.newVolumeRecord} · ${record.value} kg`;
+        return `${appStrings.workout.newVolumeRecord} · ${formatWorkoutWeight(record.value)} kg`;
       })
       .join(' · ');
     setRecordMessage(message);
