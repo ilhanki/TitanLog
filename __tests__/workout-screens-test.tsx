@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 
 import { appStrings } from '@/constants/strings';
 import { WorkoutExerciseRow } from '@/features/workouts/components/workout-exercise-row';
@@ -329,6 +330,108 @@ describe('workout screens', () => {
       expect(queryByText(appStrings.workout.writeError)).toBeTruthy()
     );
     expect(queryByText(/Yeni .* rekoru/)).toBeNull();
+  });
+
+  it('suppresses duplicate record kinds but announces a later higher volume', async () => {
+    const activeWithTwoSets = {
+      ...activeSession,
+      exercises: [
+        {
+          ...activeSession.exercises[0]!,
+          sets: [
+            activeSession.exercises[0]!.sets[0]!,
+            {
+              ...activeSession.exercises[0]!.sets[0]!,
+              id: 32,
+              setNumber: 2,
+            },
+          ],
+        },
+      ],
+    };
+    const afterFirst = {
+      ...activeWithTwoSets,
+      exercises: [
+        {
+          ...activeWithTwoSets.exercises[0]!,
+          sets: activeWithTwoSets.exercises[0]!.sets.map((set, index) =>
+            index === 0
+              ? {
+                  ...set,
+                  completedAt: '2026-07-31T10:10:00.000Z',
+                  isCompleted: true,
+                }
+              : set
+          ),
+        },
+      ],
+    };
+    const afterSecond = {
+      ...afterFirst,
+      exercises: [
+        {
+          ...afterFirst.exercises[0]!,
+          sets: afterFirst.exercises[0]!.sets.map((set) => ({
+            ...set,
+            completedAt: '2026-07-31T10:15:00.000Z',
+            isCompleted: true,
+          })),
+        },
+      ],
+    };
+    mockGetSessionDetails
+      .mockResolvedValueOnce(activeWithTwoSets)
+      .mockResolvedValueOnce(afterFirst)
+      .mockResolvedValue(afterSecond);
+    mockGetActiveExercisePerformance.mockResolvedValue({
+      previous: new Map(),
+      records: new Map([
+        [
+          11,
+          {
+            appearanceCount: 1,
+            highestRepetitions: {
+              achievedAt: '2026-07-20T10:00:00.000Z',
+              sessionId: 8,
+              value: 10,
+            },
+            highestSessionVolume: {
+              achievedAt: '2026-07-20T10:00:00.000Z',
+              sessionId: 8,
+              value: 150,
+            },
+            highestWeight: {
+              achievedAt: '2026-07-20T10:00:00.000Z',
+              sessionId: 8,
+              value: 15,
+            },
+            lastPerformance: null,
+            legacyMatched: false,
+          },
+        ],
+      ]),
+    });
+    const announcement = jest.spyOn(
+      AccessibilityInfo,
+      'announceForAccessibility'
+    );
+    const { getByLabelText, getByText } = await render(<ActiveWorkoutScreen />);
+
+    await waitFor(() =>
+      expect(getByLabelText('Dumbbell Curl setini tamamla')).toBeTruthy()
+    );
+    await fireEvent.press(getByLabelText('Dumbbell Curl setini tamamla'));
+    await waitFor(() => expect(getByText('1/2')).toBeTruthy());
+    await fireEvent.press(getByLabelText('Dumbbell Curl setini tamamla'));
+    await waitFor(() => expect(getByText('2/2')).toBeTruthy());
+
+    const recordMessages = announcement.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.includes('rekoru'));
+    expect(recordMessages).toHaveLength(2);
+    expect(recordMessages[0]).toContain('Yeni ağırlık rekoru');
+    expect(recordMessages[0]).toContain('Yeni tekrar rekoru');
+    expect(recordMessages[1]).toBe('Yeni hacim rekoru · 420 kg');
   });
 
   it('shows a Turkish validation message for an incomplete set', async () => {

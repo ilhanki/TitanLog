@@ -154,9 +154,8 @@ describe('workout history screens', () => {
   });
 
   it('renders completed snapshots, comparison, and no edit actions', async () => {
-    const { getByLabelText, getByText, queryByRole, toJSON } = await render(
-      <CompletedWorkoutDetailScreen />
-    );
+    const { getByLabelText, getByRole, getByText, queryByRole, toJSON } =
+      await render(<CompletedWorkoutDetailScreen />);
 
     await waitFor(() => expect(getByText('Sırt + Biceps')).toBeTruthy());
     expect(getByText('1 sa 12 dk')).toBeTruthy();
@@ -172,6 +171,12 @@ describe('workout history screens', () => {
     expect(
       queryByRole('button', { name: appStrings.workout.removeSet })
     ).toBeNull();
+    await fireEvent.press(
+      getByRole('button', {
+        name: `Dumbbell Curl: ${appStrings.workout.exerciseHistoryAction}`,
+      })
+    );
+    expect(mockRouter.push).toHaveBeenCalledWith('/workout/exercise/2/history');
     expect(JSON.stringify(toJSON())).not.toContain('"horizontal":true');
   });
 
