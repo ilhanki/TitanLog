@@ -221,7 +221,22 @@ describe('body repositories', () => {
       weightKg: 90,
     });
     expect(getAllAsync).toHaveBeenCalledWith(
-      expect.stringContaining('ORDER BY measured_at DESC, id DESC')
+      expect.stringContaining(
+        'ORDER BY measured_at DESC, created_at DESC, id DESC'
+      )
+    );
+  });
+
+  it('selects the latest measurement with deterministic date and creation ordering', async () => {
+    const getFirstAsync = jest.fn().mockResolvedValue(null);
+    const database = { getFirstAsync } as unknown as SQLiteDatabase;
+
+    await createBodyMeasurementRepository(database).getLatestMeasurement();
+
+    expect(getFirstAsync).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'ORDER BY measured_at DESC, created_at DESC, id DESC LIMIT 1'
+      )
     );
   });
 

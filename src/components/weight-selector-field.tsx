@@ -18,6 +18,7 @@ type WeightSelectorFieldProps = {
   accessibilityLabel?: string;
   editable?: boolean;
   error?: string;
+  fallbackValue?: number;
   kind: WeightWheelKind;
   label: string;
   onChangeText: (value: string) => void;
@@ -25,10 +26,21 @@ type WeightSelectorFieldProps = {
   value: string;
 };
 
+export function resolveWeightSelectorValue(
+  value: string,
+  kind: WeightWheelKind,
+  fallbackValue?: number
+): number {
+  const parsed =
+    kind === 'body' ? parseBodyWeight(value) : parseWeightInput(value);
+  return parsed ?? fallbackValue ?? (kind === 'body' ? 70 : 2.5);
+}
+
 export function WeightSelectorField({
   accessibilityLabel,
   editable = true,
   error,
+  fallbackValue,
   kind,
   label,
   onChangeText,
@@ -36,9 +48,7 @@ export function WeightSelectorField({
   value,
 }: WeightSelectorFieldProps) {
   const [visible, setVisible] = useState(false);
-  const parsed =
-    kind === 'body' ? parseBodyWeight(value) : parseWeightInput(value);
-  const wheelValue = parsed ?? (kind === 'body' ? 70 : 2.5);
+  const wheelValue = resolveWeightSelectorValue(value, kind, fallbackValue);
 
   return (
     <>

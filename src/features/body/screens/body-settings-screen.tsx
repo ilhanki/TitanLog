@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
 import { createBodyProfileRepository } from '@/features/body/data/body-profile-repository';
+import { createBodyMeasurementRepository } from '@/features/body/data/body-measurement-repository';
 import {
   formatBodyValue,
   parseBodyWeight,
@@ -23,15 +24,26 @@ export function BodySettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentWeightFallback, setCurrentWeightFallback] = useState<
+    number | undefined
+  >();
+  const [targetWeightFallback, setTargetWeightFallback] = useState<
+    number | undefined
+  >();
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      void createBodyProfileRepository(database)
-        .getProfile()
-        .then((profile) => {
+      void Promise.all([
+        createBodyProfileRepository(database).getProfile(),
+        createBodyMeasurementRepository(database).getLatestMeasurement(),
+      ])
+        .then(([profile, latest]) => {
           if (active && profile) {
-            setStartingWeight(formatBodyValue(profile.startingWeightKg));
+            const currentWeight = latest?.weightKg ?? profile.startingWeightKg;
+            setCurrentWeightFallback(currentWeight);
+            setTargetWeightFallback(profile.targetWeightKg);
+            setStartingWeight(formatBodyValue(currentWeight));
             setTargetWeight(formatBodyValue(profile.targetWeightKg));
           }
         })
@@ -116,6 +128,7 @@ export function BodySettingsScreen() {
       <WeightSelectorField
         editable={!pending}
         error={error ?? undefined}
+        fallbackValue={currentWeightFallback}
         kind="body"
         label={appStrings.progress.startingWeight}
         onChangeText={setStartingWeight}
@@ -124,6 +137,7 @@ export function BodySettingsScreen() {
       />
       <WeightSelectorField
         editable={!pending}
+        fallbackValue={targetWeightFallback}
         kind="body"
         label={appStrings.progress.targetWeight}
         onChangeText={setTargetWeight}

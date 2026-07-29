@@ -20,6 +20,7 @@ import { theme } from '@/theme/tokens';
 
 type BodyMeasurementFormProps = {
   initial?: BodyMeasurement;
+  initialWeightKg?: number;
   onSubmit: (input: BodyMeasurementInput) => Promise<void>;
   pending: boolean;
   submitLabel: string;
@@ -40,6 +41,7 @@ const optionalValue = (value: number | null | undefined) =>
 
 export function BodyMeasurementForm({
   initial,
+  initialWeightKg,
   onSubmit,
   pending,
   submitLabel,
@@ -51,7 +53,10 @@ export function BodyMeasurementForm({
     thigh: optionalValue(initial?.thighCm),
     upperArm: optionalValue(initial?.upperArmCm),
     waist: optionalValue(initial?.waistCm),
-    weight: initial ? formatBodyValue(initial.weightKg) : '',
+    weight:
+      initial || initialWeightKg !== undefined
+        ? formatBodyValue(initial?.weightKg ?? initialWeightKg!)
+        : '',
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -108,6 +113,7 @@ export function BodyMeasurementForm({
       <WeightSelectorField
         editable={!pending}
         error={error ?? undefined}
+        fallbackValue={initial?.weightKg ?? initialWeightKg}
         kind="body"
         label={appStrings.progress.weight}
         onChangeText={(value) => update('weight', value)}

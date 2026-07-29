@@ -62,7 +62,7 @@ export function createBodyMeasurementRepository(database: SQLiteDatabase) {
     async listMeasurements(): Promise<BodyMeasurement[]> {
       const rows = await database.getAllAsync<MeasurementRow>(
         `SELECT ${selectFields} FROM body_measurements
-         ORDER BY measured_at DESC, id DESC`
+         ORDER BY measured_at DESC, created_at DESC, id DESC`
       );
       return rows.map(mapMeasurement);
     },
@@ -70,7 +70,7 @@ export function createBodyMeasurementRepository(database: SQLiteDatabase) {
     async getLatestMeasurement(): Promise<BodyMeasurement | null> {
       const row = await database.getFirstAsync<MeasurementRow>(
         `SELECT ${selectFields} FROM body_measurements
-         ORDER BY measured_at DESC, id DESC LIMIT 1`
+         ORDER BY measured_at DESC, created_at DESC, id DESC LIMIT 1`
       );
       return row ? mapMeasurement(row) : null;
     },
@@ -78,7 +78,7 @@ export function createBodyMeasurementRepository(database: SQLiteDatabase) {
     async getPreviousMeasurement(): Promise<BodyMeasurement | null> {
       const row = await database.getFirstAsync<MeasurementRow>(
         `SELECT ${selectFields} FROM body_measurements
-         ORDER BY measured_at DESC, id DESC LIMIT 1 OFFSET 1`
+         ORDER BY measured_at DESC, created_at DESC, id DESC LIMIT 1 OFFSET 1`
       );
       return row ? mapMeasurement(row) : null;
     },
