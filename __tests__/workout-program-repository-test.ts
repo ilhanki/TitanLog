@@ -137,6 +137,34 @@ describe('workout program repository', () => {
     expect(transaction.runAsync).not.toHaveBeenCalled();
   });
 
+  it('propagates schedule replacement failure through one exclusive transaction', async () => {
+    const transaction = createTransaction({
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null),
+      runAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ changes: 1 })
+        .mockRejectedValueOnce(new Error('schedule replacement failed')),
+    });
+    const database = createDatabase(transaction) as SQLiteDatabase & {
+      runAsync: jest.Mock;
+      withExclusiveTransactionAsync: jest.Mock;
+    };
+
+    await expect(
+      createWorkoutProgramRepository(database).updateWorkoutDay(1, {
+        name: 'Sırt',
+        scheduleWeekdays: [1],
+        subtitle: '',
+      })
+    ).rejects.toThrow('schedule replacement failed');
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+    expect(database.runAsync).not.toHaveBeenCalled();
+  });
+
   it('updates exercise defaults without touching session snapshots', async () => {
     const transaction = createTransaction();
     const database = createDatabase(transaction);
@@ -190,6 +218,28 @@ describe('workout program repository', () => {
       ).reorderExercise(1, 11, 'up')
     ).rejects.toMatchObject({ code: 'reorder_unavailable' });
     expect(transaction.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('moves an exercise down with collision-safe sequential rewrites', async () => {
+    const rows = [
+      { exercise_id: 11, id: 101, sort_order: 1 },
+      { exercise_id: 12, id: 102, sort_order: 2 },
+      { exercise_id: 13, id: 103, sort_order: 3 },
+    ];
+    const transaction = createTransaction({
+      getAllAsync: jest.fn().mockResolvedValue(rows),
+    });
+
+    await createWorkoutProgramRepository(
+      createDatabase(transaction)
+    ).reorderExercise(1, 12, 'down');
+
+    expect(transaction.runAsync.mock.calls.map((call) => call[1])).toEqual([
+      -1, -2, -3, 1, 2, 3,
+    ]);
+    expect(
+      transaction.runAsync.mock.calls.slice(-3).map((call) => call[2])
+    ).toEqual([101, 103, 102]);
   });
 
   it('removes only the day association and preserves the global exercise', async () => {
@@ -254,10 +304,10 @@ describe('workout program repository', () => {
 
   it('creates a custom exercise and association in one transaction', async () => {
     const transaction = createTransaction({
+      getAllAsync: jest.fn().mockResolvedValue([]),
       getFirstAsync: jest
         .fn()
         .mockResolvedValueOnce({ id: 1 })
-        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ next_order: 4 }),
     });
     const id = await createWorkoutProgramRepository(
@@ -281,10 +331,10 @@ describe('workout program repository', () => {
 
   it('propagates association failure so the custom transaction rolls back', async () => {
     const transaction = createTransaction({
+      getAllAsync: jest.fn().mockResolvedValue([]),
       getFirstAsync: jest
         .fn()
         .mockResolvedValueOnce({ id: 1 })
-        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ next_order: 4 }),
       runAsync: jest
         .fn()
@@ -301,5 +351,23 @@ describe('workout program repository', () => {
         name: 'Custom Raise',
       })
     ).rejects.toThrow('association failed');
+  });
+
+  it('rejects Turkish case-insensitive custom exercise duplicates before writing', async () => {
+    const transaction = createTransaction({
+      getAllAsync: jest.fn().mockResolvedValue([{ name: 'İtiş Press' }]),
+    });
+
+    await expect(
+      createWorkoutProgramRepository(
+        createDatabase(transaction)
+      ).createCustomExerciseAndAdd(1, {
+        ...defaults,
+        equipment: '',
+        muscleGroup: 'Göğüs',
+        name: 'itiş press',
+      })
+    ).rejects.toMatchObject({ code: 'duplicate_exercise' });
+    expect(transaction.runAsync).not.toHaveBeenCalled();
   });
 });

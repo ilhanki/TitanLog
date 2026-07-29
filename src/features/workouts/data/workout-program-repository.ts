@@ -9,6 +9,7 @@ import type {
 import {
   MAX_EXERCISE_NAME_LENGTH,
   MAX_WORKOUT_DAY_NAME_LENGTH,
+  isDuplicateExerciseName,
   normalizeOptionalText,
   normalizeRequiredName,
   normalizeWeekdays,
@@ -338,11 +339,17 @@ export function createWorkoutProgramRepository(database: SQLiteDatabase) {
       let exerciseId = 0;
       await database.withExclusiveTransactionAsync(async (transaction) => {
         await requireActiveDay(transaction, workoutDayId);
-        const duplicate = await transaction.getFirstAsync<IdRow>(
-          'SELECT id FROM exercises WHERE lower(trim(name)) = lower(trim(?))',
-          name
+        const existingNames = await transaction.getAllAsync<{ name: string }>(
+          'SELECT name FROM exercises'
         );
-        if (duplicate) throw new WorkoutProgramError('duplicate_exercise');
+        if (
+          isDuplicateExerciseName(
+            name,
+            existingNames.map((exercise) => exercise.name)
+          )
+        ) {
+          throw new WorkoutProgramError('duplicate_exercise');
+        }
         const timestamp = new Date().toISOString();
         const result = await transaction.runAsync(
           `INSERT INTO exercises
