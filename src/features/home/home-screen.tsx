@@ -79,6 +79,10 @@ export function HomeScreen() {
       router.navigate('/workout');
       return;
     }
+    if (data.scheduledWorkout?.exerciseCount === 0) {
+      router.navigate('/workout');
+      return;
+    }
     if (starting) return;
     setStarting(true);
     try {

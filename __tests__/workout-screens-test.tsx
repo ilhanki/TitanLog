@@ -178,6 +178,36 @@ describe('workout screens', () => {
     });
   });
 
+  it('shows a truthful zero-exercise state and blocks workout start', async () => {
+    const emptyDay = {
+      ...workoutDay,
+      exerciseCount: 0,
+      exercises: [],
+      totalSetCount: 0,
+    };
+    mockGetWorkoutDayDetails.mockResolvedValue(emptyDay);
+    mockUseWorkoutOverview.mockReturnValue({
+      ...baseOverview,
+      data: { ...baseOverview.data, scheduledWorkout: emptyDay },
+    });
+
+    const overview = await render(<WorkoutScreen />);
+    expect(
+      overview.getByText(appStrings.workout.noExercisesStart)
+    ).toBeTruthy();
+    expect(
+      overview.getByRole('button', { name: appStrings.workout.startWorkout })
+    ).toBeDisabled();
+
+    const detail = await render(<WorkoutDayScreen />);
+    await waitFor(() =>
+      expect(
+        detail.getByText(appStrings.workout.noProgramExercisesTitle)
+      ).toBeTruthy()
+    );
+    expect(mockStartSession).not.toHaveBeenCalled();
+  });
+
   it('renders the compact active-session table without legacy set cards', async () => {
     const { getByLabelText, getByText, queryByRole, queryByText, toJSON } =
       await render(<ActiveWorkoutScreen />);

@@ -475,6 +475,13 @@ export function WorkoutProgramDayScreen() {
           }
           variant="secondary"
         />
+        {day.exercises.length === 0 ? (
+          <EmptyState
+            description={appStrings.workout.noProgramExercisesDescription}
+            icon="dumbbell"
+            title={appStrings.workout.noProgramExercisesTitle}
+          />
+        ) : null}
         <View style={styles.exerciseList}>
           {day.exercises.map((exercise, index) => {
             const pending = pendingExerciseId === exercise.id;

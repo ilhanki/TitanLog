@@ -14,7 +14,10 @@ import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
 import { createWorkoutPlanRepository } from '@/features/workouts/data/workout-plan-repository';
-import { createWorkoutSessionRepository } from '@/features/workouts/data/workout-session-repository';
+import {
+  createWorkoutSessionRepository,
+  WorkoutSessionError,
+} from '@/features/workouts/data/workout-session-repository';
 import type {
   WorkoutDayDetails,
   WorkoutSession,
@@ -36,6 +39,7 @@ export function WorkoutDayScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const startingRef = useRef(false);
 
@@ -78,7 +82,7 @@ export function WorkoutDayScreen() {
     router.replace(`/workout/session/${sessionId}` as Href);
 
   const startWorkout = async () => {
-    if (!day || startingRef.current) return;
+    if (!day || day.exercises.length === 0 || startingRef.current) return;
     startingRef.current = true;
     setStarting(true);
     try {
@@ -86,8 +90,13 @@ export function WorkoutDayScreen() {
         database
       ).startSessionFromWorkoutDay(day.id);
       openSession(session.id);
-    } catch {
-      setError(true);
+    } catch (caught) {
+      setStartError(
+        caught instanceof WorkoutSessionError &&
+          caught.code === 'day_has_no_exercises'
+          ? appStrings.workout.noExercisesStart
+          : appStrings.workout.writeError
+      );
     } finally {
       startingRef.current = false;
       setStarting(false);
@@ -166,6 +175,16 @@ export function WorkoutDayScreen() {
         </AppText>
       </View>
 
+      {startError ? (
+        <AppText
+          accessibilityLiveRegion="polite"
+          accessibilityRole="alert"
+          tone="danger"
+        >
+          {startError}
+        </AppText>
+      ) : null}
+
       {activeSession ? (
         <View style={styles.activeNotice}>
           <View style={styles.noticeCopy}>
@@ -186,11 +205,17 @@ export function WorkoutDayScreen() {
             onPress={() => openSession(activeSession.id)}
           />
         </View>
-      ) : (
+      ) : day.exercises.length > 0 ? (
         <AppButton
           disabled={starting}
           label={appStrings.workout.startWorkout}
           onPress={() => void startWorkout()}
+        />
+      ) : (
+        <EmptyState
+          description={appStrings.workout.noExercisesStart}
+          icon="dumbbell"
+          title={appStrings.workout.noProgramExercisesTitle}
         />
       )}
 

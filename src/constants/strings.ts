@@ -246,6 +246,11 @@ export const appStrings = {
     closeEditor: 'Kapat',
     noCompletedSets: 'Antrenmanı bitirmek için en az bir seti tamamla.',
     writeError: 'Değişiklik kaydedilemedi. Tekrar dene.',
+    noExercisesStart:
+      'Bu antrenman gününde egzersiz yok. Başlatmadan önce programına egzersiz ekle.',
+    noProgramExercisesTitle: 'Bu antrenman gününde egzersiz yok',
+    noProgramExercisesDescription:
+      'Gelecekte antrenman başlatmak için en az bir egzersiz ekle.',
     completedTitle: 'Antrenman tamamlandı',
     totalRepetitions: 'Toplam Tekrar',
     totalVolume: 'Toplam Hacim',

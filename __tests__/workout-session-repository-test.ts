@@ -38,7 +38,10 @@ describe('workout session repository', () => {
   it('transactionally creates exercise snapshots and default set rows', async () => {
     const transaction = {
       getAllAsync: jest.fn().mockResolvedValue([dayExerciseRow]),
-      getFirstAsync: jest.fn().mockResolvedValue(null),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 1, name: 'Sırt + Biceps' }),
       runAsync: jest
         .fn()
         .mockResolvedValueOnce({ lastInsertRowId: 10 })
@@ -84,6 +87,27 @@ describe('workout session repository', () => {
 
     expect(session.id).toBe(10);
     expect(transaction.getAllAsync).not.toHaveBeenCalled();
+    expect(transaction.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('rejects a valid zero-exercise day without creating a session', async () => {
+    const transaction = {
+      getAllAsync: jest.fn().mockResolvedValue([]),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 1, name: 'Dinlenme Günü' }),
+      runAsync: jest.fn(),
+    };
+    const database = createDatabase({
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await expect(
+      createWorkoutSessionRepository(database).startSessionFromWorkoutDay(1)
+    ).rejects.toMatchObject({ code: 'day_has_no_exercises' });
     expect(transaction.runAsync).not.toHaveBeenCalled();
   });
 
@@ -470,7 +494,10 @@ describe('workout session repository', () => {
     ];
     const transaction = {
       getAllAsync: jest.fn().mockResolvedValue(futureExercises),
-      getFirstAsync: jest.fn().mockResolvedValue(null),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 1, name: 'Güncel Gün Adı' }),
       runAsync: jest
         .fn()
         .mockResolvedValueOnce({ lastInsertRowId: 10 })
@@ -488,6 +515,14 @@ describe('workout session repository', () => {
       1
     );
 
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workout_sessions'),
+      1,
+      'Güncel Gün Adı',
+      expect.any(String),
+      expect.any(String),
+      expect.any(String)
+    );
     expect(transaction.runAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO workout_session_exercises'),
       10,

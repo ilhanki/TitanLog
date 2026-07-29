@@ -120,35 +120,46 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
       <View style={styles.section}>
         <SectionHeader title={appStrings.workout.todayWorkout} />
         {scheduled ? (
-          <View style={styles.todayRow}>
-            <Pressable
-              accessibilityLabel={`${appStrings.workout.viewProgram}: ${scheduled.name}`}
-              accessibilityRole="button"
-              onPress={() => openDay(scheduled)}
-              style={styles.todayCopy}
-            >
-              <AppText numberOfLines={1} variant="bodyStrong">
-                {scheduled.name}
-              </AppText>
-              <AppText
-                numberOfLines={1}
-                selectable
-                tone="muted"
-                variant="caption"
+          <>
+            <View style={styles.todayRow}>
+              <Pressable
+                accessibilityLabel={`${appStrings.workout.viewProgram}: ${scheduled.name}`}
+                accessibilityRole="button"
+                onPress={() => openDay(scheduled)}
+                style={styles.todayCopy}
               >
-                {formatWorkoutWeekdays(scheduled.scheduleWeekdays)} ·{' '}
-                {scheduled.exerciseCount} {appStrings.workout.exercises} ·{' '}
-                {scheduled.totalSetCount} {appStrings.workout.sets}
+                <AppText numberOfLines={1} variant="bodyStrong">
+                  {scheduled.name}
+                </AppText>
+                <AppText
+                  numberOfLines={1}
+                  selectable
+                  tone="muted"
+                  variant="caption"
+                >
+                  {formatWorkoutWeekdays(scheduled.scheduleWeekdays)} ·{' '}
+                  {scheduled.exerciseCount} {appStrings.workout.exercises} ·{' '}
+                  {scheduled.totalSetCount} {appStrings.workout.sets}
+                </AppText>
+              </Pressable>
+              <AppButton
+                disabled={
+                  starting ||
+                  Boolean(data.activeSession) ||
+                  scheduled.exerciseCount === 0
+                }
+                icon="play-outline"
+                label={appStrings.workout.startWorkout}
+                onPress={() => void start(scheduled.id)}
+                style={styles.todayAction}
+              />
+            </View>
+            {scheduled.exerciseCount === 0 ? (
+              <AppText selectable tone="muted" variant="caption">
+                {appStrings.workout.noExercisesStart}
               </AppText>
-            </Pressable>
-            <AppButton
-              disabled={starting || Boolean(data.activeSession)}
-              icon="play-outline"
-              label={appStrings.workout.startWorkout}
-              onPress={() => void start(scheduled.id)}
-              style={styles.todayAction}
-            />
-          </View>
+            ) : null}
+          </>
         ) : (
           <EmptyState
             description={appStrings.workout.restDescription}

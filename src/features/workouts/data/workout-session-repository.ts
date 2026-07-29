@@ -59,8 +59,9 @@ type DayExerciseRow = {
   name: string;
   sort_order: number;
   weight_mode: WeightMode;
-  workout_day_name: string;
 };
+
+type ActiveDayRow = { id: number; name: string };
 
 type CompletedHistoryRow = {
   completed_at: string;
@@ -75,6 +76,7 @@ type CompletedHistoryRow = {
 
 export type WorkoutSessionErrorCode =
   | 'day_not_found'
+  | 'day_has_no_exercises'
   | 'invalid_set'
   | 'no_completed_sets'
   | 'session_not_active'
@@ -206,20 +208,28 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
           return;
         }
 
+        const day = await transaction.getFirstAsync<ActiveDayRow>(
+          `SELECT wd.id, wd.name
+           FROM workout_days AS wd
+           JOIN workout_plans AS wp ON wp.id = wd.plan_id
+           WHERE wd.id = ? AND wp.is_active = 1`,
+          workoutDayId
+        );
+        if (!day) throw new WorkoutSessionError('day_not_found');
+
         const exercises = await transaction.getAllAsync<DayExerciseRow>(
-          `SELECT wd.name AS workout_day_name, e.id AS exercise_id, e.name,
+          `SELECT e.id AS exercise_id, e.name,
                   e.muscle_group, wde.sort_order, wde.default_set_count,
                   wde.default_target_reps, wde.default_weight_kg,
                   wde.weight_mode
-           FROM workout_days AS wd
-           JOIN workout_day_exercises AS wde ON wde.workout_day_id = wd.id
+           FROM workout_day_exercises AS wde
            JOIN exercises AS e ON e.id = wde.exercise_id
-           WHERE wd.id = ?
+           WHERE wde.workout_day_id = ?
            ORDER BY wde.sort_order`,
           workoutDayId
         );
         if (exercises.length === 0) {
-          throw new WorkoutSessionError('day_not_found');
+          throw new WorkoutSessionError('day_has_no_exercises');
         }
 
         const timestamp = new Date().toISOString();
@@ -229,7 +239,7 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
              created_at, updated_at)
            VALUES (?, ?, 'active', ?, ?, ?)`,
           workoutDayId,
-          exercises[0]!.workout_day_name,
+          day.name,
           timestamp,
           timestamp,
           timestamp
