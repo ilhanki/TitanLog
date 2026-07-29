@@ -5,13 +5,11 @@ import type {
   ExerciseAppearance,
   ExerciseHistory,
   ExercisePerformanceSet,
+  ExerciseRecord,
   ExerciseRecords,
 } from '@/features/workouts/domain/exercise-performance';
 import type { WeightMode } from '@/features/workouts/domain/models';
-import {
-  calculateExerciseRecords,
-  createExerciseAppearance,
-} from '@/features/workouts/utils/exercise-performance';
+import { createExerciseAppearance } from '@/features/workouts/utils/exercise-performance';
 
 type AppearanceRow = {
   completed_at: string;
@@ -35,6 +33,15 @@ type ExerciseRow = {
   id: number;
   muscle_group: string;
   name: string;
+};
+
+type RecordSummaryRow = {
+  completed_at: string;
+  exercise_id: number;
+  highest_repetitions: number | null;
+  highest_weight: number | null;
+  session_id: number;
+  session_volume: number | null;
 };
 
 function placeholders(count: number): string {
@@ -66,6 +73,82 @@ function mapAppearances(
       weightMode: row.weight_mode_snapshot,
       workoutName: row.workout_name_snapshot,
     })
+  );
+}
+
+function updateSummaryRecord(
+  current: ExerciseRecord | null,
+  value: number | null,
+  row: RecordSummaryRow
+): ExerciseRecord | null {
+  if (value === null || !Number.isFinite(value) || value < 0) return current;
+  if (current && value <= current.value) return current;
+  return {
+    achievedAt: row.completed_at,
+    sessionId: row.session_id,
+    value,
+  };
+}
+
+function summarizeRecords(
+  rows: readonly RecordSummaryRow[],
+  exerciseId: number,
+  lastPerformance: ExerciseAppearance | null
+): ExerciseRecords {
+  let highestWeight: ExerciseRecord | null = null;
+  let highestRepetitions: ExerciseRecord | null = null;
+  let highestSessionVolume: ExerciseRecord | null = null;
+  const matching = rows
+    .filter((row) => row.exercise_id === exerciseId)
+    .sort((left, right) => {
+      const difference =
+        Date.parse(left.completed_at) - Date.parse(right.completed_at);
+      return difference || left.session_id - right.session_id;
+    });
+  for (const row of matching) {
+    highestWeight = updateSummaryRecord(highestWeight, row.highest_weight, row);
+    highestRepetitions = updateSummaryRecord(
+      highestRepetitions,
+      row.highest_repetitions,
+      row
+    );
+    highestSessionVolume = updateSummaryRecord(
+      highestSessionVolume,
+      row.session_volume,
+      row
+    );
+  }
+  return {
+    appearanceCount: matching.length,
+    highestRepetitions,
+    highestSessionVolume,
+    highestWeight,
+    lastPerformance,
+    legacyMatched: false,
+  };
+}
+
+async function loadRecordSummaries(
+  database: SQLiteDatabase,
+  whereClause: string,
+  parameters: readonly (number | string)[]
+): Promise<RecordSummaryRow[]> {
+  return database.getAllAsync<RecordSummaryRow>(
+    `SELECT wse.exercise_id, ws.id AS session_id, ws.completed_at,
+            MAX(wset.weight_kg) AS highest_weight,
+            MAX(wset.actual_reps) AS highest_repetitions,
+            SUM(wset.weight_kg * wset.actual_reps) AS session_volume
+     FROM workout_session_exercises AS wse
+     JOIN workout_sessions AS ws ON ws.id = wse.session_id
+     JOIN workout_sets AS wset ON wset.session_exercise_id = wse.id
+     WHERE ws.status = 'completed'
+       AND ws.completed_at IS NOT NULL
+       AND wset.is_completed = 1
+       AND wset.actual_reps IS NOT NULL
+       AND ${whereClause}
+     GROUP BY wse.id, wse.exercise_id, ws.id, ws.completed_at
+     ORDER BY ws.completed_at ASC, ws.id ASC`,
+    ...parameters
   );
 }
 
@@ -103,17 +186,28 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
       if (!active) return { previous: new Map(), records: new Map() };
 
       const headers = await database.getAllAsync<AppearanceRow>(
-        `SELECT wse.id AS session_exercise_id, wse.exercise_id,
-                wse.exercise_name_snapshot, wse.weight_mode_snapshot,
-                ws.id AS session_id, ws.workout_name_snapshot, ws.completed_at
-         FROM workout_session_exercises AS wse
-         JOIN workout_sessions AS ws ON ws.id = wse.session_id
-         WHERE ws.status = 'completed'
-           AND ws.completed_at IS NOT NULL
-           AND ws.id <> ?
-           AND ws.completed_at < ?
-           AND wse.exercise_id IN (${placeholders(uniqueIds.length)})
-         ORDER BY wse.exercise_id, ws.completed_at DESC, ws.id DESC`,
+        `WITH ranked AS (
+           SELECT wse.id AS session_exercise_id, wse.exercise_id,
+                  wse.exercise_name_snapshot, wse.weight_mode_snapshot,
+                  ws.id AS session_id, ws.workout_name_snapshot, ws.completed_at,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY wse.exercise_id
+                    ORDER BY ws.completed_at DESC, ws.id DESC
+                  ) AS history_rank
+           FROM workout_session_exercises AS wse
+           JOIN workout_sessions AS ws ON ws.id = wse.session_id
+           WHERE ws.status = 'completed'
+             AND ws.completed_at IS NOT NULL
+             AND ws.id <> ?
+             AND ws.completed_at < ?
+             AND wse.exercise_id IN (${placeholders(uniqueIds.length)})
+         )
+         SELECT session_exercise_id, exercise_id, exercise_name_snapshot,
+                weight_mode_snapshot, session_id, workout_name_snapshot,
+                completed_at
+         FROM ranked
+         WHERE history_rank = 1
+         ORDER BY exercise_id`,
         activeSessionId,
         active.started_at,
         ...uniqueIds
@@ -123,14 +217,23 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
         headers.map((row) => row.session_exercise_id)
       );
       const appearances = mapAppearances(headers, setRows);
+      const summaryRows = await loadRecordSummaries(
+        database,
+        `ws.id <> ? AND ws.completed_at < ?
+         AND wse.exercise_id IN (${placeholders(uniqueIds.length)})`,
+        [activeSessionId, active.started_at, ...uniqueIds]
+      );
       const previous = new Map<number, ExerciseAppearance>();
       const records = new Map<number, ExerciseRecords>();
       for (const exerciseId of uniqueIds) {
-        const matches = appearances.filter(
+        const latest = appearances.find(
           (appearance) => appearance.exerciseId === exerciseId
         );
-        if (matches[0]) previous.set(exerciseId, matches[0]);
-        records.set(exerciseId, calculateExerciseRecords(matches));
+        if (latest) previous.set(exerciseId, latest);
+        records.set(
+          exerciseId,
+          summarizeRecords(summaryRows, exerciseId, latest ?? null)
+        );
       }
       return { previous, records };
     },
@@ -148,7 +251,7 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
         exerciseId
       );
 
-      const allHeaders = await database.getAllAsync<AppearanceRow>(
+      const pageHeaders = await database.getAllAsync<AppearanceRow>(
         `SELECT wse.id AS session_exercise_id, wse.exercise_id,
                 wse.exercise_name_snapshot, wse.weight_mode_snapshot,
                 ws.id AS session_id, ws.workout_name_snapshot, ws.completed_at
@@ -157,30 +260,39 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
          WHERE wse.exercise_id = ?
            AND ws.status = 'completed'
            AND ws.completed_at IS NOT NULL
-         ORDER BY ws.completed_at DESC, ws.id DESC`,
-        exerciseId
+         ORDER BY ws.completed_at DESC, ws.id DESC
+         LIMIT ? OFFSET ?`,
+        exerciseId,
+        safeLimit + 1,
+        safeOffset
       );
-      if (!exercise && allHeaders.length === 0) return null;
+      if (!exercise && pageHeaders.length === 0) return null;
 
-      const allSetRows = await loadCompletedSets(
+      const hasMore = pageHeaders.length > safeLimit;
+      const selectedHeaders = pageHeaders.slice(0, safeLimit);
+      const pageSetRows = await loadCompletedSets(
         database,
-        allHeaders.map((row) => row.session_exercise_id)
+        selectedHeaders.map((row) => row.session_exercise_id)
       );
-      const allAppearances = mapAppearances(allHeaders, allSetRows);
-      const page = allAppearances.slice(safeOffset, safeOffset + safeLimit);
-      const first = allAppearances[0] ?? null;
+      const page = mapAppearances(selectedHeaders, pageSetRows);
+      const summaryRows = await loadRecordSummaries(
+        database,
+        'wse.exercise_id = ?',
+        [exerciseId]
+      );
+      const first = page[0] ?? null;
       return {
         equipment: exercise?.equipment || null,
         exerciseId,
         exerciseName:
           exercise?.name ??
-          allHeaders[0]?.exercise_name_snapshot ??
+          pageHeaders[0]?.exercise_name_snapshot ??
           'Bilinmeyen egzersiz',
-        hasMore: safeOffset + page.length < allAppearances.length,
+        hasMore,
         legacyMatched: false,
         muscleGroup: exercise?.muscle_group || null,
         recentAppearances: page,
-        records: calculateExerciseRecords(allAppearances),
+        records: summarizeRecords(summaryRows, exerciseId, first),
         weightMode: first?.weightMode ?? null,
       };
     },
