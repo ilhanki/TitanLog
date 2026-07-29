@@ -82,7 +82,15 @@ describe('default workout plan seed', () => {
     expect(memory.dayExercises.size).toBe(20);
   });
 
-  it('does not reseed or overwrite a personalized active plan on restart', async () => {
+  it.each([
+    'day rename',
+    'schedule edit',
+    'default edit',
+    'exercise reorder',
+    'existing exercise addition',
+    'custom exercise addition',
+    'exercise removal including the final relationship',
+  ])('does not reseed or overwrite an active plan after %s', async () => {
     const database = {
       getFirstAsync: jest.fn().mockResolvedValue({ id: 1 }),
       withExclusiveTransactionAsync: jest.fn(),

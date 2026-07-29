@@ -339,6 +339,33 @@ describe('workout program screens', () => {
     );
   });
 
+  it('ignores rapid repeated custom-exercise submissions', async () => {
+    let finishSave: ((value: number) => void) | undefined;
+    mockCreateCustomExerciseAndAdd.mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          finishSave = resolve;
+        })
+    );
+    const { getByLabelText, getByRole } = await render(
+      <CustomWorkoutExerciseScreen />
+    );
+    await fireEvent.changeText(
+      getByLabelText(appStrings.workout.exerciseName),
+      'Cable Lateral Raise'
+    );
+    const button = getByRole('button', {
+      name: appStrings.workout.createExercise,
+    });
+
+    await fireEvent.press(button);
+    await fireEvent.press(button);
+
+    expect(mockCreateCustomExerciseAndAdd).toHaveBeenCalledTimes(1);
+    finishSave?.(30);
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled());
+  });
+
   it('guards unsaved day edits with a native discard confirmation', async () => {
     jest.spyOn(Alert, 'alert');
     const { getByLabelText } = await render(<WorkoutProgramDayScreen />);
