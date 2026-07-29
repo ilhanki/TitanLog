@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/app-text';
 import { AppTextInput } from '@/components/app-text-input';
+import { WeightSelectorField } from '@/components/weight-selector-field';
 import { appStrings } from '@/constants/strings';
 import type { WeightMode } from '@/features/workouts/domain/models';
 import { theme } from '@/theme/tokens';
@@ -51,12 +52,17 @@ export function ExerciseDefaultsForm({
           />
         </View>
       </View>
-      <AppTextInput
+      <WeightSelectorField
         accessibilityLabel={`${labelPrefix}${appStrings.workout.defaultWeight}`}
         error={errors?.weight}
-        inputMode="decimal"
+        kind="exercise"
         label={appStrings.workout.defaultWeight}
         onChangeText={(weight) => onChange({ ...values, weight })}
+        title={
+          exerciseName
+            ? `${exerciseName} Varsayılan Ağırlığı`
+            : 'Varsayılan Ağırlık'
+        }
         value={values.weight}
       />
       <View style={styles.modeGroup}>

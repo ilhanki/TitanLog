@@ -5,7 +5,7 @@ import { Alert, StyleSheet } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
-import { AppTextInput } from '@/components/app-text-input';
+import { WeightSelectorField } from '@/components/weight-selector-field';
 import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
@@ -113,21 +113,21 @@ export function BodySettingsScreen() {
       <AppText selectable tone="muted">
         {appStrings.progress.settingsDescription}
       </AppText>
-      <AppTextInput
+      <WeightSelectorField
         editable={!pending}
         error={error ?? undefined}
-        inputMode="decimal"
-        keyboardType="decimal-pad"
+        kind="body"
         label={appStrings.progress.startingWeight}
         onChangeText={setStartingWeight}
+        title="Kilonu Seç"
         value={startingWeight}
       />
-      <AppTextInput
+      <WeightSelectorField
         editable={!pending}
-        inputMode="decimal"
-        keyboardType="decimal-pad"
+        kind="body"
         label={appStrings.progress.targetWeight}
         onChangeText={setTargetWeight}
+        title="Hedef Kilonu Seç"
         value={targetWeight}
       />
       <AppButton

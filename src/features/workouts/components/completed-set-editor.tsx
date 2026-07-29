@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
+import { WeightWheelModal } from '@/components/weight-wheel-modal';
 import { appStrings } from '@/constants/strings';
 import type {
   WorkoutSessionExercise,
@@ -50,6 +51,7 @@ function CompletedSetRow({
     String(workoutSet.actualReps ?? workoutSet.targetReps)
   );
   const [error, setError] = useState<string | null>(null);
+  const [weightWheelVisible, setWeightWheelVisible] = useState(false);
 
   useEffect(() => {
     setWeight(formatWorkoutWeight(workoutSet.weightKg));
@@ -84,9 +86,23 @@ function CompletedSetRow({
         inputMode="decimal"
         keyboardType="decimal-pad"
         onChangeText={setWeight}
+        onFocus={() => setWeightWheelVisible(true)}
         selectTextOnFocus
+        showSoftInputOnFocus={false}
         style={styles.input}
         value={weight}
+      />
+      <WeightWheelModal
+        accessibilityLabel={`${exerciseName} Set ${workoutSet.setNumber} ${appStrings.workout.weightLabel}`}
+        kind="exercise"
+        onApply={(nextWeight) => {
+          setWeight(formatWorkoutWeight(nextWeight));
+          setWeightWheelVisible(false);
+        }}
+        onCancel={() => setWeightWheelVisible(false)}
+        title={`${exerciseName} Set ${workoutSet.setNumber} Ağırlığı`}
+        value={parseWeightInput(weight) ?? workoutSet.weightKg}
+        visible={weightWheelVisible}
       />
       <TextInput
         accessibilityLabel={`${exerciseName} Set ${workoutSet.setNumber} ${appStrings.workout.repetitionLabel}`}

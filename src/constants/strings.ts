@@ -3,6 +3,11 @@ export const appStrings = {
   slogan: 'Train. Track. Transform.',
   common: {
     goBack: 'Geri dön',
+    apply: 'Uygula',
+    cancel: 'Vazgeç',
+    manualEntry: 'Elle Gir',
+    useWheel: 'Çarkı Kullan',
+    wheelHint: 'Aşağı çevirerek artır, yukarı çevirerek azalt.',
   },
   database: {
     loadingTitle: 'Antrenman alanın hazırlanıyor',

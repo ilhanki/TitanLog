@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import { AppTextInput } from '@/components/app-text-input';
+import { WeightSelectorField } from '@/components/weight-selector-field';
 import { EmptyState } from '@/components/empty-state';
 import { ProgressBar } from '@/components/progress-bar';
 import { Screen } from '@/components/screen';
@@ -203,22 +203,22 @@ export function ProgressScreen() {
           <AppText selectable tone="muted">
             {appStrings.progress.setupDescription}
           </AppText>
-          <AppTextInput
+          <WeightSelectorField
             editable={!pending}
             error={startingError ?? undefined}
-            inputMode="decimal"
-            keyboardType="decimal-pad"
+            kind="body"
             label={appStrings.progress.startingWeight}
             onChangeText={setStartingWeight}
+            title="Kilonu Seç"
             value={startingWeight}
           />
-          <AppTextInput
+          <WeightSelectorField
             editable={!pending}
             error={targetError ?? undefined}
-            inputMode="decimal"
-            keyboardType="decimal-pad"
+            kind="body"
             label={appStrings.progress.targetWeight}
             onChangeText={setTargetWeight}
+            title="Hedef Kilonu Seç"
             value={targetWeight}
           />
           <AppButton

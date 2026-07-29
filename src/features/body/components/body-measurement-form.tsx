@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppTextInput } from '@/components/app-text-input';
+import { WeightSelectorField } from '@/components/weight-selector-field';
 import { appStrings } from '@/constants/strings';
 import type {
   BodyMeasurement,
@@ -104,13 +105,13 @@ export function BodyMeasurementForm({
 
   return (
     <View style={styles.form}>
-      <AppTextInput
+      <WeightSelectorField
         editable={!pending}
         error={error ?? undefined}
-        inputMode="decimal"
-        keyboardType="decimal-pad"
+        kind="body"
         label={appStrings.progress.weight}
         onChangeText={(value) => update('weight', value)}
+        title="Kilonu Seç"
         value={fields.weight}
       />
       {numericFields.map((field) => (

@@ -9,6 +9,7 @@ import {
 
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
+import { WeightWheelModal } from '@/components/weight-wheel-modal';
 import { appStrings } from '@/constants/strings';
 import type { WorkoutSessionExercise } from '@/features/workouts/domain/models';
 import {
@@ -50,6 +51,7 @@ export function WorkoutExerciseRow({
     displayedRepetitions === null ? '' : String(displayedRepetitions)
   );
   const [pending, setPending] = useState(false);
+  const [weightWheelVisible, setWeightWheelVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef(false);
   const complete = completedCount === exercise.sets.length;
@@ -155,13 +157,27 @@ export function WorkoutExerciseRow({
         inputMode="decimal"
         keyboardType="decimal-pad"
         onChangeText={setWeight}
+        onFocus={() => setWeightWheelVisible(true)}
         selectTextOnFocus
+        showSoftInputOnFocus={false}
         style={[
           styles.input,
           styles.weightInput,
           complete && styles.completedInput,
         ]}
         value={weight}
+      />
+      <WeightWheelModal
+        accessibilityLabel={`${exercise.name} ${appStrings.workout.weightLabel}`}
+        kind="exercise"
+        onApply={(nextWeight) => {
+          setWeight(formatWorkoutWeight(nextWeight));
+          setWeightWheelVisible(false);
+        }}
+        onCancel={() => setWeightWheelVisible(false)}
+        title={`${exercise.name} Ağırlığı`}
+        value={parseWeightInput(weight) ?? displayedWeightKg ?? 2.5}
+        visible={weightWheelVisible}
       />
       <Pressable
         accessibilityLabel={
