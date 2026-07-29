@@ -2,8 +2,13 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useState } from 'react';
 
 import {
+  WHEEL_EDGE_PADDING,
+  WHEEL_ITEM_HEIGHT,
+  WHEEL_VIEWPORT_HEIGHT,
   WheelPicker,
   createDescendingWheelOptions,
+  getWheelGeometry,
+  getWheelOffset,
   resolveWheelValue,
 } from '@/components/wheel-picker';
 import {
@@ -38,6 +43,43 @@ function BodyWeightHarness() {
 }
 
 describe('weight wheels', () => {
+  it.each([0, 1, 197, 380, 799])(
+    'keeps selected index %s exactly at the viewport center',
+    (index) => {
+      const geometry = getWheelGeometry(index);
+
+      expect(geometry.itemHeight).toBe(WHEEL_ITEM_HEIGHT);
+      expect(geometry.topPadding).toBe(
+        (WHEEL_VIEWPORT_HEIGHT - WHEEL_ITEM_HEIGHT) / 2
+      );
+      expect(geometry.bottomPadding).toBe(WHEEL_EDGE_PADDING);
+      expect(geometry.selectionBandHeight).toBe(WHEEL_ITEM_HEIGHT);
+      expect(geometry.selectionBandTop).toBe(WHEEL_EDGE_PADDING);
+      expect(geometry.selectedOffset).toBe(index * WHEEL_ITEM_HEIGHT);
+      expect(geometry.selectedCenter).toBe(geometry.viewportCenter);
+    }
+  );
+
+  it('uses the same exact offset contract for body and exercise wheels', () => {
+    const bodyWholeIndex = createDescendingWheelOptions([
+      114, 115, 116,
+    ]).indexOf(114);
+    const bodyDecimalIndex = createDescendingWheelOptions([7, 8, 9]).indexOf(8);
+    const exerciseIndex = createDescendingWheelOptions([15, 17.5, 20]).indexOf(
+      17.5
+    );
+
+    expect(getWheelOffset(bodyWholeIndex)).toBe(
+      bodyWholeIndex * WHEEL_ITEM_HEIGHT
+    );
+    expect(getWheelOffset(bodyDecimalIndex)).toBe(
+      bodyDecimalIndex * WHEEL_ITEM_HEIGHT
+    );
+    expect(getWheelOffset(exerciseIndex)).toBe(
+      exerciseIndex * WHEEL_ITEM_HEIGHT
+    );
+  });
+
   it('orders larger values above smaller values and resolves exact snaps', () => {
     const options = createDescendingWheelOptions([75, 85, 80]);
 
@@ -238,6 +280,39 @@ describe('weight wheels', () => {
       nativeEvent: { actionName: 'increment' },
     });
     await fireEvent.press(getAllByLabelText(appStrings.common.cancel)[0]!);
+
+    expect(getByLabelText('Vücut kilosu')).toHaveProp('value', '114,8');
+  });
+
+  it('discards the modal draft when Android back closes the picker', async () => {
+    const screen = await render(<BodyWeightHarness />);
+    await fireEvent(screen.getByLabelText('Vücut kilosu'), 'focus');
+    const decimalWheel = await waitFor(() =>
+      screen.getByLabelText('Kilonu Seç ondalık')
+    );
+    await fireEvent(decimalWheel, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+    await fireEvent(screen.getByTestId('weight-wheel-modal'), 'requestClose');
+
+    expect(screen.getByLabelText('Vücut kilosu')).toHaveProp('value', '114,8');
+  });
+
+  it('reopens from the current field value without accumulating an offset', async () => {
+    const { getAllByLabelText, getByLabelText } = await render(
+      <BodyWeightHarness />
+    );
+
+    for (let index = 0; index < 3; index += 1) {
+      await fireEvent(getByLabelText('Vücut kilosu'), 'focus');
+      await waitFor(() =>
+        expect(getByLabelText('Kilonu Seç tam kilogram')).toHaveProp(
+          'accessibilityValue',
+          { text: '114 kilogram' }
+        )
+      );
+      await fireEvent.press(getAllByLabelText(appStrings.common.cancel)[0]!);
+    }
 
     expect(getByLabelText('Vücut kilosu')).toHaveProp('value', '114,8');
   });

@@ -10,8 +10,35 @@ import {
 import { AppText } from '@/components/app-text';
 import { theme } from '@/theme/tokens';
 
-const ITEM_HEIGHT = 52;
-const VISIBLE_ITEMS = 5;
+export const WHEEL_ITEM_HEIGHT = 52;
+export const WHEEL_VISIBLE_ITEM_COUNT = 5;
+export const WHEEL_VIEWPORT_HEIGHT =
+  WHEEL_ITEM_HEIGHT * WHEEL_VISIBLE_ITEM_COUNT;
+export const WHEEL_EDGE_PADDING =
+  (WHEEL_VIEWPORT_HEIGHT - WHEEL_ITEM_HEIGHT) / 2;
+
+export function getWheelOffset(index: number): number {
+  return index * WHEEL_ITEM_HEIGHT;
+}
+
+export function getWheelGeometry(index: number) {
+  const selectedOffset = getWheelOffset(index);
+  return {
+    bottomPadding: WHEEL_EDGE_PADDING,
+    itemHeight: WHEEL_ITEM_HEIGHT,
+    selectionBandHeight: WHEEL_ITEM_HEIGHT,
+    selectionBandTop: WHEEL_EDGE_PADDING,
+    selectedCenter:
+      WHEEL_EDGE_PADDING +
+      selectedOffset -
+      selectedOffset +
+      WHEEL_ITEM_HEIGHT / 2,
+    selectedOffset,
+    topPadding: WHEEL_EDGE_PADDING,
+    viewportCenter: WHEEL_VIEWPORT_HEIGHT / 2,
+    viewportHeight: WHEEL_VIEWPORT_HEIGHT,
+  } as const;
+}
 
 export function createDescendingWheelOptions(
   options: readonly number[]
@@ -22,7 +49,7 @@ export function createDescendingWheelOptions(
 export function resolveWheelValue(
   options: readonly number[],
   offsetY: number,
-  itemHeight = ITEM_HEIGHT
+  itemHeight = WHEEL_ITEM_HEIGHT
 ): number {
   const index = Math.max(
     0,
@@ -51,7 +78,7 @@ export function WheelPicker({
   const data = useMemo(() => createDescendingWheelOptions(options), [options]);
   const selectedIndex = Math.max(0, data.indexOf(value));
   const scrollY = useRef(
-    new Animated.Value(selectedIndex * ITEM_HEIGHT)
+    new Animated.Value(getWheelOffset(selectedIndex))
   ).current;
   const listRef = useRef<Animated.FlatList<number>>(null);
 
@@ -59,7 +86,7 @@ export function WheelPicker({
     const bounded = Math.max(0, Math.min(data.length - 1, index));
     listRef.current?.scrollToOffset({
       animated,
-      offset: bounded * ITEM_HEIGHT,
+      offset: getWheelOffset(bounded),
     });
     onChange(data[bounded]!);
   };
@@ -98,8 +125,8 @@ export function WheelPicker({
         disableIntervalMomentum
         getItemLayout={(_, index) => ({
           index,
-          length: ITEM_HEIGHT,
-          offset: ITEM_HEIGHT * index,
+          length: WHEEL_ITEM_HEIGHT,
+          offset: getWheelOffset(index),
         })}
         initialScrollIndex={selectedIndex}
         keyExtractor={(item) => String(item)}
@@ -109,14 +136,20 @@ export function WheelPicker({
           { useNativeDriver: true }
         )}
         onScrollEndDrag={settle}
+        onScrollToIndexFailed={({ index }) => {
+          listRef.current?.scrollToOffset({
+            animated: false,
+            offset: getWheelOffset(index),
+          });
+        }}
         ref={listRef}
         renderItem={({ index, item }) => {
           const inputRange = [
-            (index - 2) * ITEM_HEIGHT,
-            (index - 1) * ITEM_HEIGHT,
-            index * ITEM_HEIGHT,
-            (index + 1) * ITEM_HEIGHT,
-            (index + 2) * ITEM_HEIGHT,
+            getWheelOffset(index - 2),
+            getWheelOffset(index - 1),
+            getWheelOffset(index),
+            getWheelOffset(index + 1),
+            getWheelOffset(index + 2),
           ];
           return (
             <Animated.View
@@ -140,33 +173,42 @@ export function WheelPicker({
                 },
               ]}
             >
-              <AppText style={styles.value} variant="metric">
-                {formatValue(item)}
-              </AppText>
+              <View style={styles.centeredRow}>
+                <AppText style={styles.value} variant="metric">
+                  {formatValue(item)}
+                </AppText>
+              </View>
             </Animated.View>
           );
         }}
         showsVerticalScrollIndicator={false}
         snapToAlignment="start"
-        snapToInterval={ITEM_HEIGHT}
+        snapToInterval={WHEEL_ITEM_HEIGHT}
+        snapToOffsets={data.map((_, index) => getWheelOffset(index))}
         style={styles.list}
       />
     </View>
   );
 }
 
-const verticalPadding = ITEM_HEIGHT * ((VISIBLE_ITEMS - 1) / 2);
-
 const styles = StyleSheet.create({
+  centeredRow: {
+    alignItems: 'center',
+    height: WHEEL_ITEM_HEIGHT,
+    justifyContent: 'center',
+  },
   container: {
-    height: ITEM_HEIGHT * VISIBLE_ITEMS,
+    height: WHEEL_VIEWPORT_HEIGHT,
     minWidth: 104,
     overflow: 'hidden',
   },
-  content: { paddingVertical: verticalPadding },
+  content: {
+    paddingBottom: WHEEL_EDGE_PADDING,
+    paddingTop: WHEEL_EDGE_PADDING,
+  },
   item: {
     alignItems: 'center',
-    height: ITEM_HEIGHT,
+    height: WHEEL_ITEM_HEIGHT,
     justifyContent: 'center',
   },
   list: { flexGrow: 0 },
@@ -176,11 +218,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: theme.borders.thin,
     borderTopColor: theme.colors.primary,
     borderTopWidth: theme.borders.thin,
-    height: ITEM_HEIGHT,
+    height: WHEEL_ITEM_HEIGHT,
     left: 0,
     position: 'absolute',
     right: 0,
-    top: verticalPadding,
+    top: WHEEL_EDGE_PADDING,
   },
-  value: { color: theme.colors.text, fontVariant: ['tabular-nums'] },
+  value: {
+    color: theme.colors.text,
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+    lineHeight: WHEEL_ITEM_HEIGHT,
+    textAlignVertical: 'center',
+  },
 });

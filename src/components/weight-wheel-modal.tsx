@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -63,24 +63,41 @@ export function WeightWheelModal({
   value,
   visible,
 }: WeightWheelModalProps) {
+  if (!visible) return null;
+
+  return (
+    <VisibleWeightWheelModal
+      accessibilityLabel={accessibilityLabel}
+      kind={kind}
+      onApply={onApply}
+      onCancel={onCancel}
+      title={title}
+      value={value}
+    />
+  );
+}
+
+type VisibleWeightWheelModalProps = Omit<WeightWheelModalProps, 'visible'>;
+
+function VisibleWeightWheelModal({
+  accessibilityLabel,
+  kind,
+  onApply,
+  onCancel,
+  title,
+  value,
+}: VisibleWeightWheelModalProps) {
   const [draft, setDraft] = useState(value);
   const [manual, setManual] = useState(false);
-  const [manualValue, setManualValue] = useState('');
   const [error, setError] = useState<string | undefined>();
   const exerciseOptions = useMemo(
     () => createExerciseWeightOptions(value),
     [value]
   );
 
-  useEffect(() => {
-    if (!visible) return;
-    setDraft(value);
-    setManual(false);
-    setManualValue(
-      kind === 'body' ? formatBodyValue(value) : formatWorkoutWeight(value)
-    );
-    setError(undefined);
-  }, [kind, value, visible]);
+  const [manualValue, setManualValue] = useState(() =>
+    kind === 'body' ? formatBodyValue(value) : formatWorkoutWeight(value)
+  );
 
   const apply = () => {
     if (manual) {
@@ -110,8 +127,9 @@ export function WeightWheelModal({
       animationType="fade"
       onRequestClose={onCancel}
       statusBarTranslucent
+      testID="weight-wheel-modal"
       transparent
-      visible={visible}
+      visible
     >
       <SafeAreaView edges={['top', 'bottom']} style={styles.overlay}>
         <Pressable
