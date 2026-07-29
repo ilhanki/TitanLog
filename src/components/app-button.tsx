@@ -27,7 +27,7 @@ export function AppButton({
   ...props
 }: AppButtonProps) {
   const iconColor =
-    variant === 'primary' ? theme.colors.text : theme.colors.primary;
+    variant === 'primary' ? theme.colors.accentOnColor : theme.colors.primary;
 
   return (
     <Pressable
@@ -77,7 +77,6 @@ const styles = StyleSheet.create({
   primary: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
-    boxShadow: theme.shadows.accent,
   },
   secondary: {
     backgroundColor: theme.colors.surfaceInteractive,
@@ -88,14 +87,16 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   pressed: {
-    opacity: 0.78,
+    opacity: 0.86,
     transform: [{ scale: 0.98 }],
   },
   disabled: {
-    opacity: 0.46,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderColor: theme.colors.border,
+    opacity: 0.72,
   },
   primaryText: {
-    color: theme.colors.text,
+    color: theme.colors.accentOnColor,
   },
   secondaryText: {
     color: theme.colors.primary,

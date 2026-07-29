@@ -1,24 +1,33 @@
 import { StyleSheet } from 'react-native';
 
 export const colors = {
-  background: '#050914',
-  backgroundElevated: '#080E1C',
-  surface: '#0D1424',
-  surfaceRaised: '#121C30',
-  surfaceInteractive: '#17233A',
-  border: '#202D43',
-  borderStrong: '#31445F',
-  primary: '#2F80FF',
-  primaryPressed: '#1D65D8',
-  primarySoft: '#112C59',
-  accent: '#65D8FF',
-  text: '#F7F9FC',
-  textMuted: '#A8B3C7',
-  textSubtle: '#71809A',
-  success: '#4ED7A8',
-  warning: '#FFCA65',
-  danger: '#FF7285',
-  overlay: 'rgba(5, 9, 20, 0.72)',
+  background: '#0E0F11',
+  backgroundElevated: '#141619',
+  surface: '#17191C',
+  surfaceRaised: '#202328',
+  surfaceInteractive: '#25292E',
+  surfaceMuted: '#141619',
+  surfacePressed: '#25292E',
+  border: '#2B2F35',
+  borderStrong: '#3A3F46',
+  primary: '#E58A3B',
+  primaryPressed: '#C96F25',
+  primarySoft: 'rgba(229, 138, 59, 0.12)',
+  accent: '#F09A4A',
+  accentOnColor: '#111214',
+  text: '#F2F3F5',
+  textMuted: '#A7ADB7',
+  textSubtle: '#717782',
+  textDisabled: '#565B63',
+  success: '#45A56A',
+  successSoft: 'rgba(69, 165, 106, 0.12)',
+  warning: '#D9A441',
+  warningSoft: 'rgba(217, 164, 65, 0.12)',
+  danger: '#E05252',
+  dangerSoft: 'rgba(224, 82, 82, 0.12)',
+  information: '#78909C',
+  informationSoft: 'rgba(120, 144, 156, 0.12)',
+  overlay: 'rgba(0, 0, 0, 0.72)',
   transparent: 'transparent',
 } as const;
 
@@ -36,10 +45,10 @@ export const spacing = {
 } as const;
 
 export const radii = {
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
   pill: 999,
 } as const;
 
@@ -50,8 +59,8 @@ export const borders = {
 } as const;
 
 export const shadows = {
-  card: '0 12px 30px rgba(0, 0, 0, 0.24)',
-  accent: '0 10px 28px rgba(47, 128, 255, 0.2)',
+  card: '0 8px 20px rgba(0, 0, 0, 0.18)',
+  raised: '0 10px 24px rgba(0, 0, 0, 0.22)',
 } as const;
 
 export const iconSizes = {
@@ -80,7 +89,7 @@ export const typography = {
     bodyLarge: 17,
     heading: 20,
     title: 26,
-    display: 34,
+    display: 32,
     metric: 24,
     brand: 19,
   },
@@ -91,7 +100,7 @@ export const typography = {
     bodyLarge: 25,
     heading: 27,
     title: 33,
-    display: 40,
+    display: 38,
     metric: 30,
     brand: 24,
   },

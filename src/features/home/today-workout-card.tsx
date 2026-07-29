@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -23,11 +22,8 @@ export function TodayWorkoutCard({
   title,
 }: TodayWorkoutCardProps) {
   return (
-    <LinearGradient
+    <View
       accessibilityLabel={`${appStrings.home.todayWorkoutLabel}: ${title}`}
-      colors={[theme.colors.surfaceRaised, theme.colors.primarySoft]}
-      end={{ x: 1, y: 1 }}
-      start={{ x: 0, y: 0 }}
       style={styles.card}
     >
       <View
@@ -53,17 +49,17 @@ export function TodayWorkoutCard({
         </AppText>
       </View>
       <AppButton disabled={disabled} label={actionLabel} onPress={onPress} />
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    backgroundColor: theme.colors.surfaceRaised,
     borderColor: theme.colors.borderStrong,
     borderCurve: 'continuous',
     borderRadius: theme.radii.xl,
     borderWidth: theme.borders.thin,
-    boxShadow: theme.shadows.accent,
     gap: theme.spacing.xxl,
     overflow: 'hidden',
     padding: theme.spacing.xxl,
@@ -71,14 +67,14 @@ const styles = StyleSheet.create({
   emblem: {
     alignItems: 'center',
     alignSelf: 'flex-end',
-    backgroundColor: theme.colors.primarySoft,
-    borderRadius: theme.radii.pill,
-    height: 72,
+    backgroundColor: theme.colors.surfaceInteractive,
+    borderRadius: theme.radii.md,
+    height: 56,
     justifyContent: 'center',
     position: 'absolute',
     right: theme.spacing.xxl,
     top: theme.spacing.xxl,
-    width: 72,
+    width: 56,
   },
-  copy: { gap: theme.spacing.sm, paddingRight: 84 },
+  copy: { gap: theme.spacing.sm, paddingRight: 68 },
 });

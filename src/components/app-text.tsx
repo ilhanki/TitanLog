@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   display: {
     fontSize: theme.typography.size.display,
-    fontWeight: theme.typography.weight.black,
+    fontWeight: theme.typography.weight.bold,
     lineHeight: theme.typography.lineHeight.display,
   },
   heading: {
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: theme.typography.size.title,
-    fontWeight: theme.typography.weight.black,
+    fontWeight: theme.typography.weight.bold,
     lineHeight: theme.typography.lineHeight.title,
   },
   body: {

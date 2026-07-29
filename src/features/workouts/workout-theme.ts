@@ -1,8 +1,10 @@
+import { theme } from '@/theme/tokens';
+
 export const workoutTheme = {
-  background: '#030507',
-  completed: '#070A0D',
-  input: '#0B1016',
-  separator: '#1A222C',
-  surface: '#080C11',
-  surfaceActive: '#0A1420',
+  background: theme.colors.background,
+  completed: theme.colors.surfaceMuted,
+  input: theme.colors.surface,
+  separator: theme.colors.border,
+  surface: theme.colors.surface,
+  surfaceActive: theme.colors.surfaceRaised,
 } as const;

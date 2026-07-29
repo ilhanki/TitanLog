@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
@@ -8,12 +7,7 @@ import { theme } from '@/theme/tokens';
 
 export function MotivationBanner() {
   return (
-    <LinearGradient
-      colors={[theme.colors.primarySoft, theme.colors.backgroundElevated]}
-      end={{ x: 1, y: 0 }}
-      start={{ x: 0, y: 1 }}
-      style={styles.banner}
-    >
+    <View style={styles.banner}>
       <View
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
@@ -31,7 +25,7 @@ export function MotivationBanner() {
           {appStrings.home.motivationDescription}
         </AppText>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -42,6 +36,7 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderRadius: theme.radii.lg,
     borderWidth: theme.borders.thin,
+    backgroundColor: theme.colors.surfaceMuted,
     flexDirection: 'row',
     gap: theme.spacing.lg,
     padding: theme.spacing.xl,

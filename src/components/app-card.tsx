@@ -29,6 +29,5 @@ const styles = StyleSheet.create({
   accent: {
     backgroundColor: theme.colors.primarySoft,
     borderColor: theme.colors.primary,
-    boxShadow: theme.shadows.accent,
   },
 });
