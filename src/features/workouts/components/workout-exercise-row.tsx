@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  AccessibilityInfo,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
-import { WeightWheelModal } from '@/components/weight-wheel-modal';
 import { appStrings } from '@/constants/strings';
+import { InlineNumericWheelField } from '@/features/workouts/components/inline-numeric-wheel-field';
 import type { WorkoutSessionExercise } from '@/features/workouts/domain/models';
 import type { ExerciseAppearance } from '@/features/workouts/domain/exercise-performance';
 import { formatPreviousPerformance } from '@/features/workouts/utils/exercise-performance';
@@ -61,7 +55,6 @@ export function WorkoutExerciseRow({
     displayedRepetitions === null ? '' : String(displayedRepetitions)
   );
   const [pending, setPending] = useState(false);
-  const [weightWheelVisible, setWeightWheelVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef(false);
   const complete = completedCount === exercise.sets.length;
@@ -167,48 +160,36 @@ export function WorkoutExerciseRow({
           {counter}
         </AppText>
       </Pressable>
-      <TextInput
+      <InlineNumericWheelField
         accessibilityLabel={`${exercise.name} ${appStrings.workout.repetitionLabel}`}
-        editable={!complete && !pending}
+        disabled={complete || pending}
+        formatValue={String}
         inputMode="numeric"
         keyboardType="number-pad"
+        max={1000}
+        min={1}
         onChangeText={setRepetitions}
-        selectTextOnFocus
-        style={[
-          styles.input,
-          styles.repetitionInput,
-          complete && styles.completedInput,
-        ]}
+        parseValue={parseRepetitionInput}
+        step={1}
+        style={styles.repetitionInput}
         value={repetitions}
       />
-      <TextInput
+      <InlineNumericWheelField
+        accessibilityHint={
+          previousPerformanceError ? undefined : previousSummary.accessibility
+        }
         accessibilityLabel={`${exercise.name} ${appStrings.workout.weightLabel}`}
-        editable={!complete && !pending}
+        disabled={complete || pending}
+        formatValue={formatWorkoutWeight}
         inputMode="decimal"
         keyboardType="decimal-pad"
+        max={2000}
+        min={2.5}
         onChangeText={setWeight}
-        onFocus={() => setWeightWheelVisible(true)}
-        selectTextOnFocus
-        showSoftInputOnFocus={false}
-        style={[
-          styles.input,
-          styles.weightInput,
-          complete && styles.completedInput,
-        ]}
+        parseValue={parseWeightInput}
+        step={2.5}
+        style={styles.weightInput}
         value={weight}
-      />
-      <WeightWheelModal
-        accessibilityLabel={`${exercise.name} ${appStrings.workout.weightLabel}`}
-        context={previousPerformanceError ? undefined : previousSummary.wheel}
-        kind="exercise"
-        onApply={(nextWeight) => {
-          setWeight(formatWorkoutWeight(nextWeight));
-          setWeightWheelVisible(false);
-        }}
-        onCancel={() => setWeightWheelVisible(false)}
-        title={`${exercise.name} Ağırlığı`}
-        value={parseWeightInput(weight) ?? displayedWeightKg ?? 2.5}
-        visible={weightWheelVisible}
       />
       <Pressable
         accessibilityLabel={
@@ -257,7 +238,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.success,
     borderWidth: theme.borders.thin,
   },
-  completedInput: { color: theme.colors.textMuted, opacity: 0.72 },
   completedRow: { backgroundColor: workoutTheme.completed },
   completedText: { color: theme.colors.textMuted },
   counterCell: {
@@ -265,19 +245,6 @@ const styles = StyleSheet.create({
     height: theme.layout.compactTouchTarget,
     justifyContent: 'center',
     width: workoutTableColumns.counter,
-  },
-  input: {
-    backgroundColor: workoutTheme.input,
-    borderColor: workoutTheme.separator,
-    borderRadius: theme.radii.sm,
-    borderWidth: theme.borders.thin,
-    color: theme.colors.text,
-    fontSize: theme.typography.size.caption,
-    fontVariant: ['tabular-nums'],
-    height: theme.layout.compactTouchTarget,
-    paddingHorizontal: theme.spacing.xs,
-    paddingVertical: 0,
-    textAlign: 'center',
   },
   nameCell: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.72 },

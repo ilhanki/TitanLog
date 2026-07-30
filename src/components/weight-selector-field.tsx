@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import { AppText } from '@/components/app-text';
 import { AppTextInput } from '@/components/app-text-input';
 import {
   WeightWheelModal,
@@ -13,6 +15,8 @@ import {
   formatWorkoutWeight,
   parseWeightInput,
 } from '@/features/workouts/utils/workout-values';
+import { InlineNumericWheelField } from '@/features/workouts/components/inline-numeric-wheel-field';
+import { theme } from '@/theme/tokens';
 
 type WeightSelectorFieldProps = {
   accessibilityLabel?: string;
@@ -50,6 +54,32 @@ export function WeightSelectorField({
   const [visible, setVisible] = useState(false);
   const wheelValue = resolveWeightSelectorValue(value, kind, fallbackValue);
 
+  if (kind === 'exercise') {
+    return (
+      <View style={styles.inlineField}>
+        <AppText variant="label">{label}</AppText>
+        <InlineNumericWheelField
+          accessibilityLabel={accessibilityLabel ?? label}
+          disabled={!editable}
+          formatValue={formatWorkoutWeight}
+          inputMode="decimal"
+          keyboardType="decimal-pad"
+          max={2000}
+          min={2.5}
+          onChangeText={onChangeText}
+          parseValue={parseWeightInput}
+          step={2.5}
+          value={value}
+        />
+        {error ? (
+          <AppText accessibilityRole="alert" tone="danger" variant="caption">
+            {error}
+          </AppText>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <>
       <AppTextInput
@@ -83,3 +113,7 @@ export function WeightSelectorField({
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  inlineField: { gap: theme.spacing.xs },
+});

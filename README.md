@@ -23,7 +23,7 @@ Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı y
 - Set tamamlama, oturum bitirme ve güvenli iptal akışları
 - Uygulama yeniden açıldığında aktif oturumu geri yükleme
 - Egzersiz ve oturum toplamları için tekrar, set, süre ve hacim hesapları
-- Aktif sette son tamamlanan performansı kesintisiz gösterme
+- Her egzersiz için aradaki boş oturumları atlayarak en yakın geçerli tamamlanmış performansı gösterme
 - Önceki tamamlanmış kayda göre ağırlık, tekrar ve oturum hacmi rekoru bildirimi
 
 ### Program yönetimi
@@ -55,11 +55,12 @@ Egzersiz rekorları yalnız geçerli ve tamamlanmış setlerden hesaplanır; eş
 - Güncel durum, toplam değişim ve hedef ilerlemesi
 - Yeni ölçümde en son kalıcı kiloyu başlangıç değeri olarak kullanma
 
-### Ağırlık seçim çarkları
+### Sayısal seçim kontrolleri
 
-- Bisiklet kilidi benzeri dikey ve kademeli seçim
-- Vücut kilosunda tam sayı ve tek ondalık basamak
-- Egzersiz ağırlığında `2,5 kg` adımlar
+- Vücut kilosunda modal, iki sütunlu tam sayı ve ondalık seçim çarkı
+- Kompakt egzersiz tekrar ve ağırlık hücrelerinde doğrudan dikey kilit-çark hareketi
+- Aynı egzersiz hücresinde ek panel açmadan klavyeyle doğrudan giriş
+- Egzersiz ağırlığında `2,5 kg`, tekrarda `1` birimlik hareketler
 - Adıma uymayan mevcut egzersiz değerlerini kaybetmeden koruma
 - Virgül veya nokta kabul eden kesin elle giriş
 - Erişilebilir artırma ve azaltma eylemleri
@@ -241,7 +242,7 @@ TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelin
 - [x] Egzersiz geçmişi, önceki performans ve kişisel rekorlar
 - [x] Antrenman programı yönetimi
 - [x] Titan Iron görsel sistemi
-- [x] Vücut ve egzersiz ağırlığı seçim çarkları
+- [x] Vücut ağırlığı seçim çarkı ve satır içi egzersiz sayısal kontrolleri
 - [ ] Birden fazla antrenman programı
 - [ ] Kullanıcı kontrollü veri dışa aktarma
 - [ ] Bulut eşitlemesi ve yedekleme

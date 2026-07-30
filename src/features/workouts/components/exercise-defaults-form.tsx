@@ -4,7 +4,9 @@ import { AppText } from '@/components/app-text';
 import { AppTextInput } from '@/components/app-text-input';
 import { WeightSelectorField } from '@/components/weight-selector-field';
 import { appStrings } from '@/constants/strings';
+import { InlineNumericWheelField } from '@/features/workouts/components/inline-numeric-wheel-field';
 import type { WeightMode } from '@/features/workouts/domain/models';
+import { parseRepetitionInput } from '@/features/workouts/utils/workout-values';
 import { theme } from '@/theme/tokens';
 
 export type ExerciseDefaultsFormValues = {
@@ -42,14 +44,26 @@ export function ExerciseDefaultsForm({
           />
         </View>
         <View style={styles.numericField}>
-          <AppTextInput
+          <AppText variant="label">
+            {appStrings.workout.defaultRepetitions}
+          </AppText>
+          <InlineNumericWheelField
             accessibilityLabel={`${labelPrefix}${appStrings.workout.defaultRepetitions}`}
-            error={errors?.targetReps}
+            formatValue={String}
             inputMode="numeric"
-            label={appStrings.workout.defaultRepetitions}
+            keyboardType="number-pad"
+            max={1000}
+            min={1}
             onChangeText={(targetReps) => onChange({ ...values, targetReps })}
+            parseValue={parseRepetitionInput}
+            step={1}
             value={values.targetReps}
           />
+          {errors?.targetReps ? (
+            <AppText accessibilityRole="alert" tone="danger" variant="caption">
+              {errors.targetReps}
+            </AppText>
+          ) : null}
         </View>
       </View>
       <WeightSelectorField
@@ -121,6 +135,6 @@ const styles = StyleSheet.create({
   },
   modeGroup: { gap: theme.spacing.sm },
   modeRow: { flexDirection: 'row', gap: theme.spacing.sm },
-  numericField: { flex: 1 },
+  numericField: { flex: 1, gap: theme.spacing.xs },
   numericRow: { flexDirection: 'row', gap: theme.spacing.md },
 });

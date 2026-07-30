@@ -112,15 +112,16 @@ function StatefulExerciseRow({
 describe('compact workout table', () => {
   it('shows previous performance and opens history without changing the draft', async () => {
     const onOpenHistory = jest.fn();
-    const { getByLabelText, getByRole, getByText } = await render(
-      <WorkoutExerciseRow
-        exercise={createExercise(1, 'Lat Pulldown')}
-        onComplete={jest.fn()}
-        onOpenEditor={jest.fn()}
-        onOpenHistory={onOpenHistory}
-        previousPerformance={createPreviousAppearance()}
-      />
-    );
+    const { getByLabelText, getByRole, getByText, queryByTestId } =
+      await render(
+        <WorkoutExerciseRow
+          exercise={createExercise(1, 'Lat Pulldown')}
+          onComplete={jest.fn()}
+          onOpenEditor={jest.fn()}
+          onOpenHistory={onOpenHistory}
+          previousPerformance={createPreviousAppearance()}
+        />
+      );
 
     expect(getByText('Geçen: en yüksek 55 kg · 2 set')).toBeTruthy();
     expect(
@@ -131,12 +132,16 @@ describe('compact workout table', () => {
     );
     expect(onOpenHistory).toHaveBeenCalledTimes(1);
 
-    await fireEvent(getByLabelText('Lat Pulldown Kilo (kg)'), 'focus');
-    expect(getByText('Geçen: en yüksek 55 kg · 2 set')).toBeTruthy();
-    await fireEvent.press(
-      getByRole('button', { name: appStrings.common.cancel })
+    await fireEvent.changeText(
+      getByLabelText('Lat Pulldown Kilo (kg)'),
+      '52,5'
     );
-    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp('value', '50');
+    expect(getByText('Geçen: en yüksek 55 kg · 2 set')).toBeTruthy();
+    expect(queryByTestId('weight-wheel-modal')).toBeNull();
+    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
+      'value',
+      '52,5'
+    );
   });
 
   it('keeps inputs usable while prior performance is loading or unavailable', async () => {
@@ -216,29 +221,29 @@ describe('compact workout table', () => {
     expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp('value', '50');
   });
 
-  it('updates only the active row draft after wheel confirmation', async () => {
+  it('updates only the active row draft through inline wheel actions', async () => {
     const exercise = createExercise(1, 'Lat Pulldown');
     const onComplete = jest.fn();
-    const { getByLabelText, getByRole } = await render(
+    const { getByLabelText, queryByTestId } = await render(
       <WorkoutExerciseRow
         exercise={exercise}
         onComplete={onComplete}
         onOpenEditor={jest.fn()}
       />
     );
-    await fireEvent(getByLabelText('Lat Pulldown Kilo (kg)'), 'focus');
-    const wheel = await waitFor(() => getByLabelText('Lat Pulldown Ağırlığı'));
-    await fireEvent(wheel, 'accessibilityAction', {
-      nativeEvent: { actionName: 'increment' },
-    });
-    await fireEvent.press(
-      getByRole('button', { name: appStrings.common.apply })
+    await fireEvent(
+      getByLabelText('Lat Pulldown Kilo (kg)'),
+      'accessibilityAction',
+      {
+        nativeEvent: { actionName: 'increment' },
+      }
     );
 
     expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
       'value',
       '52,5'
     );
+    expect(queryByTestId('weight-wheel-modal')).toBeNull();
     expect(onComplete).not.toHaveBeenCalled();
   });
 
@@ -404,19 +409,30 @@ describe('compact workout table', () => {
     });
     const onAddSet = jest.fn().mockResolvedValue(undefined);
     const onRemoveSet = jest.fn().mockResolvedValue(undefined);
-    const { getByRole, getByText } = await render(
-      <CompletedSetEditor
-        exercise={exercise}
-        onAddSet={onAddSet}
-        onClose={jest.fn()}
-        onRemoveSet={onRemoveSet}
-        onSaveSet={jest.fn()}
-        visible
-      />
-    );
+    const { getByLabelText, getByRole, getByText, queryByTestId } =
+      await render(
+        <CompletedSetEditor
+          exercise={exercise}
+          onAddSet={onAddSet}
+          onClose={jest.fn()}
+          onRemoveSet={onRemoveSet}
+          onSaveSet={jest.fn()}
+          visible
+        />
+      );
 
     expect(getByText('Set 1')).toBeTruthy();
     expect(getByText(/Set 2/)).toBeTruthy();
+    await fireEvent(
+      getByLabelText('Lat Pulldown Set 1 Kilo (kg)'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'increment' } }
+    );
+    expect(getByLabelText('Lat Pulldown Set 1 Kilo (kg)')).toHaveProp(
+      'value',
+      '52,5'
+    );
+    expect(queryByTestId('weight-wheel-modal')).toBeNull();
     await fireEvent.press(
       getByRole('button', { name: appStrings.workout.addSet })
     );

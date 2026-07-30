@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
-import { WeightWheelModal } from '@/components/weight-wheel-modal';
 import { appStrings } from '@/constants/strings';
+import { InlineNumericWheelField } from '@/features/workouts/components/inline-numeric-wheel-field';
 import type {
   WorkoutSessionExercise,
   WorkoutSet,
@@ -51,7 +51,6 @@ function CompletedSetRow({
     String(workoutSet.actualReps ?? workoutSet.targetReps)
   );
   const [error, setError] = useState<string | null>(null);
-  const [weightWheelVisible, setWeightWheelVisible] = useState(false);
 
   useEffect(() => {
     setWeight(formatWorkoutWeight(workoutSet.weightKg));
@@ -80,37 +79,31 @@ function CompletedSetRow({
       <AppText style={styles.setLabel} variant="bodyStrong">
         Set {workoutSet.setNumber}
       </AppText>
-      <TextInput
+      <InlineNumericWheelField
         accessibilityLabel={`${exerciseName} Set ${workoutSet.setNumber} ${appStrings.workout.weightLabel}`}
-        editable={!disabled}
+        disabled={disabled}
+        formatValue={formatWorkoutWeight}
         inputMode="decimal"
         keyboardType="decimal-pad"
+        max={2000}
+        min={2.5}
         onChangeText={setWeight}
-        onFocus={() => setWeightWheelVisible(true)}
-        selectTextOnFocus
-        showSoftInputOnFocus={false}
+        parseValue={parseWeightInput}
+        step={2.5}
         style={styles.input}
         value={weight}
       />
-      <WeightWheelModal
-        accessibilityLabel={`${exerciseName} Set ${workoutSet.setNumber} ${appStrings.workout.weightLabel}`}
-        kind="exercise"
-        onApply={(nextWeight) => {
-          setWeight(formatWorkoutWeight(nextWeight));
-          setWeightWheelVisible(false);
-        }}
-        onCancel={() => setWeightWheelVisible(false)}
-        title={`${exerciseName} Set ${workoutSet.setNumber} Ağırlığı`}
-        value={parseWeightInput(weight) ?? workoutSet.weightKg}
-        visible={weightWheelVisible}
-      />
-      <TextInput
+      <InlineNumericWheelField
         accessibilityLabel={`${exerciseName} Set ${workoutSet.setNumber} ${appStrings.workout.repetitionLabel}`}
-        editable={!disabled}
+        disabled={disabled}
+        formatValue={String}
         inputMode="numeric"
         keyboardType="number-pad"
+        max={1000}
+        min={1}
         onChangeText={setRepetitions}
-        selectTextOnFocus
+        parseValue={parseRepetitionInput}
+        step={1}
         style={styles.repetitionInput}
         value={repetitions}
       />
@@ -275,15 +268,6 @@ const styles = StyleSheet.create({
   },
   headerCopy: { flex: 1, gap: theme.spacing.xs },
   input: {
-    backgroundColor: workoutTheme.input,
-    borderColor: workoutTheme.separator,
-    borderRadius: theme.radii.sm,
-    borderWidth: theme.borders.thin,
-    color: theme.colors.text,
-    fontVariant: ['tabular-nums'],
-    height: theme.layout.compactTouchTarget,
-    paddingHorizontal: theme.spacing.sm,
-    textAlign: 'center',
     width: 64,
   },
   modal: {
@@ -309,15 +293,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   repetitionInput: {
-    backgroundColor: workoutTheme.input,
-    borderColor: workoutTheme.separator,
-    borderRadius: theme.radii.sm,
-    borderWidth: theme.borders.thin,
-    color: theme.colors.text,
-    fontVariant: ['tabular-nums'],
-    height: theme.layout.compactTouchTarget,
-    paddingHorizontal: theme.spacing.sm,
-    textAlign: 'center',
     width: 52,
   },
   rowError: { flexBasis: '100%' },

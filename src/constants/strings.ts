@@ -5,6 +5,10 @@ export const appStrings = {
     goBack: 'Geri dön',
     apply: 'Uygula',
     cancel: 'Vazgeç',
+    decrease: 'Azalt',
+    increase: 'Artır',
+    inlineWheelHint:
+      'Yukarı kaydırarak artır, aşağı kaydırarak azalt veya değeri yaz.',
     manualEntry: 'Elle Gir',
     useWheel: 'Çarkı Kullan',
     wheelHint: 'Aşağı çevirerek artır, yukarı çevirerek azalt.',
