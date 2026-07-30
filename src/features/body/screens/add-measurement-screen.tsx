@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Keyboard } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
@@ -12,6 +12,10 @@ import { BodyMeasurementForm } from '@/features/body/components/body-measurement
 import { createBodyMeasurementRepository } from '@/features/body/data/body-measurement-repository';
 import { createBodyProfileRepository } from '@/features/body/data/body-profile-repository';
 import type { BodyMeasurementInput } from '@/features/body/domain/models';
+import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
+
+const todayLabel = () =>
+  new Intl.DateTimeFormat('tr-TR', { dateStyle: 'long' }).format(new Date());
 
 export function AddMeasurementScreen() {
   const database = useSQLiteContext();
@@ -20,6 +24,9 @@ export function AddMeasurementScreen() {
   const [error, setError] = useState(false);
   const [initialWeightKg, setInitialWeightKg] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dirty, setDirty] = useState(false);
+  const pendingRef = useRef(false);
+  const allowNavigation = useUnsavedChangesGuard(dirty);
 
   useFocusEffect(
     useCallback(() => {
@@ -50,15 +57,19 @@ export function AddMeasurementScreen() {
   );
 
   const submit = async (input: BodyMeasurementInput) => {
-    if (pending) return;
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     setPending(true);
     setError(false);
     try {
       await createBodyMeasurementRepository(database).createMeasurement(input);
+      allowNavigation();
+      Keyboard.dismiss();
       router.replace('/progress');
     } catch {
       setError(true);
     } finally {
+      pendingRef.current = false;
       setPending(false);
     }
   };
@@ -75,16 +86,31 @@ export function AddMeasurementScreen() {
     );
   }
 
+  if (initialWeightKg === null) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <EmptyState
+          description={
+            error
+              ? appStrings.progress.loadError
+              : 'Ölçüm eklemek için önce vücut profilini oluşturmalısın.'
+          }
+          icon="alert-circle-outline"
+          title={error ? 'Güncel kilo yüklenemedi' : 'Vücut profili gerekli'}
+        />
+        <AppButton
+          label="Kapat"
+          onPress={() => router.back()}
+          variant="secondary"
+        />
+      </Screen>
+    );
+  }
+
   return (
     <Screen edges={['top', 'bottom']} keyboardAware>
-      <AppButton
-        label={appStrings.common.goBack}
-        onPress={() => router.back()}
-        style={styles.back}
-        variant="ghost"
-      />
       <AppText accessibilityRole="header" variant="title">
-        {appStrings.progress.addMeasurement}
+        Yeni Ölçüm
       </AppText>
       {error ? (
         <AppText accessibilityLiveRegion="polite" tone="danger">
@@ -92,13 +118,14 @@ export function AddMeasurementScreen() {
         </AppText>
       ) : null}
       <BodyMeasurementForm
-        initialWeightKg={initialWeightKg ?? undefined}
+        initialWeightKg={initialWeightKg}
+        measurementDate={todayLabel()}
+        onCancel={() => router.back()}
+        onDirtyChange={setDirty}
         onSubmit={submit}
         pending={pending}
-        submitLabel={appStrings.progress.saveMeasurement}
+        submitLabel={pending ? 'Kaydediliyor…' : 'Kaydet'}
       />
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({ back: { alignSelf: 'flex-start' } });

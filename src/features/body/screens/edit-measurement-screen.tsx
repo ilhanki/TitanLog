@@ -1,7 +1,7 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Keyboard } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
@@ -17,6 +17,8 @@ import type {
   BodyMeasurement,
   BodyMeasurementInput,
 } from '@/features/body/domain/models';
+import { formatBodyDate } from '@/features/body/utils/body-formatters';
+import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
 
 export function EditMeasurementScreen() {
   const { measurementId: rawId } = useLocalSearchParams<{
@@ -29,6 +31,9 @@ export function EditMeasurementScreen() {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const pendingRef = useRef(false);
+  const allowNavigation = useUnsavedChangesGuard(dirty);
 
   useFocusEffect(
     useCallback(() => {
@@ -59,7 +64,8 @@ export function EditMeasurementScreen() {
   );
 
   const submit = async (input: BodyMeasurementInput) => {
-    if (pending) return;
+    if (pendingRef.current) return;
+    pendingRef.current = true;
     setPending(true);
     setError(null);
     try {
@@ -67,10 +73,13 @@ export function EditMeasurementScreen() {
         measurementId,
         input
       );
+      allowNavigation();
+      Keyboard.dismiss();
       router.replace('/progress');
     } catch {
       setError(appStrings.progress.saveError);
     } finally {
+      pendingRef.current = false;
       setPending(false);
     }
   };
@@ -86,13 +95,16 @@ export function EditMeasurementScreen() {
           text: appStrings.progress.deleteConfirm,
           onPress: () =>
             void (async () => {
-              if (pending) return;
+              if (pendingRef.current) return;
+              pendingRef.current = true;
               setPending(true);
               setError(null);
               try {
                 await createBodyMeasurementRepository(
                   database
                 ).deleteMeasurement(measurementId);
+                allowNavigation();
+                Keyboard.dismiss();
                 router.replace('/progress');
               } catch (caught) {
                 setError(
@@ -103,6 +115,7 @@ export function EditMeasurementScreen() {
                     : appStrings.progress.saveError
                 );
               } finally {
+                pendingRef.current = false;
                 setPending(false);
               }
             })(),
@@ -141,12 +154,6 @@ export function EditMeasurementScreen() {
 
   return (
     <Screen edges={['top', 'bottom']} keyboardAware>
-      <AppButton
-        label={appStrings.common.goBack}
-        onPress={() => router.back()}
-        style={styles.back}
-        variant="ghost"
-      />
       <AppText accessibilityRole="header" variant="title">
         {appStrings.progress.editMeasurement}
       </AppText>
@@ -157,9 +164,12 @@ export function EditMeasurementScreen() {
       ) : null}
       <BodyMeasurementForm
         initial={measurement}
+        measurementDate={formatBodyDate(measurement.measuredAt)}
+        onCancel={() => router.back()}
+        onDirtyChange={setDirty}
         onSubmit={submit}
         pending={pending}
-        submitLabel={appStrings.progress.updateMeasurement}
+        submitLabel={pending ? 'Kaydediliyor…' : 'Kaydet'}
       />
       <AppButton
         disabled={pending}
@@ -170,5 +180,3 @@ export function EditMeasurementScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({ back: { alignSelf: 'flex-start' } });

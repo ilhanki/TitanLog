@@ -1,51 +1,58 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
-import { Alert, StyleSheet } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Keyboard, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
+import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import { WeightSelectorField } from '@/components/weight-selector-field';
 import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
+import { WeightSelectorField } from '@/components/weight-selector-field';
 import { appStrings } from '@/constants/strings';
-import { createBodyProfileRepository } from '@/features/body/data/body-profile-repository';
 import { createBodyMeasurementRepository } from '@/features/body/data/body-measurement-repository';
+import {
+  BodyProfileError,
+  createBodyProfileRepository,
+} from '@/features/body/data/body-profile-repository';
 import {
   formatBodyValue,
   parseBodyWeight,
 } from '@/features/body/utils/body-values';
+import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
+import { theme } from '@/theme/tokens';
 
 export function BodySettingsScreen() {
   const database = useSQLiteContext();
   const router = useRouter();
-  const [startingWeight, setStartingWeight] = useState('');
+  const [currentWeight, setCurrentWeight] = useState<number | null>(null);
+  const [startingWeight, setStartingWeight] = useState<number | null>(null);
+  const [originalTarget, setOriginalTarget] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentWeightFallback, setCurrentWeightFallback] = useState<
-    number | undefined
-  >();
-  const [targetWeightFallback, setTargetWeightFallback] = useState<
-    number | undefined
-  >();
+  const pendingRef = useRef(false);
+  const dirty = targetWeight !== originalTarget;
+  const allowNavigation = useUnsavedChangesGuard(dirty);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      setLoading(true);
+      setError(null);
       void Promise.all([
         createBodyProfileRepository(database).getProfile(),
         createBodyMeasurementRepository(database).getLatestMeasurement(),
       ])
         .then(([profile, latest]) => {
-          if (active && profile) {
-            const currentWeight = latest?.weightKg ?? profile.startingWeightKg;
-            setCurrentWeightFallback(currentWeight);
-            setTargetWeightFallback(profile.targetWeightKg);
-            setStartingWeight(formatBodyValue(currentWeight));
-            setTargetWeight(formatBodyValue(profile.targetWeightKg));
-          }
+          if (!active || !profile) return;
+          const current = latest?.weightKg ?? profile.startingWeightKg;
+          const target = formatBodyValue(profile.targetWeightKg);
+          setCurrentWeight(current);
+          setStartingWeight(profile.startingWeightKg);
+          setOriginalTarget(target);
+          setTargetWeight(target);
         })
         .catch(() => {
           if (active) setError(appStrings.progress.loadError);
@@ -59,44 +66,36 @@ export function BodySettingsScreen() {
     }, [database])
   );
 
-  const requestSave = () => {
-    const starting = parseBodyWeight(startingWeight);
+  const save = async () => {
+    if (pendingRef.current || currentWeight === null || startingWeight === null)
+      return;
     const target = parseBodyWeight(targetWeight);
-    if (starting === null || target === null) {
+    if (target === null) {
       setError(appStrings.progress.invalidWeight);
       return;
     }
-    if (starting === target) {
+    if (target === startingWeight) {
       setError(appStrings.progress.equalGoal);
       return;
     }
-    Alert.alert(
-      appStrings.progress.settingsConfirmTitle,
-      appStrings.progress.settingsConfirmDescription,
-      [
-        { style: 'cancel', text: appStrings.workout.keepWorkout },
-        {
-          text: appStrings.progress.updateGoal,
-          onPress: () =>
-            void (async () => {
-              if (pending) return;
-              setPending(true);
-              setError(null);
-              try {
-                await createBodyProfileRepository(database).updateGoal(
-                  starting,
-                  target
-                );
-                router.replace('/progress');
-              } catch {
-                setError(appStrings.progress.saveError);
-              } finally {
-                setPending(false);
-              }
-            })(),
-        },
-      ]
-    );
+    pendingRef.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      await createBodyProfileRepository(database).updateTargetWeight(target);
+      allowNavigation();
+      Keyboard.dismiss();
+      router.replace('/progress');
+    } catch (caught) {
+      setError(
+        caught instanceof BodyProfileError && caught.code === 'invalid_goal'
+          ? appStrings.progress.equalGoal
+          : appStrings.progress.saveError
+      );
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
   };
 
   if (loading) {
@@ -111,46 +110,95 @@ export function BodySettingsScreen() {
     );
   }
 
+  if (currentWeight === null || startingWeight === null) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <EmptyState
+          description={
+            error ??
+            'Hedef düzenlemek için önce vücut profilini oluşturmalısın.'
+          }
+          icon="alert-circle-outline"
+          title="Hedef bilgisi bulunamadı"
+        />
+        <AppButton label="Kapat" onPress={() => router.back()} />
+      </Screen>
+    );
+  }
+
+  const parsedTarget = parseBodyWeight(targetWeight);
+  const remaining =
+    parsedTarget === null ? null : Math.abs(parsedTarget - currentWeight);
+
   return (
     <Screen edges={['top', 'bottom']} keyboardAware>
-      <AppButton
-        label={appStrings.common.goBack}
-        onPress={() => router.back()}
-        style={styles.back}
-        variant="ghost"
-      />
       <AppText accessibilityRole="header" variant="title">
-        {appStrings.progress.settingsTitle}
+        Hedefi Düzenle
       </AppText>
-      <AppText selectable tone="muted">
-        {appStrings.progress.settingsDescription}
-      </AppText>
+      <AppCard style={styles.summary}>
+        <View style={styles.summaryRow}>
+          <View style={styles.copy}>
+            <AppText tone="muted" variant="caption">
+              Güncel Kilo
+            </AppText>
+            <AppText
+              accessibilityLabel={`Güncel kilo, salt okunur, ${formatBodyValue(currentWeight)} kilogram`}
+              accessible
+              selectable
+              style={styles.number}
+              variant="heading"
+            >
+              {formatBodyValue(currentWeight)} kg
+            </AppText>
+          </View>
+          <View style={[styles.copy, styles.end]}>
+            <AppText tone="muted" variant="caption">
+              Hedefe Uzaklık
+            </AppText>
+            <AppText selectable style={styles.number} variant="bodyStrong">
+              {remaining === null ? '—' : `${formatBodyValue(remaining)} kg`}
+            </AppText>
+          </View>
+        </View>
+        <AppText tone="subtle" variant="caption">
+          Güncel kilo son ölçümden gelir ve bu ekranda değiştirilemez.
+        </AppText>
+      </AppCard>
       <WeightSelectorField
         editable={!pending}
         error={error ?? undefined}
-        fallbackValue={currentWeightFallback}
+        fallbackValue={parseBodyWeight(originalTarget) ?? undefined}
         kind="body"
-        label={appStrings.progress.startingWeight}
-        onChangeText={setStartingWeight}
-        title="Kilonu Seç"
-        value={startingWeight}
-      />
-      <WeightSelectorField
-        editable={!pending}
-        fallbackValue={targetWeightFallback}
-        kind="body"
-        label={appStrings.progress.targetWeight}
+        label="Hedef Kilo"
         onChangeText={setTargetWeight}
         title="Hedef Kilonu Seç"
         value={targetWeight}
       />
-      <AppButton
-        disabled={pending}
-        label={appStrings.progress.updateGoal}
-        onPress={requestSave}
-      />
+      <View style={styles.actions}>
+        <AppButton
+          disabled={pending}
+          label="Kapat"
+          onPress={() => router.back()}
+          style={styles.action}
+          variant="ghost"
+        />
+        <AppButton
+          disabled={pending}
+          label={pending ? 'Kaydediliyor…' : 'Kaydet'}
+          onPress={() => void save()}
+          style={styles.action}
+        />
+      </View>
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({ back: { alignSelf: 'flex-start' } });
+const styles = StyleSheet.create({
+  action: { flex: 1 },
+  actions: { flexDirection: 'row', gap: theme.spacing.sm },
+  copy: { flex: 1, gap: theme.spacing.xs },
+  end: { alignItems: 'flex-end' },
+  number: { fontVariant: ['tabular-nums'] },
+  summary: { gap: theme.spacing.md },
+  summaryRow: { flexDirection: 'row', gap: theme.spacing.md },
+});

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
+import { AppText } from '@/components/app-text';
 import { AppTextInput } from '@/components/app-text-input';
 import { WeightSelectorField } from '@/components/weight-selector-field';
 import { appStrings } from '@/constants/strings';
@@ -21,6 +22,9 @@ import { theme } from '@/theme/tokens';
 type BodyMeasurementFormProps = {
   initial?: BodyMeasurement;
   initialWeightKg?: number;
+  measurementDate?: string;
+  onCancel?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   onSubmit: (input: BodyMeasurementInput) => Promise<void>;
   pending: boolean;
   submitLabel: string;
@@ -42,28 +46,40 @@ const optionalValue = (value: number | null | undefined) =>
 export function BodyMeasurementForm({
   initial,
   initialWeightKg,
+  measurementDate,
+  onCancel,
+  onDirtyChange,
   onSubmit,
   pending,
   submitLabel,
 }: BodyMeasurementFormProps) {
-  const [fields, setFields] = useState<Fields>({
-    chest: optionalValue(initial?.chestCm),
-    hip: optionalValue(initial?.hipCm),
-    note: initial?.note ?? '',
-    thigh: optionalValue(initial?.thighCm),
-    upperArm: optionalValue(initial?.upperArmCm),
-    waist: optionalValue(initial?.waistCm),
-    weight:
-      initial || initialWeightKg !== undefined
-        ? formatBodyValue(initial?.weightKg ?? initialWeightKg!)
-        : '',
-  });
+  const initialFields = useMemo<Fields>(
+    () => ({
+      chest: optionalValue(initial?.chestCm),
+      hip: optionalValue(initial?.hipCm),
+      note: initial?.note ?? '',
+      thigh: optionalValue(initial?.thighCm),
+      upperArm: optionalValue(initial?.upperArmCm),
+      waist: optionalValue(initial?.waistCm),
+      weight:
+        initial || initialWeightKg !== undefined
+          ? formatBodyValue(initial?.weightKg ?? initialWeightKg!)
+          : '',
+    }),
+    [initial, initialWeightKg]
+  );
+  const [fields, setFields] = useState<Fields>(initialFields);
   const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
+  const dirty = JSON.stringify(fields) !== JSON.stringify(initialFields);
+
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const update = (key: keyof Fields, value: string) =>
     setFields((current) => ({ ...current, [key]: value }));
 
   const submit = async () => {
+    if (submittingRef.current) return;
     const weightKg = parseBodyWeight(fields.weight);
     if (weightKg === null) {
       setError(appStrings.progress.invalidWeight);
@@ -86,15 +102,20 @@ export function BodyMeasurementForm({
       return;
     }
     setError(null);
-    await onSubmit({
-      chestCm: parseOptionalBodyMeasurement(fields.chest),
-      hipCm: parseOptionalBodyMeasurement(fields.hip),
-      note: note || null,
-      thighCm: parseOptionalBodyMeasurement(fields.thigh),
-      upperArmCm: parseOptionalBodyMeasurement(fields.upperArm),
-      waistCm: parseOptionalBodyMeasurement(fields.waist),
-      weightKg,
-    });
+    submittingRef.current = true;
+    try {
+      await onSubmit({
+        chestCm: parseOptionalBodyMeasurement(fields.chest),
+        hipCm: parseOptionalBodyMeasurement(fields.hip),
+        note: note || null,
+        thighCm: parseOptionalBodyMeasurement(fields.thigh),
+        upperArmCm: parseOptionalBodyMeasurement(fields.upperArm),
+        waistCm: parseOptionalBodyMeasurement(fields.waist),
+        weightKg,
+      });
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
   const numericFields: {
@@ -110,6 +131,16 @@ export function BodyMeasurementForm({
 
   return (
     <View style={styles.form}>
+      {measurementDate ? (
+        <View style={styles.dateRow}>
+          <AppText tone="muted" variant="caption">
+            Tarih
+          </AppText>
+          <AppText selectable variant="bodyStrong">
+            {measurementDate}
+          </AppText>
+        </View>
+      ) : null}
       <WeightSelectorField
         editable={!pending}
         error={error ?? undefined}
@@ -141,16 +172,38 @@ export function BodyMeasurementForm({
         style={styles.note}
         value={fields.note}
       />
-      <AppButton
-        disabled={pending}
-        label={submitLabel}
-        onPress={() => void submit()}
-      />
+      <View style={styles.actions}>
+        {onCancel ? (
+          <AppButton
+            disabled={pending}
+            label="Kapat"
+            onPress={onCancel}
+            style={styles.action}
+            variant="ghost"
+          />
+        ) : null}
+        <AppButton
+          disabled={pending}
+          label={submitLabel}
+          onPress={() => void submit()}
+          style={onCancel ? styles.action : undefined}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  action: { flex: 1 },
+  actions: { flexDirection: 'row', gap: theme.spacing.sm },
+  dateRow: {
+    alignItems: 'center',
+    borderBottomColor: theme.colors.border,
+    borderBottomWidth: theme.borders.hairline,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: theme.layout.compactTouchTarget,
+  },
   form: { gap: theme.spacing.lg },
-  note: { minHeight: 100, textAlignVertical: 'top' },
+  note: { minHeight: 84, textAlignVertical: 'top' },
 });

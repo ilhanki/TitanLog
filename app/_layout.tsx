@@ -16,9 +16,15 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="auth/sign-in" />
         <Stack.Screen name="auth/sign-up" />
-        <Stack.Screen name="progress/add" />
+        <Stack.Screen
+          name="progress/add"
+          options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+        />
         <Stack.Screen name="progress/measurement/[measurementId]" />
-        <Stack.Screen name="progress/settings" />
+        <Stack.Screen
+          name="progress/settings"
+          options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+        />
         <Stack.Screen name="workout/day/[dayId]" />
         <Stack.Screen name="workout/exercise/[exerciseId]/history" />
         <Stack.Screen name="workout/history/index" />

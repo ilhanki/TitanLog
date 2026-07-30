@@ -35,10 +35,10 @@ export function resolveWeightSelectorValue(
   value: string,
   kind: WeightWheelKind,
   fallbackValue?: number
-): number {
+): number | null {
   const parsed =
     kind === 'body' ? parseBodyWeight(value) : parseWeightInput(value);
-  return parsed ?? fallbackValue ?? (kind === 'body' ? 70 : 2.5);
+  return parsed ?? fallbackValue ?? (kind === 'exercise' ? 2.5 : null);
 }
 
 export function WeightSelectorField({
@@ -94,26 +94,30 @@ export function WeightSelectorField({
         keyboardType="decimal-pad"
         label={label}
         onChangeText={onChangeText}
-        onFocus={() => setVisible(true)}
-        showSoftInputOnFocus={false}
+        onFocus={() => {
+          if (wheelValue !== null) setVisible(true);
+        }}
+        showSoftInputOnFocus={wheelValue === null}
         value={value}
       />
-      <WeightWheelModal
-        accessibilityLabel={accessibilityLabel ?? label}
-        kind={kind}
-        onApply={(nextValue) => {
-          onChangeText(
-            kind === 'body'
-              ? formatBodyValue(nextValue)
-              : formatWorkoutWeight(nextValue)
-          );
-          setVisible(false);
-        }}
-        onCancel={() => setVisible(false)}
-        title={title}
-        value={wheelValue}
-        visible={visible}
-      />
+      {wheelValue !== null ? (
+        <WeightWheelModal
+          accessibilityLabel={accessibilityLabel ?? label}
+          kind={kind}
+          onApply={(nextValue) => {
+            onChangeText(
+              kind === 'body'
+                ? formatBodyValue(nextValue)
+                : formatWorkoutWeight(nextValue)
+            );
+            setVisible(false);
+          }}
+          onCancel={() => setVisible(false)}
+          title={title}
+          value={wheelValue}
+          visible={visible}
+        />
+      ) : null}
     </>
   );
 }

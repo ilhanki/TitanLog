@@ -164,5 +164,28 @@ export function createBodyProfileRepository(database: SQLiteDatabase) {
         throw new BodyProfileError('profile_not_found');
       }
     },
+
+    async updateTargetWeight(targetWeightKg: number): Promise<void> {
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        const row = await transaction.getFirstAsync<ProfileRow>(
+          `SELECT id, starting_weight_kg, target_weight_kg, created_at, updated_at
+           FROM body_profiles WHERE id = 1`
+        );
+        if (!row) throw new BodyProfileError('profile_not_found');
+        if (row.starting_weight_kg === targetWeightKg) {
+          throw new BodyProfileError('invalid_goal');
+        }
+        const result = await transaction.runAsync(
+          `UPDATE body_profiles
+           SET target_weight_kg = ?, updated_at = ?
+           WHERE id = 1`,
+          targetWeightKg,
+          new Date().toISOString()
+        );
+        if (result.changes !== 1) {
+          throw new BodyProfileError('profile_not_found');
+        }
+      });
+    },
   };
 }
