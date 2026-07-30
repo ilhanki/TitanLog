@@ -53,10 +53,25 @@ Egzersiz rekorları yalnız geçerli ve tamamlanmış setlerden hesaplanır; eş
 ### Vücut takibi
 
 - Yerel vücut profili ve hedef kilo
+- Başlangıç, güncel ve hedef kiloyu birlikte gösteren kompakt Gelişim paneli
+- Kilo verme ve kilo alma hedeflerinde güvenli biçimde sınırlandırılan ilerleme rayı
+- Toplam değişim, hedefe kalan, son ölçüm ve ölçüm sayısı özetleri
 - Kilo ile isteğe bağlı çevre ölçümlerini kaydetme
+- En güncel kaydı önce gösteren kompakt, sayfalı ölçüm geçmişi
+- Son kalıcı kilodan açılan modal Yeni Ölçüm akışı
+- Güncel kiloyu değiştirmeden yalnız hedef alanını güncelleyen Hedefi Düzenle modalı
 - Ölçüm ekleme, düzenleme ve korumalı silme
 - Güncel durum, toplam değişim ve hedef ilerlemesi
 - Yeni ölçümde en son kalıcı kiloyu başlangıç değeri olarak kullanma
+
+### Ana sayfa
+
+- Aktif antrenman, bugünün planı, plansız gün ve kurulmamış program durumları için açık öncelik
+- Duruma göre tek baskın `Antrenmana Devam Et` veya `Antrenmanı Başlat` eylemi
+- Gerçek yerel vücut verilerinden türetilen kompakt gelişim özeti
+- En son tamamlanan antrenmana doğrudan erişim
+- Program, geçmiş ve ölçüm ekleme için en fazla üç ölçülü hızlı eylem
+- Bir özet bölümü yüklenemediğinde diğer kullanılabilir eylemleri koruyan kısmi hata davranışı
 
 ### Sayısal seçim kontrolleri
 
@@ -189,7 +204,7 @@ npm test -- --runInBand
 npx expo-doctor
 ```
 
-Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed akışlarını, ekran etkileşimlerini, program düzenlemeyi, antrenman ve egzersiz geçmişini, kimlik eşleştirmeyi, önceki performans ile kişisel rekor kurallarını, Titan Iron temasını ve ağırlık seçim çarklarını kapsar. Fiziksel cihaz testi otomatik kontrollerin yerine geçmez; ikisi birlikte kullanılır.
+Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed akışlarını, ekran etkileşimlerini, Home durum önceliğini, vücut gelişimi hesaplarını, hedef izolasyonunu, program düzenlemeyi, antrenman ve egzersiz geçmişini, kimlik eşleştirmeyi, önceki performans ile kişisel rekor kurallarını, Titan Iron temasını ve ağırlık seçim çarklarını kapsar. Fiziksel cihaz testi otomatik kontrollerin yerine geçmez; ikisi birlikte kullanılır.
 
 ## Veritabanı ve migration'lar
 
@@ -202,6 +217,7 @@ Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed ak
 - Kalıcı kimliği bulunmayan eski bir snapshot yalnız Türkçe uyumlu, tam ve tekil ad eşleşmesiyle ilişkilendirilebilir; belirsiz eşleşmeler birleştirilmez ve arayüzde kayıt olarak sunulmaz.
 - Program değişiklikleri geçmiş oturumları değiştirmez; gelecekte başlatılan oturumları etkiler.
 - Kilo ve ölçüm değerleri SQLite'ta sayısal olarak saklanır; Türkçe ondalık gösterim arayüz katmanında uygulanır.
+- Home ve Gelişim özetleri yalnız yerel kalıcı kayıtlardan türetilir; buluttan veya varsayımsal sağlık metriklerinden değer üretilmez.
 
 ## Proje yapısı
 
@@ -236,7 +252,7 @@ TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelin
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
 
-`v0.1.0-alpha.9` henüz oluşturulmamış veya origin'e gönderilmemiştir. Sprint 8 egzersiz geçmişi, önceki performans, kişisel rekorlar, doğrudan sayısal kaydırma, sürükle-bırak program sıralaması ve kompakt program düzenleyicisi Samsung Galaxy A55 üzerinde son fiziksel doğrulamayı beklemektedir.
+`v0.1.0-alpha.9` henüz oluşturulmamış veya origin'e gönderilmemiştir. Sprint 8 egzersiz geçmişi, önceki performans, kişisel rekorlar, doğrudan sayısal kaydırma, sürükle-bırak program sıralaması, yenilenen Home ve Gelişim deneyimi Samsung Galaxy A55 üzerinde son fiziksel doğrulamayı beklemektedir.
 
 ## Yol haritası
 
