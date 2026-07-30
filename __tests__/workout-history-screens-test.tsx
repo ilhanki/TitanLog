@@ -1,4 +1,5 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import { appStrings } from '@/constants/strings';
 import type {
@@ -11,11 +12,13 @@ import { WorkoutHistoryScreen } from '@/features/workouts/screens/workout-histor
 const mockRouter = {
   back: jest.fn(),
   push: jest.fn(),
+  replace: jest.fn(),
 };
 const mockDatabase = {};
 const mockGetHistory = jest.fn();
 const mockGetCount = jest.fn();
 const mockGetDetail = jest.fn();
+const mockDeleteCompletedSession = jest.fn();
 let mockParams = { sessionId: '10' };
 
 const historyItem: CompletedWorkoutHistoryItem = {
@@ -93,6 +96,7 @@ jest.mock('@/features/workouts/data/workout-session-repository', () => ({
     getCompletedSessionCount: mockGetCount,
     getCompletedWorkoutDetail: mockGetDetail,
     getCompletedWorkoutHistory: mockGetHistory,
+    deleteCompletedSession: mockDeleteCompletedSession,
   }),
 }));
 
@@ -103,6 +107,7 @@ describe('workout history screens', () => {
     mockGetHistory.mockResolvedValue([historyItem]);
     mockGetCount.mockResolvedValue(1);
     mockGetDetail.mockResolvedValue(detail);
+    mockDeleteCompletedSession.mockResolvedValue(undefined);
   });
 
   it('renders completed history and opens a read-only detail', async () => {
@@ -188,6 +193,63 @@ describe('workout history screens', () => {
       expect(getByText(appStrings.workout.detailNotFound)).toBeTruthy()
     );
     expect(mockGetDetail).not.toHaveBeenCalled();
+  });
+
+  it('deletes a completed workout only after destructive confirmation', async () => {
+    jest.spyOn(Alert, 'alert');
+    const { getByRole, getByText } = await render(
+      <CompletedWorkoutDetailScreen />
+    );
+
+    await waitFor(() => expect(getByText('Sırt + Biceps')).toBeTruthy());
+    await fireEvent.press(
+      getByRole('button', {
+        name: appStrings.workout.deleteCompletedWorkout,
+      })
+    );
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      appStrings.workout.deleteCompletedWorkoutTitle,
+      expect.stringContaining('Sırt + Biceps'),
+      expect.any(Array)
+    );
+    expect(mockDeleteCompletedSession).not.toHaveBeenCalled();
+
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0]?.[2];
+    await act(async () => buttons[1].onPress());
+
+    await waitFor(() =>
+      expect(mockDeleteCompletedSession).toHaveBeenCalledWith(10)
+    );
+    expect(mockDeleteCompletedSession).toHaveBeenCalledTimes(1);
+    expect(mockRouter.replace).toHaveBeenCalledWith('/workout/history');
+  });
+
+  it('keeps the detail visible and reports a safe error when deletion fails', async () => {
+    jest.spyOn(Alert, 'alert');
+    mockDeleteCompletedSession.mockRejectedValue(
+      new Error('database unavailable')
+    );
+    const { getByRole, getByText } = await render(
+      <CompletedWorkoutDetailScreen />
+    );
+
+    await waitFor(() => expect(getByText('Sırt + Biceps')).toBeTruthy());
+    await fireEvent.press(
+      getByRole('button', {
+        name: appStrings.workout.deleteCompletedWorkout,
+      })
+    );
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0]?.[2];
+    await act(async () => buttons[1].onPress());
+
+    await waitFor(() =>
+      expect(
+        getByText(appStrings.workout.deleteCompletedWorkoutError)
+      ).toBeTruthy()
+    );
+    expect(getByText('Sırt + Biceps')).toBeTruthy();
+    expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
   it('shows an honest repository error and retry action', async () => {

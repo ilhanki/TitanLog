@@ -70,7 +70,6 @@ Egzersiz rekorları yalnız geçerli ve tamamlanmış setlerden hesaplanır; eş
 - Duruma göre tek baskın `Antrenmana Devam Et` veya `Antrenmanı Başlat` eylemi
 - Gerçek yerel vücut verilerinden türetilen kompakt gelişim özeti
 - En son tamamlanan antrenmana doğrudan erişim
-- Program, geçmiş ve ölçüm ekleme için en fazla üç ölçülü hızlı eylem
 - Bir özet bölümü yüklenemediğinde diğer kullanılabilir eylemleri koruyan kısmi hata davranışı
 
 ### Sayısal seçim kontrolleri
@@ -95,7 +94,7 @@ Expo Router'daki parantezli gruplar URL'nin parçası değildir. Aşağıdaki ta
 | `/workout/session/[sessionId]`           | Aktif antrenman ve set girişi                     |
 | `/workout/session/[sessionId]/summary`   | Tamamlanan oturum özeti                           |
 | `/workout/history`                       | Tamamlanmış antrenman geçmişi                     |
-| `/workout/history/[sessionId]`           | Salt okunur antrenman detayı                      |
+| `/workout/history/[sessionId]`           | Salt okunur detay ve onaylı geçmiş kaydı silme    |
 | `/workout/exercise/[exerciseId]/history` | Salt okunur egzersiz performans geçmişi           |
 | `/workout/program`                       | Program yönetimi                                  |
 | `/workout/program/day/[dayId]`           | Program günü ve egzersiz düzenleme                |

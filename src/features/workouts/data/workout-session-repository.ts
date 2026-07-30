@@ -83,6 +83,7 @@ export type WorkoutSessionErrorCode =
   | 'day_has_no_exercises'
   | 'invalid_set'
   | 'no_completed_sets'
+  | 'session_not_completed'
   | 'session_not_active'
   | 'set_already_completed'
   | 'set_not_removable';
@@ -585,6 +586,30 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
         ? await getSessionDetails(previousRow.id)
         : null;
       return createCompletedWorkoutDetail(session, previousSession);
+    },
+
+    async deleteCompletedSession(sessionId: number): Promise<void> {
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        const session = await transaction.getFirstAsync<{
+          status: WorkoutSessionStatus;
+        }>(
+          `SELECT status FROM workout_sessions
+           WHERE id = ?`,
+          sessionId
+        );
+        if (session?.status !== 'completed') {
+          throw new WorkoutSessionError('session_not_completed');
+        }
+
+        const result = await transaction.runAsync(
+          `DELETE FROM workout_sessions
+           WHERE id = ? AND status = 'completed'`,
+          sessionId
+        );
+        if (result.changes !== 1) {
+          throw new WorkoutSessionError('session_not_completed');
+        }
+      });
     },
 
     async getRecentCompletedSessions(

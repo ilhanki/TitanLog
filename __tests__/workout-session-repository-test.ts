@@ -491,6 +491,49 @@ describe('workout session repository', () => {
     expect(getFirstAsync.mock.calls[1]?.[0]).toContain("status = 'completed'");
   });
 
+  it('transactionally deletes only a completed session', async () => {
+    const transaction = {
+      getFirstAsync: jest.fn().mockResolvedValue({ status: 'completed' }),
+      runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
+    };
+    const database = createDatabase({
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    });
+
+    await createWorkoutSessionRepository(database).deleteCompletedSession(10);
+
+    expect(transaction.getFirstAsync).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT status FROM workout_sessions'),
+      10
+    );
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE id = ? AND status = 'completed'"),
+      10
+    );
+  });
+
+  it.each(['active', 'cancelled', undefined])(
+    'rejects deleting a %s session without writing',
+    async (status) => {
+      const transaction = {
+        getFirstAsync: jest.fn().mockResolvedValue(status ? { status } : null),
+        runAsync: jest.fn(),
+      };
+      const database = createDatabase({
+        withExclusiveTransactionAsync: jest.fn(async (operation) =>
+          operation(transaction)
+        ),
+      });
+
+      await expect(
+        createWorkoutSessionRepository(database).deleteCompletedSession(10)
+      ).rejects.toMatchObject({ code: 'session_not_completed' });
+      expect(transaction.runAsync).not.toHaveBeenCalled();
+    }
+  );
+
   it('snapshots updated future defaults and exercise order without rewriting older sessions', async () => {
     const futureExercises = [
       {

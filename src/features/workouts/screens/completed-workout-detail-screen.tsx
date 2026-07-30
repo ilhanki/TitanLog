@@ -5,8 +5,8 @@ import {
   type Href,
 } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
@@ -121,7 +121,10 @@ export function CompletedWorkoutDetailScreen() {
   const [detail, setDetail] = useState<CompletedWorkoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const deletePendingRef = useRef(false);
   const validSessionId = Number.isSafeInteger(sessionId) && sessionId > 0;
 
   useFocusEffect(
@@ -244,6 +247,39 @@ export function CompletedWorkoutDetailScreen() {
     },
   ];
 
+  const confirmDelete = () => {
+    if (deletePendingRef.current) return;
+    Alert.alert(
+      appStrings.workout.deleteCompletedWorkoutTitle,
+      `${detail.workoutName} · ${formatWorkoutDate(detail.completedAt)}\n\n${appStrings.workout.deleteCompletedWorkoutDescription}`,
+      [
+        { style: 'cancel', text: appStrings.workout.keepWorkout },
+        {
+          style: 'destructive',
+          text: appStrings.workout.deleteCompletedWorkoutConfirm,
+          onPress: () =>
+            void (async () => {
+              if (deletePendingRef.current) return;
+              deletePendingRef.current = true;
+              setDeletePending(true);
+              setDeleteError(null);
+              try {
+                await createWorkoutSessionRepository(
+                  database
+                ).deleteCompletedSession(sessionId);
+                router.replace('/workout/history');
+              } catch {
+                setDeleteError(appStrings.workout.deleteCompletedWorkoutError);
+              } finally {
+                deletePendingRef.current = false;
+                setDeletePending(false);
+              }
+            })(),
+        },
+      ]
+    );
+  };
+
   return (
     <Screen backgroundColor={workoutTheme.background} edges={['top', 'bottom']}>
       {header}
@@ -356,6 +392,31 @@ export function CompletedWorkoutDetailScreen() {
           </View>
         ))}
       </View>
+      <View style={styles.dangerSection}>
+        <AppText accessibilityRole="header" variant="heading">
+          Geçmiş Kaydı
+        </AppText>
+        <AppText selectable tone="muted">
+          Hatalı kaydettiğin bu antrenmanı ve setlerini geçmişinden kalıcı
+          olarak kaldırabilirsin.
+        </AppText>
+        {deleteError ? (
+          <AppText accessibilityLiveRegion="polite" tone="danger">
+            {deleteError}
+          </AppText>
+        ) : null}
+        <AppButton
+          disabled={deletePending}
+          icon="trash-can-outline"
+          label={
+            deletePending
+              ? appStrings.workout.deleteCompletedWorkoutPending
+              : appStrings.workout.deleteCompletedWorkout
+          }
+          onPress={confirmDelete}
+          variant="danger"
+        />
+      </View>
     </Screen>
   );
 }
@@ -371,6 +432,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: theme.layout.compactTouchTarget,
     paddingVertical: theme.spacing.sm,
+  },
+  dangerSection: {
+    backgroundColor: theme.colors.dangerSoft,
+    borderColor: theme.colors.danger,
+    borderRadius: theme.radii.md,
+    borderWidth: theme.borders.thin,
+    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
   },
   exerciseCopy: { flex: 1, gap: theme.spacing.xs, minWidth: 0 },
   exerciseHeader: { flexDirection: 'row', padding: theme.spacing.md },
