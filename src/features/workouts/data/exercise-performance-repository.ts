@@ -192,7 +192,7 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
                   ws.id AS session_id, ws.workout_name_snapshot, ws.completed_at,
                   ROW_NUMBER() OVER (
                     PARTITION BY wse.exercise_id
-                    ORDER BY ws.completed_at DESC, ws.id DESC
+                    ORDER BY ws.completed_at DESC, ws.id DESC, wse.id DESC
                   ) AS history_rank
            FROM workout_session_exercises AS wse
            JOIN workout_sessions AS ws ON ws.id = wse.session_id
@@ -201,6 +201,13 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
              AND ws.id <> ?
              AND ws.completed_at < ?
              AND wse.exercise_id IN (${placeholders(uniqueIds.length)})
+             AND EXISTS (
+               SELECT 1
+               FROM workout_sets AS valid_set
+               WHERE valid_set.session_exercise_id = wse.id
+                 AND valid_set.is_completed = 1
+                 AND valid_set.actual_reps IS NOT NULL
+             )
          )
          SELECT session_exercise_id, exercise_id, exercise_name_snapshot,
                 weight_mode_snapshot, session_id, workout_name_snapshot,
@@ -260,7 +267,7 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
          WHERE wse.exercise_id = ?
            AND ws.status = 'completed'
            AND ws.completed_at IS NOT NULL
-         ORDER BY ws.completed_at DESC, ws.id DESC
+         ORDER BY ws.completed_at DESC, ws.id DESC, wse.id DESC
          LIMIT ? OFFSET ?`,
         exerciseId,
         safeLimit + 1,

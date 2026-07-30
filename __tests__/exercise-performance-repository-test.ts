@@ -63,7 +63,9 @@ describe('exercise performance repository', () => {
       .fn()
       .mockResolvedValue({ started_at: '2026-07-04T10:00:00.000Z' });
     const getAllAsync = jest.fn(async (sql: string) => {
-      if (sql.includes('FROM workout_sets')) return setRows;
+      if (sql.includes('SELECT session_exercise_id, set_number')) {
+        return setRows;
+      }
       if (sql.includes('SUM(wset.weight_kg')) return summaryRows;
       return headers;
     });
@@ -84,9 +86,82 @@ describe('exercise performance repository', () => {
     expect(getAllAsync.mock.calls[0]?.[0]).toContain("ws.status = 'completed'");
     expect(getAllAsync.mock.calls[0]?.[0]).toContain('ws.id <> ?');
     expect(getAllAsync.mock.calls[0]?.[0]).toContain('ROW_NUMBER() OVER');
+    expect(getAllAsync.mock.calls[0]?.[0]).toContain(
+      'valid_set.session_exercise_id = wse.id'
+    );
+    expect(getAllAsync.mock.calls[0]?.[0]).toContain(
+      'valid_set.is_completed = 1'
+    );
+    expect(getAllAsync.mock.calls[0]?.[0]).toContain(
+      'ORDER BY ws.completed_at DESC, ws.id DESC, wse.id DESC'
+    );
     expect(getAllAsync.mock.calls[2]?.[0]).toContain(
       'SUM(wset.weight_kg * wset.actual_reps)'
     );
+  });
+
+  it('searches past a newer zero-set appearance for the latest valid exercise performance', async () => {
+    const validOlderHeader = {
+      completed_at: '2026-07-01T10:00:00.000Z',
+      exercise_id: 7,
+      exercise_name_snapshot: 'Lat Pulldown',
+      session_exercise_id: 11,
+      session_id: 1,
+      weight_mode_snapshot: 'total',
+      workout_name_snapshot: 'Sırt',
+    };
+    const getAllAsync = jest.fn(async (sql: string) => {
+      if (sql.includes('SELECT session_exercise_id, set_number')) {
+        return [
+          {
+            actual_reps: 12,
+            session_exercise_id: 11,
+            set_number: 1,
+            weight_kg: 50,
+          },
+        ];
+      }
+      if (sql.includes('SUM(wset.weight_kg')) return [];
+      return sql.includes('valid_set.is_completed = 1')
+        ? [validOlderHeader]
+        : [
+            {
+              ...validOlderHeader,
+              completed_at: '2026-07-02T10:00:00.000Z',
+              session_exercise_id: 21,
+              session_id: 2,
+            },
+          ];
+    });
+    const database = {
+      getAllAsync,
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValue({ started_at: '2026-07-03T10:00:00.000Z' }),
+    } as unknown as SQLiteDatabase;
+
+    const result = await createExercisePerformanceRepository(
+      database
+    ).getActiveExercisePerformance(3, [7]);
+
+    expect(result.previous.get(7)?.sessionId).toBe(1);
+    expect(result.previous.get(7)?.completedSetCount).toBe(1);
+  });
+
+  it('returns first record when no completed occurrence exists', async () => {
+    const database = {
+      getAllAsync: jest.fn().mockResolvedValue([]),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValue({ started_at: '2026-07-03T10:00:00.000Z' }),
+    } as unknown as SQLiteDatabase;
+
+    const result = await createExercisePerformanceRepository(
+      database
+    ).getActiveExercisePerformance(3, [7]);
+
+    expect(result.previous.has(7)).toBe(false);
+    expect(result.records.get(7)?.appearanceCount).toBe(0);
   });
 
   it('returns newest-first paginated read-only appearances without duplicates', async () => {
@@ -97,7 +172,9 @@ describe('exercise performance repository', () => {
       name: 'Row',
     });
     const getAllAsync = jest.fn(async (sql: string) => {
-      if (sql.includes('FROM workout_sets')) return setRows.slice(0, 1);
+      if (sql.includes('SELECT session_exercise_id, set_number')) {
+        return setRows.slice(0, 1);
+      }
       if (sql.includes('SUM(wset.weight_kg')) return summaryRows.slice(0, 1);
       return headers.slice(0, 1);
     });
