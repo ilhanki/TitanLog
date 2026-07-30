@@ -123,21 +123,21 @@ describe('inline numeric wheel field', () => {
     expect(stepInlineNumericValue('100', 1, repetitionOptions)).toBe('100');
   });
 
-  it('shows larger values above, smaller values below, and preserves exact drafts', () => {
+  it('shows smaller values above, larger values below, and preserves exact drafts', () => {
     expect(getInlineWheelValues('50', weightOptions)).toEqual([
-      '52,5',
-      '50',
       '47,5',
+      '50',
+      '52,5',
     ]);
     expect(getInlineWheelValues('52,5', weightOptions)).toEqual([
-      '55',
-      '52,5',
       '50',
+      '52,5',
+      '55',
     ]);
     expect(getInlineWheelValues('18', weightOptions)).toEqual([
-      '20,5',
-      '18',
       '15,5',
+      '18',
+      '20,5',
     ]);
   });
 
@@ -223,7 +223,7 @@ describe('inline numeric wheel field', () => {
     expect(field).toHaveProp('accessibilityRole', 'adjustable');
     expect(field).toHaveProp(
       'accessibilityHint',
-      'Aşağı kaydırarak artır, yukarı kaydırarak azalt; yazmak için dokun.'
+      'Yukarı kaydırarak artır, aşağı kaydırarak azalt; yazmak için dokun.'
     );
     await fireEvent(field, 'accessibilityAction', {
       nativeEvent: { actionName: 'increment' },

@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
+import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { AppTextInput } from '@/components/app-text-input';
 import { WheelPicker } from '@/components/wheel-picker';
@@ -147,17 +148,51 @@ function VisibleWeightWheelModal({
         >
           <View accessibilityLabel={accessibilityLabel} style={styles.surface}>
             <View style={styles.header}>
-              <AppText accessibilityRole="header" variant="heading">
-                {title}
-              </AppText>
-              <AppText selectable tone="muted" variant="caption">
-                {appStrings.common.wheelHint}
-              </AppText>
+              <View style={styles.headerRow}>
+                <View style={styles.headerIcon}>
+                  <AppIcon
+                    color={theme.colors.primary}
+                    name="scale-bathroom"
+                    size={theme.iconSizes.lg}
+                  />
+                </View>
+                <View style={styles.headerCopy}>
+                  <AppText accessibilityRole="header" variant="heading">
+                    {title}
+                  </AppText>
+                  <AppText selectable tone="muted" variant="caption">
+                    {appStrings.common.wheelHint}
+                  </AppText>
+                </View>
+              </View>
               {context ? (
                 <AppText selectable tone="primary" variant="caption">
                   {context}
                 </AppText>
               ) : null}
+            </View>
+            <View
+              accessibilityLabel={`Seçili değer ${
+                kind === 'body'
+                  ? formatBodyValue(draft)
+                  : formatWorkoutWeight(draft)
+              } kilogram`}
+              accessible
+              style={styles.selectedValue}
+            >
+              <AppText tone="muted" variant="caption">
+                Seçili Değer
+              </AppText>
+              <View style={styles.selectedValueRow}>
+                <AppText selectable style={styles.number} variant="display">
+                  {kind === 'body'
+                    ? formatBodyValue(draft)
+                    : formatWorkoutWeight(draft)}
+                </AppText>
+                <AppText tone="muted" variant="heading">
+                  kg
+                </AppText>
+              </View>
             </View>
             {manual ? (
               <AppTextInput
@@ -171,32 +206,39 @@ function VisibleWeightWheelModal({
               />
             ) : kind === 'body' ? (
               <View style={styles.bodyWheels}>
-                <WheelPicker
-                  accessibilityLabel={`${title} tam kilogram`}
-                  formatValue={String}
-                  onChange={(nextWhole) =>
-                    setDraft(combineBodyWeight(nextWhole, decimal))
-                  }
-                  options={BODY_WHOLE_OPTIONS}
-                  unit="kilogram"
-                  value={whole}
-                />
+                <View style={styles.wheelColumn}>
+                  <AppText tone="subtle" variant="caption">
+                    Tam Kilo
+                  </AppText>
+                  <WheelPicker
+                    accessibilityLabel={`${title} tam kilogram`}
+                    formatValue={String}
+                    onChange={(nextWhole) =>
+                      setDraft(combineBodyWeight(nextWhole, decimal))
+                    }
+                    options={BODY_WHOLE_OPTIONS}
+                    unit="kilogram"
+                    value={whole}
+                  />
+                </View>
                 <AppText style={styles.separator} variant="metric">
                   ,
                 </AppText>
-                <WheelPicker
-                  accessibilityLabel={`${title} ondalık`}
-                  formatValue={String}
-                  onChange={(nextDecimal) =>
-                    setDraft(combineBodyWeight(whole, nextDecimal))
-                  }
-                  options={DECIMAL_OPTIONS}
-                  unit="ondalık"
-                  value={decimal}
-                />
-                <AppText tone="muted" variant="bodyStrong">
-                  kg
-                </AppText>
+                <View style={styles.wheelColumn}>
+                  <AppText tone="subtle" variant="caption">
+                    Ondalık
+                  </AppText>
+                  <WheelPicker
+                    accessibilityLabel={`${title} ondalık`}
+                    formatValue={String}
+                    onChange={(nextDecimal) =>
+                      setDraft(combineBodyWeight(whole, nextDecimal))
+                    }
+                    options={DECIMAL_OPTIONS}
+                    unit="ondalık"
+                    value={decimal}
+                  />
+                </View>
               </View>
             ) : (
               <View style={styles.exerciseWheel}>
@@ -250,26 +292,57 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: theme.spacing.md },
   bodyWheels: {
     alignItems: 'center',
+    backgroundColor: theme.colors.backgroundElevated,
+    borderColor: theme.colors.border,
+    borderCurve: 'continuous',
+    borderRadius: theme.radii.lg,
+    borderWidth: theme.borders.thin,
     flexDirection: 'row',
     justifyContent: 'center',
+    paddingHorizontal: theme.spacing.sm,
   },
   exerciseWheel: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  header: { gap: theme.spacing.xs },
+  header: { gap: theme.spacing.sm },
+  headerCopy: { flex: 1, gap: theme.spacing.xxs },
+  headerIcon: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.primarySoft,
+    borderRadius: theme.radii.md,
+    height: theme.layout.touchTarget,
+    justifyContent: 'center',
+    width: theme.layout.touchTarget,
+  },
+  headerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
   modalPosition: { flex: 1, justifyContent: 'flex-end' },
+  number: { fontVariant: ['tabular-nums'] },
   overlay: { backgroundColor: theme.colors.overlay, flex: 1 },
   scrim: { ...StyleSheet.absoluteFillObject },
-  separator: { color: theme.colors.primary },
+  separator: { color: theme.colors.primary, marginTop: theme.spacing.lg },
+  selectedValue: {
+    alignItems: 'center',
+    gap: theme.spacing.xxs,
+  },
+  selectedValueRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
   surface: {
     backgroundColor: theme.colors.surfaceRaised,
     borderColor: theme.colors.borderStrong,
     borderTopLeftRadius: theme.radii.xl,
     borderTopRightRadius: theme.radii.xl,
     borderWidth: theme.borders.thin,
-    gap: theme.spacing.lg,
-    padding: theme.spacing.xxl,
+    gap: theme.spacing.md,
+    padding: theme.spacing.xl,
   },
+  wheelColumn: { alignItems: 'center' },
 });

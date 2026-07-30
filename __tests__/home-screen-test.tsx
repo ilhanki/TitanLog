@@ -248,7 +248,7 @@ describe('HomeScreen', () => {
     ).toBeTruthy();
   });
 
-  it('opens the latest completed workout and renders only three quick actions', async () => {
+  it('opens the latest completed workout without a redundant quick-access section', async () => {
     const latestWorkout: CompletedWorkoutSummary = {
       completedAt: '2026-07-28T19:12:00.000Z',
       completedSetCount: 19,
@@ -270,9 +270,10 @@ describe('HomeScreen', () => {
       })
     );
     expect(mockRouter.navigate).toHaveBeenCalledWith('/workout/history/77');
-    expect(screen.getByRole('button', { name: 'Program' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Geçmiş' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Ölçüm Ekle' })).toBeTruthy();
+    expect(screen.queryByText('Hızlı Erişim')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Program' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Geçmiş' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ölçüm Ekle' })).toBeNull();
     expect(JSON.stringify(screen.toJSON())).not.toContain('"horizontal":true');
   });
 });

@@ -110,9 +110,9 @@ export function getInlineWheelValues(
   >
 ): readonly [string, string, string] {
   return [
-    stepInlineNumericValue(value, 1, options),
-    value,
     stepInlineNumericValue(value, -1, options),
+    value,
+    stepInlineNumericValue(value, 1, options),
   ];
 }
 
@@ -293,7 +293,7 @@ export function InlineNumericWheelField({
         );
         if (difference !== 0) {
           gestureStepRef.current += difference;
-          changeByRef.current(difference);
+          changeByRef.current(-difference);
         }
         setTranslationY(getInlineWheelTranslation(gesture.dy));
       },
@@ -305,7 +305,7 @@ export function InlineNumericWheelField({
   );
 
   const wheelOptions = { formatValue, max, min, parseValue, step };
-  const [higherValue, selectedValue, lowerValue] = getInlineWheelValues(
+  const [lowerValue, selectedValue, higherValue] = getInlineWheelValues(
     value,
     wheelOptions
   );
@@ -370,7 +370,7 @@ export function InlineNumericWheelField({
               style={[styles.neighbourValue, dragging && styles.dragNeighbour]}
               variant="caption"
             >
-              {higherValue}
+              {lowerValue}
             </AppText>
             <AppText
               style={[styles.selectedValue, dragging && styles.dragSelected]}
@@ -382,7 +382,7 @@ export function InlineNumericWheelField({
               style={[styles.neighbourValue, dragging && styles.dragNeighbour]}
               variant="caption"
             >
-              {lowerValue}
+              {higherValue}
             </AppText>
           </View>
         </Pressable>

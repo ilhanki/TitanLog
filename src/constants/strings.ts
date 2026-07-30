@@ -8,10 +8,10 @@ export const appStrings = {
     decrease: 'Azalt',
     increase: 'Artır',
     inlineWheelHint:
-      'Aşağı kaydırarak artır, yukarı kaydırarak azalt; yazmak için dokun.',
+      'Yukarı kaydırarak artır, aşağı kaydırarak azalt; yazmak için dokun.',
     manualEntry: 'Elle Gir',
     useWheel: 'Çarkı Kullan',
-    wheelHint: 'Aşağı çevirerek artır, yukarı çevirerek azalt.',
+    wheelHint: 'Yukarı kaydırarak artır, aşağı kaydırarak azalt.',
   },
   database: {
     loadingTitle: 'Antrenman alanın hazırlanıyor',
@@ -181,6 +181,14 @@ export const appStrings = {
     detailNotFound: 'Tamamlanan antrenman bulunamadı',
     detailNotFoundDescription:
       'Bu kayıt geçersiz, tamamlanmamış veya artık kullanılamıyor olabilir.',
+    deleteCompletedWorkout: 'Antrenmanı Sil',
+    deleteCompletedWorkoutTitle: 'Antrenman geçmişten silinsin mi?',
+    deleteCompletedWorkoutDescription:
+      'Bu tamamlanmış antrenman ve kayıtlı setleri kalıcı olarak silinecek. Bu işlem geri alınamaz.',
+    deleteCompletedWorkoutConfirm: 'Antrenmanı Sil',
+    deleteCompletedWorkoutPending: 'Siliniyor…',
+    deleteCompletedWorkoutError:
+      'Antrenman silinemedi. Geçmiş kaydın değişmeden kaldı; tekrar deneyebilirsin.',
     duration: 'Süre',
     comparisonTitle: 'Önceki Aynı Programla Karşılaştırma',
     noComparison: 'Karşılaştırılabilir önceki antrenman yok.',

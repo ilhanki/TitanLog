@@ -6,7 +6,7 @@ import {
   WHEEL_ITEM_HEIGHT,
   WHEEL_VIEWPORT_HEIGHT,
   WheelPicker,
-  createDescendingWheelOptions,
+  createAscendingWheelOptions,
   getWheelGeometry,
   getWheelOffset,
   resolveWheelValue,
@@ -61,11 +61,11 @@ describe('weight wheels', () => {
   );
 
   it('uses the same exact offset contract for body and exercise wheels', () => {
-    const bodyWholeIndex = createDescendingWheelOptions([
-      114, 115, 116,
-    ]).indexOf(114);
-    const bodyDecimalIndex = createDescendingWheelOptions([7, 8, 9]).indexOf(8);
-    const exerciseIndex = createDescendingWheelOptions([15, 17.5, 20]).indexOf(
+    const bodyWholeIndex = createAscendingWheelOptions([114, 115, 116]).indexOf(
+      114
+    );
+    const bodyDecimalIndex = createAscendingWheelOptions([7, 8, 9]).indexOf(8);
+    const exerciseIndex = createAscendingWheelOptions([15, 17.5, 20]).indexOf(
       17.5
     );
 
@@ -80,21 +80,21 @@ describe('weight wheels', () => {
     );
   });
 
-  it('orders larger values above smaller values and resolves exact snaps', () => {
-    const options = createDescendingWheelOptions([75, 85, 80]);
+  it('orders smaller values above larger values and resolves exact snaps', () => {
+    const options = createAscendingWheelOptions([75, 85, 80]);
 
-    expect(options).toEqual([85, 80, 75]);
+    expect(options).toEqual([75, 80, 85]);
     expect(resolveWheelValue(options, 52)).toBe(80);
-    expect(resolveWheelValue(options, 0)).toBe(85);
-    expect(resolveWheelValue(options, 104)).toBe(75);
+    expect(resolveWheelValue(options, 0)).toBe(75);
+    expect(resolveWheelValue(options, 104)).toBe(85);
   });
 
-  it('makes downward movement increase and upward movement decrease', () => {
-    const options = createDescendingWheelOptions([75, 80, 85]);
+  it('places larger values at greater downward offsets', () => {
+    const options = createAscendingWheelOptions([75, 80, 85]);
     const centeredOffset = 52;
 
-    expect(resolveWheelValue(options, centeredOffset - 52)).toBe(85);
-    expect(resolveWheelValue(options, centeredOffset + 52)).toBe(75);
+    expect(resolveWheelValue(options, centeredOffset - 52)).toBe(75);
+    expect(resolveWheelValue(options, centeredOffset + 52)).toBe(85);
   });
 
   it('combines body whole and decimal wheels without string storage', () => {

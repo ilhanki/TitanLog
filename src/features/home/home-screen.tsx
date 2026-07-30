@@ -195,45 +195,11 @@ export function HomeScreen() {
           Son antrenman bilgisi şu anda yüklenemedi.
         </AppText>
       ) : null}
-
-      <View style={styles.section}>
-        <SectionHeader title="Hızlı Erişim" />
-        <View style={styles.quickActions}>
-          <AppButton
-            label="Program"
-            onPress={() => router.navigate('/workout/program')}
-            style={styles.quickAction}
-            variant="ghost"
-          />
-          <AppButton
-            label="Geçmiş"
-            onPress={() => router.navigate('/workout/history')}
-            style={styles.quickAction}
-            variant="ghost"
-          />
-          <AppButton
-            label="Ölçüm Ekle"
-            onPress={() =>
-              router.navigate(
-                bodyOverview.data.summary ? '/progress/add' : '/progress'
-              )
-            }
-            style={styles.quickAction}
-            variant="ghost"
-          />
-        </View>
-      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   compactCard: { gap: theme.spacing.md },
-  quickAction: { flex: 1, minWidth: 92 },
-  quickActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
   section: { gap: theme.spacing.md },
 });

@@ -1,9 +1,10 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useRef, useState } from 'react';
-import { Keyboard } from 'react-native';
+import { Keyboard, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
+import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
@@ -13,6 +14,7 @@ import { createBodyMeasurementRepository } from '@/features/body/data/body-measu
 import { createBodyProfileRepository } from '@/features/body/data/body-profile-repository';
 import type { BodyMeasurementInput } from '@/features/body/domain/models';
 import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
+import { theme } from '@/theme/tokens';
 
 const todayLabel = () =>
   new Intl.DateTimeFormat('tr-TR', { dateStyle: 'long' }).format(new Date());
@@ -109,13 +111,41 @@ export function AddMeasurementScreen() {
 
   return (
     <Screen edges={['top', 'bottom']} keyboardAware>
-      <AppText accessibilityRole="header" variant="title">
-        Yeni Ölçüm
-      </AppText>
-      {error ? (
-        <AppText accessibilityLiveRegion="polite" tone="danger">
-          {appStrings.progress.saveError}
+      <View style={styles.intro}>
+        <View style={styles.eyebrow}>
+          <AppIcon
+            color={theme.colors.primary}
+            name="chart-timeline-variant"
+            size={theme.iconSizes.sm}
+          />
+          <AppText tone="primary" variant="label">
+            Gelişim Kaydı
+          </AppText>
+        </View>
+        <AppText accessibilityRole="header" variant="title">
+          Yeni Ölçüm
         </AppText>
+        <AppText selectable tone="muted">
+          Kilonu çarkla hassas biçimde seç; istersen vücut ölçülerini aynı kayda
+          ekle.
+        </AppText>
+      </View>
+      {error ? (
+        <View style={styles.errorBanner}>
+          <AppIcon
+            color={theme.colors.danger}
+            name="alert-circle-outline"
+            size={theme.iconSizes.md}
+          />
+          <AppText
+            accessibilityLiveRegion="polite"
+            selectable
+            style={styles.errorCopy}
+            tone="danger"
+          >
+            {appStrings.progress.saveError}
+          </AppText>
+        </View>
       ) : null}
       <BodyMeasurementForm
         initialWeightKg={initialWeightKg}
@@ -129,3 +159,24 @@ export function AddMeasurementScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  errorBanner: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.dangerSoft,
+    borderColor: theme.colors.danger,
+    borderCurve: 'continuous',
+    borderRadius: theme.radii.md,
+    borderWidth: theme.borders.thin,
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+  },
+  errorCopy: { flex: 1 },
+  eyebrow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  intro: { gap: theme.spacing.sm },
+});

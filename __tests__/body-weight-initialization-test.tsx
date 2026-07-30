@@ -60,6 +60,25 @@ const latestMeasurement = {
   weightKg: 112.4,
 };
 
+async function enterWheelValue(
+  screen: Awaited<ReturnType<typeof render>>,
+  fieldLabel: string,
+  value: string
+) {
+  await fireEvent.press(screen.getByLabelText(fieldLabel));
+  const manualEntry = await waitFor(() =>
+    screen.getByRole('button', { name: appStrings.common.manualEntry })
+  );
+  await fireEvent.press(manualEntry);
+  await fireEvent.changeText(
+    screen.getByLabelText(appStrings.common.manualEntry),
+    value
+  );
+  await fireEvent.press(
+    screen.getByRole('button', { name: appStrings.common.apply })
+  );
+}
+
 describe('body weight initialization', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -92,8 +111,8 @@ describe('body weight initialization', () => {
     await act(async () => resolveLatest(latestMeasurement));
     await waitFor(() =>
       expect(screen.getByLabelText(appStrings.progress.weight)).toHaveProp(
-        'value',
-        '112,4'
+        'accessibilityValue',
+        { text: '112,4 kilogram' }
       )
     );
   });
@@ -104,8 +123,10 @@ describe('body weight initialization', () => {
       screen.getByLabelText(appStrings.progress.weight)
     );
 
-    expect(field).toHaveProp('value', '112,4');
-    await fireEvent(field, 'focus');
+    expect(field).toHaveProp('accessibilityValue', {
+      text: '112,4 kilogram',
+    });
+    await fireEvent.press(field);
     expect(screen.getByLabelText('Kilonu Seç tam kilogram')).toHaveProp(
       'accessibilityValue',
       { text: '112 kilogram' }
@@ -116,14 +137,23 @@ describe('body weight initialization', () => {
     );
   });
 
+  it('presents measurement entry as a structured Titan Iron flow', async () => {
+    const screen = await render(<AddMeasurementScreen />);
+
+    await waitFor(() => expect(screen.getByText('Gelişim Kaydı')).toBeTruthy());
+    expect(screen.getByText('Ölçüm Tarihi')).toBeTruthy();
+    expect(screen.getByText('Vücut Ölçüleri')).toBeTruthy();
+    expect(screen.getByText('Kilo çarkını aç')).toBeTruthy();
+  });
+
   it('uses profile weight only when no measurement exists', async () => {
     mockGetLatestMeasurement.mockResolvedValue(null);
     const screen = await render(<AddMeasurementScreen />);
 
     await waitFor(() =>
       expect(screen.getByLabelText(appStrings.progress.weight)).toHaveProp(
-        'value',
-        '119,6'
+        'accessibilityValue',
+        { text: '119,6 kilogram' }
       )
     );
   });
@@ -133,19 +163,31 @@ describe('body weight initialization', () => {
 
     await waitFor(() => {
       expect(screen.getByText('112,4 kg')).toBeTruthy();
-      expect(screen.getByLabelText('Hedef Kilo')).toHaveProp('value', '99,9');
+      expect(screen.getByLabelText('Hedef Kilo')).toHaveProp(
+        'accessibilityValue',
+        { text: '99,9 kilogram' }
+      );
     });
     expect(
       screen.queryByLabelText(appStrings.progress.startingWeight)
     ).toBeNull();
   });
 
+  it('shows a professional current-to-target journey summary', async () => {
+    const screen = await render(<BodySettingsScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByText('Hedef Yolculuğu')).toBeTruthy()
+    );
+    expect(screen.getByText('Kilo verme hedefi')).toBeTruthy();
+    expect(screen.getByText('12,5 kg fark')).toBeTruthy();
+    expect(screen.getByText('Kilo çarkını aç')).toBeTruthy();
+  });
+
   it('saves one new measurement from the latest-weight draft and closes after success', async () => {
     const screen = await render(<AddMeasurementScreen />);
-    const weight = await waitFor(() =>
-      screen.getByLabelText(appStrings.progress.weight)
-    );
-    await fireEvent.changeText(weight, '111,8');
+    await waitFor(() => screen.getByLabelText(appStrings.progress.weight));
+    await enterWheelValue(screen, appStrings.progress.weight, '111,8');
     await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
 
     await waitFor(() => expect(mockCreateMeasurement).toHaveBeenCalledTimes(1));
@@ -157,8 +199,8 @@ describe('body weight initialization', () => {
 
   it('updates only the target draft while keeping current weight read-only', async () => {
     const screen = await render(<BodySettingsScreen />);
-    const target = await waitFor(() => screen.getByLabelText('Hedef Kilo'));
-    await fireEvent.changeText(target, '95,5');
+    await waitFor(() => screen.getByLabelText('Hedef Kilo'));
+    await enterWheelValue(screen, 'Hedef Kilo', '95,5');
     await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
 
     await waitFor(() =>
@@ -174,14 +216,17 @@ describe('body weight initialization', () => {
   it('preserves the target draft after a failed save', async () => {
     mockUpdateTargetWeight.mockRejectedValueOnce(new Error('controlled'));
     const screen = await render(<BodySettingsScreen />);
-    const target = await waitFor(() => screen.getByLabelText('Hedef Kilo'));
-    await fireEvent.changeText(target, '95,5');
+    await waitFor(() => screen.getByLabelText('Hedef Kilo'));
+    await enterWheelValue(screen, 'Hedef Kilo', '95,5');
     await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
 
     await waitFor(() =>
       expect(screen.getByText(appStrings.progress.saveError)).toBeTruthy()
     );
-    expect(screen.getByLabelText('Hedef Kilo')).toHaveProp('value', '95,5');
+    expect(screen.getByLabelText('Hedef Kilo')).toHaveProp(
+      'accessibilityValue',
+      { text: '95,5 kilogram' }
+    );
     expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 });

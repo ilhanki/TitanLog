@@ -40,10 +40,10 @@ export function getWheelGeometry(index: number) {
   } as const;
 }
 
-export function createDescendingWheelOptions(
+export function createAscendingWheelOptions(
   options: readonly number[]
 ): number[] {
-  return [...new Set(options)].sort((left, right) => right - left);
+  return [...new Set(options)].sort((left, right) => left - right);
 }
 
 export function resolveWheelValue(
@@ -75,7 +75,7 @@ export function WheelPicker({
   unit,
   value,
 }: WheelPickerProps) {
-  const data = useMemo(() => createDescendingWheelOptions(options), [options]);
+  const data = useMemo(() => createAscendingWheelOptions(options), [options]);
   const selectedIndex = Math.max(0, data.indexOf(value));
   const scrollY = useRef(
     new Animated.Value(getWheelOffset(selectedIndex))
@@ -110,9 +110,9 @@ export function WheelPicker({
       accessibilityValue={{ text: `${formatValue(value)} ${unit}` }}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === 'increment') {
-          selectIndex(selectedIndex - 1);
-        } else if (event.nativeEvent.actionName === 'decrement') {
           selectIndex(selectedIndex + 1);
+        } else if (event.nativeEvent.actionName === 'decrement') {
+          selectIndex(selectedIndex - 1);
         }
       }}
       style={styles.container}
