@@ -58,8 +58,8 @@ Egzersiz rekorları yalnız geçerli ve tamamlanmış setlerden hesaplanır; eş
 ### Sayısal seçim kontrolleri
 
 - Vücut kilosunda modal, iki sütunlu tam sayı ve ondalık seçim çarkı
-- Kompakt egzersiz tekrar ve ağırlık hücrelerinde doğrudan dikey kilit-çark hareketi
-- Aynı egzersiz hücresinde ek panel açmadan klavyeyle doğrudan giriş
+- Kompakt egzersiz tekrar ve ağırlık hücrelerinde aşağı kaydırarak artırma, yukarı kaydırarak azaltma
+- Aynı hücreye dokunarak ek panel açmadan klavyeyle doğrudan giriş
 - Egzersiz ağırlığında `2,5 kg`, tekrarda `1` birimlik hareketler
 - Adıma uymayan mevcut egzersiz değerlerini kaybetmeden koruma
 - Virgül veya nokta kabul eden kesin elle giriş

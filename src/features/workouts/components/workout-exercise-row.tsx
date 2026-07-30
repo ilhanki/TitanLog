@@ -172,6 +172,7 @@ export function WorkoutExerciseRow({
         parseValue={parseRepetitionInput}
         step={1}
         style={styles.repetitionInput}
+        unit="tekrar"
         value={repetitions}
       />
       <InlineNumericWheelField
@@ -189,6 +190,7 @@ export function WorkoutExerciseRow({
         parseValue={parseWeightInput}
         step={2.5}
         style={styles.weightInput}
+        unit="kilogram"
         value={weight}
       />
       <Pressable

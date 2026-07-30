@@ -8,7 +8,7 @@ export const appStrings = {
     decrease: 'Azalt',
     increase: 'Artır',
     inlineWheelHint:
-      'Yukarı kaydırarak artır, aşağı kaydırarak azalt veya değeri yaz.',
+      'Aşağı kaydırarak artır, yukarı kaydırarak azalt; yazmak için dokun.',
     manualEntry: 'Elle Gir',
     useWheel: 'Çarkı Kullan',
     wheelHint: 'Aşağı çevirerek artır, yukarı çevirerek azalt.',

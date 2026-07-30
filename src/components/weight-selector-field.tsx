@@ -69,6 +69,7 @@ export function WeightSelectorField({
           onChangeText={onChangeText}
           parseValue={parseWeightInput}
           step={2.5}
+          unit="kilogram"
           value={value}
         />
         {error ? (

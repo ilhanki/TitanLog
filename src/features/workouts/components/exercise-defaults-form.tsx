@@ -57,6 +57,7 @@ export function ExerciseDefaultsForm({
             onChangeText={(targetReps) => onChange({ ...values, targetReps })}
             parseValue={parseRepetitionInput}
             step={1}
+            unit="tekrar"
             value={values.targetReps}
           />
           {errors?.targetReps ? (

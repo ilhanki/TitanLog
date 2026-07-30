@@ -91,6 +91,7 @@ function CompletedSetRow({
         parseValue={parseWeightInput}
         step={2.5}
         style={styles.input}
+        unit="kilogram"
         value={weight}
       />
       <InlineNumericWheelField
@@ -105,6 +106,7 @@ function CompletedSetRow({
         parseValue={parseRepetitionInput}
         step={1}
         style={styles.repetitionInput}
+        unit="tekrar"
         value={repetitions}
       />
       <AppButton
