@@ -30,9 +30,12 @@ Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı y
 
 - Antrenman günlerini ve haftalık planı düzenleme
 - Bir güne bir veya daha fazla hafta günü atama
-- Egzersiz varsayılanlarını değiştirme
+- Egzersizleri kompakt Titan Iron panellerinde yönetme
+- Üst köşe tutamacına basılı tutup sürükleyerek egzersiz sırasını değiştirme
+- TalkBack için görünür düğme kalabalığı oluşturmayan erişilebilir yukarı/aşağı taşıma eylemleri
+- `Set | Tekrar | Kilo` düzenindeki kompakt pencereden egzersiz varsayılanlarını değiştirme
 - Katalogdan egzersiz ekleme veya özel egzersiz oluşturma
-- Egzersizleri yeniden sıralama ve program ilişkisini kaldırma
+- Egzersizleri program gününden güvenli biçimde kaldırma
 - Program değişikliklerini yalnız gelecekteki oturumlara uygulama
 
 ### Antrenman geçmişi
@@ -58,8 +61,9 @@ Egzersiz rekorları yalnız geçerli ve tamamlanmış setlerden hesaplanır; eş
 ### Sayısal seçim kontrolleri
 
 - Vücut kilosunda modal, iki sütunlu tam sayı ve ondalık seçim çarkı
-- Kompakt egzersiz tekrar ve ağırlık hücrelerinde aşağı kaydırarak artırma, yukarı kaydırarak azaltma
+- Kompakt egzersiz tekrar ve ağırlık hücrelerinin tamamında doğrudan aşağı kaydırarak artırma, yukarı kaydırarak azaltma
 - Aynı hücreye dokunarak ek panel açmadan klavyeyle doğrudan giriş
+- Kaydırma sırasında yalnız etkin sayısal alanın dokunuşu sahiplenmesi; alan dışında normal liste kaydırmasının korunması
 - Egzersiz ağırlığında `2,5 kg`, tekrarda `1` birimlik hareketler
 - Adıma uymayan mevcut egzersiz değerlerini kaybetmeden koruma
 - Virgül veya nokta kabul eden kesin elle giriş
@@ -232,7 +236,7 @@ TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelin
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
 
-`v0.1.0-alpha.9` henüz oluşturulmamış veya origin'e gönderilmemiştir. Sprint 8 egzersiz geçmişi, önceki performans ve kişisel rekor deneyimi Samsung Galaxy A55 üzerinde fiziksel doğrulama beklemektedir.
+`v0.1.0-alpha.9` henüz oluşturulmamış veya origin'e gönderilmemiştir. Sprint 8 egzersiz geçmişi, önceki performans, kişisel rekorlar, doğrudan sayısal kaydırma, sürükle-bırak program sıralaması ve kompakt program düzenleyicisi Samsung Galaxy A55 üzerinde son fiziksel doğrulamayı beklemektedir.
 
 ## Yol haritası
 
@@ -240,7 +244,7 @@ TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelin
 - [x] Vücut profili, hedef ve ölçüm geçmişi
 - [x] Tamamlanmış antrenman geçmişi ve karşılaştırma
 - [x] Egzersiz geçmişi, önceki performans ve kişisel rekorlar
-- [x] Antrenman programı yönetimi
+- [x] Kompakt panel ve erişilebilir sürükle-bırak sıralama ile antrenman programı yönetimi
 - [x] Titan Iron görsel sistemi
 - [x] Vücut ağırlığı seçim çarkı ve satır içi egzersiz sayısal kontrolleri
 - [ ] Birden fazla antrenman programı
@@ -257,7 +261,7 @@ Tarihler ve teslim kapsamları fiziksel doğrulama sonuçlarına göre belirleni
 - Uygulama erken alfa aşamasında ve Expo Go tabanlı geliştirme akışındadır.
 - Bulut yedeği veya cihazlar arası eşitleme yoktur.
 - Google Play üzerinde üretim sürümü yayımlanmamıştır.
-- Sprint 8 egzersiz geçmişi, önceki performans ve rekor geri bildirimi Samsung Galaxy A55 üzerinde henüz doğrulanmamıştır.
+- Sprint 8 egzersiz geçmişi, önceki performans, rekor geri bildirimi ve son etkileşim güvenilirliği düzeltmeleri Samsung Galaxy A55 üzerinde henüz doğrulanmamıştır.
 - Egzersiz geçmişinde grafik veya otomatik ağırlık/antrenman önerisi yoktur; kayıtlar yalnız geçmiş performansı açıklar.
 - Expo SQLite web kalıcılığı birincil desteklenen kullanım ortamı değildir.
 - Hesap ekranları arayüz hazırlığıdır; kimlik doğrulama altyapısı uygulanmamıştır.
