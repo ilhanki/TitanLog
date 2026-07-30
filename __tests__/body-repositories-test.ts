@@ -223,7 +223,38 @@ describe('body repositories', () => {
     expect(getAllAsync).toHaveBeenCalledWith(
       expect.stringContaining(
         'ORDER BY measured_at DESC, created_at DESC, id DESC'
-      )
+      ),
+      20,
+      0
+    );
+  });
+
+  it('updates only the persisted target weight inside one transaction', async () => {
+    const transaction = {
+      getFirstAsync: jest.fn().mockResolvedValue({
+        created_at: '2026-07-01T10:00:00.000Z',
+        id: 1,
+        starting_weight_kg: 119.6,
+        target_weight_kg: 99.9,
+        updated_at: '2026-07-01T10:00:00.000Z',
+      }),
+      runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
+    };
+    const database = {
+      withExclusiveTransactionAsync: jest.fn(async (operation) =>
+        operation(transaction)
+      ),
+    } as unknown as SQLiteDatabase;
+
+    await createBodyProfileRepository(database).updateTargetWeight(95);
+
+    expect(transaction.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('SET target_weight_kg = ?'),
+      95,
+      expect.any(String)
+    );
+    expect(transaction.runAsync.mock.calls[0]?.[0]).not.toContain(
+      'starting_weight_kg ='
     );
   });
 

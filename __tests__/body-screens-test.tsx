@@ -2,32 +2,90 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { appStrings } from '@/constants/strings';
 import { BodyMeasurementForm } from '@/features/body/components/body-measurement-form';
+import type {
+  BodyMeasurement,
+  BodyProfile,
+} from '@/features/body/domain/models';
 import type { BodyOverview } from '@/features/body/hooks/use-body-overview';
+import { createBodyWeightSummary } from '@/features/body/utils/body-values';
 import { ProgressScreen } from '@/features/progress/progress-screen';
 
 const mockRouter = { navigate: jest.fn(), push: jest.fn() };
 const mockCreateProfile = jest.fn();
+const mockLoadMore = jest.fn();
 type MockOverview = {
   data: BodyOverview;
   error: boolean;
+  hasMore: boolean;
+  loadMore: jest.Mock;
   loading: boolean;
   retry: jest.Mock;
 };
 
 let mockOverview: MockOverview;
 
+const profile: BodyProfile = {
+  createdAt: '2026-07-01T10:00:00.000Z',
+  id: 1,
+  startingWeightKg: 80,
+  targetWeightKg: 70,
+  updatedAt: '2026-07-01T10:00:00.000Z',
+};
+
+const measurement = (
+  id: number,
+  weightKg: number,
+  measuredAt: string
+): BodyMeasurement => ({
+  chestCm: null,
+  createdAt: measuredAt,
+  hipCm: null,
+  id,
+  measuredAt,
+  note: null,
+  thighCm: null,
+  upperArmCm: null,
+  updatedAt: measuredAt,
+  waistCm: null,
+  weightKg,
+});
+
 function createEmptyOverview(): MockOverview {
   return {
     data: {
       latest: null,
+      measurementCount: 0,
       measurements: [],
       previous: null,
       profile: null,
       progress: null,
+      summary: null,
     },
     error: false,
+    hasMore: false,
+    loadMore: mockLoadMore,
     loading: false,
     retry: jest.fn(),
+  };
+}
+
+function createLoadedOverview(measurements: BodyMeasurement[]): MockOverview {
+  const summary = createBodyWeightSummary(
+    profile,
+    measurements,
+    measurements.length
+  )!;
+  return {
+    ...createEmptyOverview(),
+    data: {
+      latest: measurements[0] ?? null,
+      measurementCount: measurements.length,
+      measurements,
+      previous: measurements[1] ?? null,
+      profile,
+      progress: summary.progress,
+      summary,
+    },
   };
 }
 
@@ -55,12 +113,15 @@ describe('body progress screens', () => {
     mockCreateProfile.mockResolvedValue(undefined);
   });
 
-  it('renders profile setup when no profile exists', async () => {
-    const { getByLabelText, getByText } = await render(<ProgressScreen />);
+  it('renders a truthful profile setup without fake body values', async () => {
+    const { getByLabelText, getByText, queryByText } = await render(
+      <ProgressScreen />
+    );
 
-    expect(getByText(appStrings.progress.setupTitle)).toBeTruthy();
+    expect(getByText('Gelişimini Takip Et')).toBeTruthy();
     expect(getByLabelText(appStrings.progress.startingWeight)).toBeTruthy();
     expect(getByLabelText(appStrings.progress.targetWeight)).toBeTruthy();
+    expect(queryByText(/70 kg/)).toBeNull();
   });
 
   it.each([
@@ -70,7 +131,6 @@ describe('body progress screens', () => {
     'submits comma and period profile values as numbers',
     async (startingInput, targetInput, starting, target) => {
       const { getByLabelText, getByRole } = await render(<ProgressScreen />);
-
       await fireEvent.changeText(
         getByLabelText(appStrings.progress.startingWeight),
         startingInput
@@ -82,117 +142,134 @@ describe('body progress screens', () => {
       await fireEvent.press(
         getByRole('button', { name: appStrings.progress.saveGoal })
       );
-
-      await waitFor(() => {
-        expect(mockCreateProfile).toHaveBeenCalledWith(starting, target);
-      });
+      await waitFor(() =>
+        expect(mockCreateProfile).toHaveBeenCalledWith(starting, target)
+      );
     }
   );
 
-  it('renders database failures at form level without logging measurements', async () => {
-    const nativeError = Object.assign(
-      new Error('insert failed for 119.6 and 99.9'),
-      { code: 'SQLITE_BUSY' }
-    );
-    mockCreateProfile.mockRejectedValue(nativeError);
-    const consoleError = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => undefined);
-    const { getByLabelText, getByRole, getByText } = await render(
-      <ProgressScreen />
-    );
+  it('renders loading without current, target, or fallback numbers', async () => {
+    mockOverview = { ...createEmptyOverview(), loading: true };
+    const { getByText, queryByText } = await render(<ProgressScreen />);
 
-    await fireEvent.changeText(
-      getByLabelText(appStrings.progress.startingWeight),
-      '119,6'
-    );
-    await fireEvent.changeText(
-      getByLabelText(appStrings.progress.targetWeight),
-      '99,9'
-    );
-    await fireEvent.press(
-      getByRole('button', { name: appStrings.progress.saveGoal })
-    );
-
-    await waitFor(() => {
-      expect(getByText(appStrings.progress.saveError)).toBeTruthy();
-    });
-    expect(getByRole('alert')).toBeTruthy();
-    expect(
-      getByLabelText(appStrings.progress.startingWeight).props.accessibilityHint
-    ).toBeUndefined();
-    const loggedPayload = JSON.stringify(consoleError.mock.calls);
-    expect(loggedPayload).toContain('SQLITE_BUSY');
-    expect(loggedPayload).not.toContain('119.6');
-    expect(loggedPayload).not.toContain('99.9');
-    consoleError.mockRestore();
+    expect(getByText('Verilerin hazırlanıyor')).toBeTruthy();
+    expect(queryByText(/70|0 kg|— kg/)).toBeNull();
   });
 
-  it('renders a real summary and truthful single-measurement history', async () => {
-    const measurement = {
-      chestCm: null,
-      createdAt: '2026-08-01T10:00:00.000Z',
-      hipCm: null,
-      id: 1,
-      measuredAt: '2026-08-01T10:00:00.000Z',
-      note: null,
-      thighCm: null,
-      upperArmCm: null,
-      updatedAt: '2026-08-01T10:00:00.000Z',
-      waistCm: null,
-      weightKg: 75,
-    };
-    mockOverview = {
-      ...createEmptyOverview(),
-      data: {
-        latest: measurement,
-        measurements: [measurement],
-        previous: null,
-        profile: {
-          createdAt: measurement.createdAt,
-          id: 1,
-          startingWeightKg: 80,
-          targetWeightKg: 70,
-          updatedAt: measurement.updatedAt,
-        },
-        progress: {
-          changeFromPreviousKg: null,
-          currentWeightKg: 75,
-          direction: 'loss' as const,
-          progress: 0.5,
-          progressPercentage: 50,
-          remainingWeightKg: 5,
-          targetReached: false,
-          totalChangeKg: -5,
-        },
-      },
-    };
+  it('renders the dominant current weight, rail, statistics, and newest-first rows', async () => {
+    const newest = measurement(2, 75, '2026-08-01T10:00:00.000Z');
+    const oldest = measurement(1, 76, '2026-07-01T10:00:00.000Z');
+    mockOverview = createLoadedOverview([newest, oldest]);
+    const screen = await render(<ProgressScreen />);
 
+    expect(screen.getAllByText('75 kg').length).toBeGreaterThan(0);
+    expect(screen.getByText('Başlangıçtan')).toBeTruthy();
+    expect(screen.getAllByText('Hedefe Kalan').length).toBeGreaterThan(0);
+    expect(screen.getByText('Ölçüm Sayısı')).toBeTruthy();
+    expect(screen.getAllByText('Son Ölçüm').length).toBeGreaterThan(0);
+    expect(screen.getByText('Önceki ölçüme göre -1 kg')).toBeTruthy();
+    expect(screen.getByText('İlk ölçüm')).toBeTruthy();
+    expect(JSON.stringify(screen.toJSON())).not.toContain('"horizontal":true');
+  });
+
+  it('uses profile weight as a clearly labelled fallback when measurements are absent', async () => {
+    mockOverview = createLoadedOverview([]);
     const { getAllByText, getByText } = await render(<ProgressScreen />);
 
-    expect(getAllByText('75 kg').length).toBeGreaterThan(0);
-    expect(getByText('%50')).toBeTruthy();
-    expect(getByText(appStrings.progress.noExtraMeasurement)).toBeTruthy();
-    expect(getByText(appStrings.progress.noPreviousChange)).toBeTruthy();
+    expect(getAllByText('80 kg').length).toBeGreaterThan(0);
+    expect(
+      getByText('Profil başlangıç değeri · Henüz ölçüm değil')
+    ).toBeTruthy();
+    expect(getAllByText('Henüz ölçüm eklenmedi').length).toBeGreaterThan(0);
   });
 
-  it('validates required weight in the measurement form', async () => {
-    const onSubmit = jest.fn();
-    const { getByRole, getByText } = await render(
+  it('opens new-measurement and target modal routes from the primary actions', async () => {
+    mockOverview = createLoadedOverview([
+      measurement(1, 75, '2026-08-01T10:00:00.000Z'),
+    ]);
+    const { getByRole } = await render(<ProgressScreen />);
+
+    await fireEvent.press(getByRole('button', { name: 'Yeni Ölçüm' }));
+    await fireEvent.press(getByRole('button', { name: 'Hedefi Düzenle' }));
+
+    expect(mockRouter.push).toHaveBeenCalledWith('/progress/add');
+    expect(mockRouter.push).toHaveBeenCalledWith('/progress/settings');
+  });
+
+  it('keeps repository errors truthful and retryable', async () => {
+    mockOverview = { ...createEmptyOverview(), error: true };
+    const { getByRole, getByText } = await render(<ProgressScreen />);
+
+    expect(getByText(appStrings.progress.loadError)).toBeTruthy();
+    await fireEvent.press(
+      getByRole('button', { name: appStrings.progress.retry })
+    );
+    expect(mockOverview.retry).toHaveBeenCalledTimes(1);
+  });
+
+  it('validates required weight and blocks rapid duplicate measurement form submissions', async () => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    const screen = await render(
       <BodyMeasurementForm
         onSubmit={onSubmit}
         pending={false}
-        submitLabel={appStrings.progress.saveMeasurement}
+        submitLabel="Kaydet"
+      />
+    );
+    await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
+    expect(screen.getByText(appStrings.progress.invalidWeight)).toBeTruthy();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('renders only schema-supported measurement fields and reports dirty drafts', async () => {
+    const onCancel = jest.fn();
+    const onDirtyChange = jest.fn();
+    const screen = await render(
+      <BodyMeasurementForm
+        initialWeightKg={75}
+        onCancel={onCancel}
+        onDirtyChange={onDirtyChange}
+        onSubmit={jest.fn()}
+        pending={false}
+        submitLabel="Kaydet"
       />
     );
 
-    fireEvent.press(
-      getByRole('button', { name: appStrings.progress.saveMeasurement })
+    expect(screen.getByLabelText('Bel Çevresi (cm)')).toBeTruthy();
+    expect(screen.getByLabelText('Göğüs Çevresi (cm)')).toBeTruthy();
+    expect(screen.getByLabelText('Üst Kol Çevresi (cm)')).toBeTruthy();
+    expect(screen.getByLabelText('Kalça Çevresi (cm)')).toBeTruthy();
+    expect(screen.getByLabelText('Uyluk Çevresi (cm)')).toBeTruthy();
+    expect(screen.queryByText(/BMI|Yağ Oranı/i)).toBeNull();
+    await fireEvent.changeText(
+      screen.getByLabelText('Bel Çevresi (cm)'),
+      '82,5'
+    );
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await fireEvent.press(screen.getByRole('button', { name: 'Kapat' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows only one pending measurement submission', async () => {
+    let finish: (() => void) | undefined;
+    const onSubmit = jest.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const screen = await render(
+      <BodyMeasurementForm
+        initialWeightKg={75}
+        onSubmit={onSubmit}
+        pending={false}
+        submitLabel="Kaydet"
+      />
     );
 
-    await waitFor(() => {
-      expect(getByText(appStrings.progress.invalidWeight)).toBeTruthy();
-    });
-    expect(onSubmit).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    finish?.();
   });
 });

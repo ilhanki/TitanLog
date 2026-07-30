@@ -8,25 +8,33 @@ import { BodySettingsScreen } from '@/features/body/screens/body-settings-screen
 
 const mockGetLatestMeasurement = jest.fn();
 const mockGetProfile = jest.fn();
+const mockCreateMeasurement = jest.fn();
+const mockUpdateTargetWeight = jest.fn();
 const mockRouter = { back: jest.fn(), replace: jest.fn() };
+const mockNavigation = {
+  addListener: jest.fn(() => jest.fn()),
+  dispatch: jest.fn(),
+};
 const mockDatabase = {};
 const mockUseEffect = useEffect;
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (effect: EffectCallback) => mockUseEffect(effect, [effect]),
   useRouter: () => mockRouter,
+  useNavigation: () => mockNavigation,
 }));
 jest.mock('expo-sqlite', () => ({ useSQLiteContext: () => mockDatabase }));
 jest.mock('@/features/body/data/body-measurement-repository', () => ({
   createBodyMeasurementRepository: () => ({
-    createMeasurement: jest.fn(),
+    createMeasurement: mockCreateMeasurement,
     getLatestMeasurement: mockGetLatestMeasurement,
   }),
 }));
 jest.mock('@/features/body/data/body-profile-repository', () => ({
+  ...jest.requireActual('@/features/body/data/body-profile-repository'),
   createBodyProfileRepository: () => ({
     getProfile: mockGetProfile,
-    updateGoal: jest.fn(),
+    updateTargetWeight: mockUpdateTargetWeight,
   }),
 }));
 
@@ -57,12 +65,14 @@ describe('body weight initialization', () => {
     jest.clearAllMocks();
     mockGetProfile.mockResolvedValue(profile);
     mockGetLatestMeasurement.mockResolvedValue(latestMeasurement);
+    mockCreateMeasurement.mockResolvedValue({ id: 5 });
+    mockUpdateTargetWeight.mockResolvedValue(undefined);
   });
 
-  it('prefers valid drafts, then persisted fallbacks, then product defaults', () => {
+  it('prefers valid drafts and persisted fallbacks without a fake body default', () => {
     expect(resolveWeightSelectorValue('114,8', 'body', 112.4)).toBe(114.8);
     expect(resolveWeightSelectorValue('', 'body', 112.4)).toBe(112.4);
-    expect(resolveWeightSelectorValue('', 'body')).toBe(70);
+    expect(resolveWeightSelectorValue('', 'body')).toBeNull();
     expect(resolveWeightSelectorValue('', 'exercise')).toBe(2.5);
   });
 
@@ -122,12 +132,56 @@ describe('body weight initialization', () => {
     const screen = await render(<BodySettingsScreen />);
 
     await waitFor(() => {
-      expect(
-        screen.getByLabelText(appStrings.progress.startingWeight)
-      ).toHaveProp('value', '112,4');
-      expect(
-        screen.getByLabelText(appStrings.progress.targetWeight)
-      ).toHaveProp('value', '99,9');
+      expect(screen.getByText('112,4 kg')).toBeTruthy();
+      expect(screen.getByLabelText('Hedef Kilo')).toHaveProp('value', '99,9');
     });
+    expect(
+      screen.queryByLabelText(appStrings.progress.startingWeight)
+    ).toBeNull();
+  });
+
+  it('saves one new measurement from the latest-weight draft and closes after success', async () => {
+    const screen = await render(<AddMeasurementScreen />);
+    const weight = await waitFor(() =>
+      screen.getByLabelText(appStrings.progress.weight)
+    );
+    await fireEvent.changeText(weight, '111,8');
+    await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
+
+    await waitFor(() => expect(mockCreateMeasurement).toHaveBeenCalledTimes(1));
+    expect(mockCreateMeasurement).toHaveBeenCalledWith(
+      expect.objectContaining({ weightKg: 111.8 })
+    );
+    expect(mockRouter.replace).toHaveBeenCalledWith('/progress');
+  });
+
+  it('updates only the target draft while keeping current weight read-only', async () => {
+    const screen = await render(<BodySettingsScreen />);
+    const target = await waitFor(() => screen.getByLabelText('Hedef Kilo'));
+    await fireEvent.changeText(target, '95,5');
+    await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
+
+    await waitFor(() =>
+      expect(mockUpdateTargetWeight).toHaveBeenCalledWith(95.5)
+    );
+    expect(mockUpdateTargetWeight).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByLabelText(appStrings.progress.startingWeight)
+    ).toBeNull();
+    expect(mockRouter.replace).toHaveBeenCalledWith('/progress');
+  });
+
+  it('preserves the target draft after a failed save', async () => {
+    mockUpdateTargetWeight.mockRejectedValueOnce(new Error('controlled'));
+    const screen = await render(<BodySettingsScreen />);
+    const target = await waitFor(() => screen.getByLabelText('Hedef Kilo'));
+    await fireEvent.changeText(target, '95,5');
+    await fireEvent.press(screen.getByRole('button', { name: 'Kaydet' }));
+
+    await waitFor(() =>
+      expect(screen.getByText(appStrings.progress.saveError)).toBeTruthy()
+    );
+    expect(screen.getByLabelText('Hedef Kilo')).toHaveProp('value', '95,5');
+    expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 });

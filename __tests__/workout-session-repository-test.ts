@@ -352,17 +352,36 @@ describe('workout session repository', () => {
   });
 
   it('queries recent history from completed sessions only', async () => {
-    const getAllAsync = jest.fn().mockResolvedValue([]);
+    const getAllAsync = jest.fn().mockResolvedValue([
+      {
+        completed_at: '2026-07-28T19:12:00.000Z',
+        completed_set_count: 19,
+        exercise_names: `Lat Pulldown${String.fromCharCode(31)}Cable Curl`,
+        id: 10,
+        started_at: '2026-07-28T18:00:00.000Z',
+        total_repetitions: 228,
+        total_volume: 8640,
+        workout_day_id: 1,
+        workout_name_snapshot: 'Sırt + Biceps',
+      },
+    ]);
     const database = createDatabase({ getAllAsync });
 
-    await createWorkoutSessionRepository(database).getRecentCompletedSessions(
-      5
-    );
+    const result =
+      await createWorkoutSessionRepository(database).getRecentCompletedSessions(
+        5
+      );
 
     expect(getAllAsync).toHaveBeenCalledWith(
       expect.stringContaining("WHERE status = 'completed'"),
       5
     );
+    expect(getAllAsync).toHaveBeenCalledTimes(1);
+    expect(result[0]).toMatchObject({
+      exerciseNames: ['Lat Pulldown', 'Cable Curl'],
+      totalVolume: 8640,
+      workoutName: 'Sırt + Biceps',
+    });
   });
 
   it('lists completed history newest first with bounded pagination', async () => {
