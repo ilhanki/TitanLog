@@ -74,6 +74,10 @@ type CompletedHistoryRow = {
   workout_name_snapshot: string;
 };
 
+type RecentCompletedRow = CompletedHistoryRow & {
+  exercise_names: string | null;
+};
+
 export type WorkoutSessionErrorCode =
   | 'day_not_found'
   | 'day_has_no_exercises'
@@ -586,19 +590,64 @@ export function createWorkoutSessionRepository(database: SQLiteDatabase) {
     async getRecentCompletedSessions(
       limit = 5
     ): Promise<CompletedWorkoutSummary[]> {
-      const rows = await database.getAllAsync<{ id: number }>(
-        `SELECT id FROM workout_sessions
-         WHERE status = 'completed'
-         ORDER BY completed_at DESC
-         LIMIT ?`,
-        limit
+      const safeLimit = Number.isSafeInteger(limit)
+        ? Math.min(Math.max(limit, 1), 10)
+        : 5;
+      const rows = await database.getAllAsync<RecentCompletedRow>(
+        `WITH recent_sessions AS (
+           SELECT id, workout_day_id, workout_name_snapshot, started_at,
+                  completed_at
+           FROM workout_sessions
+           WHERE status = 'completed' AND completed_at IS NOT NULL
+           ORDER BY completed_at DESC, id DESC
+           LIMIT ?
+         )
+         SELECT session.id, session.workout_day_id,
+                session.workout_name_snapshot, session.started_at,
+                session.completed_at,
+                COALESCE(SUM(CASE WHEN workout_set.is_completed = 1 THEN 1 ELSE 0 END), 0)
+                  AS completed_set_count,
+                COALESCE(SUM(CASE
+                  WHEN workout_set.is_completed = 1
+                    AND workout_set.actual_reps IS NOT NULL
+                  THEN workout_set.actual_reps ELSE 0 END), 0)
+                  AS total_repetitions,
+                COALESCE(SUM(CASE
+                  WHEN workout_set.is_completed = 1
+                    AND workout_set.actual_reps IS NOT NULL
+                  THEN workout_set.weight_kg * workout_set.actual_reps
+                  ELSE 0 END), 0) AS total_volume,
+                (SELECT GROUP_CONCAT(name, char(31)) FROM (
+                   SELECT exercise_name_snapshot AS name
+                   FROM workout_session_exercises
+                   WHERE session_id = session.id
+                   ORDER BY sort_order, id
+                   LIMIT 3
+                 )) AS exercise_names
+         FROM recent_sessions AS session
+         LEFT JOIN workout_session_exercises AS session_exercise
+           ON session_exercise.session_id = session.id
+         LEFT JOIN workout_sets AS workout_set
+           ON workout_set.session_exercise_id = session_exercise.id
+         GROUP BY session.id
+         ORDER BY session.completed_at DESC, session.id DESC`,
+        safeLimit
       );
-      const summaries = await Promise.all(
-        rows.map((row) => getCompletedSummary(row.id))
-      );
-      return summaries.filter(
-        (summary): summary is CompletedWorkoutSummary => summary !== null
-      );
+      return rows.map((row) => ({
+        completedAt: row.completed_at,
+        completedSetCount: row.completed_set_count,
+        durationMinutes: calculateWorkoutDurationMinutes(
+          row.started_at,
+          row.completed_at
+        ),
+        exerciseNames: row.exercise_names?.split(String.fromCharCode(31)) ?? [],
+        id: row.id,
+        startedAt: row.started_at,
+        totalRepetitions: row.total_repetitions,
+        totalVolume: row.total_volume,
+        workoutDayId: row.workout_day_id,
+        workoutName: row.workout_name_snapshot,
+      }));
     },
 
     async getCompletedSessionCount(): Promise<number> {

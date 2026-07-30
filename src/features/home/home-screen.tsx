@@ -1,66 +1,48 @@
 import { useRouter, type Href } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { AppHeader } from '@/components/app-header';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
+import { AppHeader } from '@/components/app-header';
 import { AppText } from '@/components/app-text';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/section-header';
-import { StatCard } from '@/components/stat-card';
 import { appStrings } from '@/constants/strings';
 import { useBodyOverview } from '@/features/body/hooks/use-body-overview';
-import { formatBodyValue } from '@/features/body/utils/body-values';
-import { AuthEntryCard } from '@/features/home/auth-entry-card';
-import { formatTurkishNumber } from '@/features/home/home-formatters';
 import { GoalCard } from '@/features/home/goal-card';
 import { LastWorkoutCard } from '@/features/home/last-workout-card';
-import { MotivationBanner } from '@/features/home/motivation-banner';
 import { TodayWorkoutCard } from '@/features/home/today-workout-card';
 import { createWorkoutSessionRepository } from '@/features/workouts/data/workout-session-repository';
 import { useWorkoutOverview } from '@/features/workouts/hooks/use-workout-overview';
-import { formatWorkoutWeekdays } from '@/features/workouts/utils/workout-formatters';
 import { decideWorkoutStart } from '@/features/workouts/utils/workout-navigation';
-import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
 import { theme } from '@/theme/tokens';
+
+const formatHomeDate = (date: Date) =>
+  new Intl.DateTimeFormat('tr-TR', {
+    dateStyle: 'long',
+  }).format(date);
 
 export function HomeScreen() {
   const database = useSQLiteContext();
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const compact = width < theme.layout.compactWidth;
-  const { data, error, loading, retry } = useWorkoutOverview();
+  const now = new Date();
+  const { data, error, errors, loading, retry } = useWorkoutOverview(now, 1);
   const bodyOverview = useBodyOverview();
   const [starting, setStarting] = useState(false);
   const latestWorkout = data.recentSessions[0] ?? null;
-  const stats = [
-    {
-      icon: 'calendar-check-outline' as const,
-      label: appStrings.home.sportsDays,
-      value: formatTurkishNumber(data.completedSessionCount),
-    },
-    {
-      icon: 'scale-bathroom' as const,
-      label: appStrings.home.currentWeight,
-      value: bodyOverview.data.progress
-        ? `${formatBodyValue(bodyOverview.data.progress.currentWeightKg)} kg`
-        : '—',
-    },
-    {
-      icon: 'target' as const,
-      label: appStrings.home.target,
-      value: bodyOverview.data.profile
-        ? `${formatBodyValue(bodyOverview.data.profile.targetWeightKg)} kg`
-        : '—',
-    },
-    {
-      icon: 'weight-lifter' as const,
-      label: appStrings.home.latestVolume,
-      value: `${formatWorkoutWeight(latestWorkout?.totalVolume ?? 0)} kg`,
-    },
-  ];
+  const activeCompletedSets =
+    data.activeSession?.exercises.reduce(
+      (total, exercise) =>
+        total + exercise.sets.filter((set) => set.isCompleted).length,
+      0
+    ) ?? 0;
+  const activeTotalSets =
+    data.activeSession?.exercises.reduce(
+      (total, exercise) => total + exercise.sets.length,
+      0
+    ) ?? 0;
 
   const handleWorkoutAction = async () => {
     if (error) {
@@ -75,12 +57,12 @@ export function HomeScreen() {
       router.navigate(`/workout/session/${decision.sessionId}` as Href);
       return;
     }
-    if (decision.kind === 'rest') {
-      router.navigate('/workout');
+    if (decision.kind === 'rest' || !data.plan) {
+      router.navigate('/workout/program');
       return;
     }
     if (data.scheduledWorkout?.exerciseCount === 0) {
-      router.navigate('/workout');
+      router.navigate('/workout/program');
       return;
     }
     if (starting) return;
@@ -97,29 +79,47 @@ export function HomeScreen() {
     }
   };
 
-  const workoutTitle = loading
-    ? appStrings.database.loadingTitle
+  const todayState = loading
+    ? {
+        action: 'Yükleniyor…',
+        eyebrow: 'Bugün',
+        summary: 'Antrenman durumun hazırlanıyor.',
+        title: 'Program yükleniyor',
+      }
     : error
-      ? appStrings.database.errorTitle
-      : (data.activeSession?.workoutName ??
-        data.scheduledWorkout?.name ??
-        appStrings.workout.restTitle);
-  const workoutSchedule = loading
-    ? appStrings.workout.loading
-    : error
-      ? appStrings.workout.loadError
+      ? {
+          action: 'Tekrar Dene',
+          eyebrow: 'Antrenman',
+          summary: 'Antrenman durumuna şu anda ulaşılamadı.',
+          title: 'Veri yüklenemedi',
+        }
       : data.activeSession
-        ? appStrings.workout.activeSessionNotice
+        ? {
+            action: 'Antrenmana Devam Et',
+            eyebrow: 'Aktif Antrenman',
+            summary: `${activeCompletedSets} / ${activeTotalSets} set tamamlandı`,
+            title: data.activeSession.workoutName,
+          }
         : data.scheduledWorkout
-          ? formatWorkoutWeekdays(data.scheduledWorkout.scheduleWeekdays)
-          : appStrings.workout.restDescription;
-  const workoutAction = error
-    ? appStrings.workout.retry
-    : data.activeSession
-      ? appStrings.workout.resumeWorkout
-      : data.scheduledWorkout
-        ? appStrings.home.startWorkout
-        : appStrings.workout.viewProgram;
+          ? {
+              action: 'Antrenmanı Başlat',
+              eyebrow: 'Bugün',
+              summary: `${data.scheduledWorkout.exerciseCount} hareket · ${data.scheduledWorkout.totalSetCount} set`,
+              title: data.scheduledWorkout.name,
+            }
+          : data.plan
+            ? {
+                action: 'Programı Gör',
+                eyebrow: 'Bugün',
+                summary: 'Bugün için programlanmış bir antrenman bulunmuyor.',
+                title: 'Planlanmış antrenman yok',
+              }
+            : {
+                action: 'Programı Düzenle',
+                eyebrow: 'Program',
+                summary: 'Antrenmanlarına başlamak için programını hazırla.',
+                title: 'Program henüz hazır değil',
+              };
 
   return (
     <Screen>
@@ -129,98 +129,111 @@ export function HomeScreen() {
         brand={appStrings.brandName}
         onActionPress={() => router.navigate('/profile')}
       />
-      <View style={styles.welcome}>
-        <AppText accessibilityRole="header" variant="display">
-          {appStrings.home.welcomeTitle}
-        </AppText>
-        <AppText selectable tone="muted">
-          {appStrings.home.welcomeSubtitle}
-        </AppText>
-      </View>
-      <AuthEntryCard compact={compact} />
+      <AppText selectable tone="muted" variant="caption">
+        {formatHomeDate(now)}
+      </AppText>
+
       <TodayWorkoutCard
-        actionLabel={workoutAction}
+        actionLabel={todayState.action}
         disabled={loading || starting}
+        eyebrow={todayState.eyebrow}
         onPress={() => void handleWorkoutAction()}
-        schedule={workoutSchedule}
-        title={workoutTitle}
+        summary={todayState.summary}
+        title={todayState.title}
       />
+
       <View style={styles.section}>
-        <SectionHeader title={appStrings.home.overviewTitle} />
-        <View style={styles.statsGrid}>
-          {stats.map((stat) => (
-            <StatCard
-              icon={stat.icon}
-              key={stat.label}
-              label={stat.label}
-              style={[styles.statCard, compact && styles.compactStatCard]}
-              value={stat.value}
+        <SectionHeader title="Gelişim" />
+        {bodyOverview.loading ? (
+          <AppCard style={styles.compactCard}>
+            <AppText variant="bodyStrong">Gelişim verileri yükleniyor</AppText>
+            <AppText tone="muted" variant="caption">
+              Kayıtlı vücut değerlerin hazırlanıyor.
+            </AppText>
+          </AppCard>
+        ) : bodyOverview.error ? (
+          <AppCard style={styles.compactCard}>
+            <AppText variant="bodyStrong">Gelişim özeti yüklenemedi</AppText>
+            <AppText tone="muted" variant="caption">
+              Antrenman eylemlerin kullanılmaya devam edebilir.
+            </AppText>
+            <AppButton
+              label="Gelişimi Yeniden Yükle"
+              onPress={bodyOverview.retry}
+              variant="ghost"
             />
-          ))}
+          </AppCard>
+        ) : bodyOverview.data.summary ? (
+          <GoalCard
+            onPress={() => router.navigate('/progress')}
+            summary={bodyOverview.data.summary}
+          />
+        ) : (
+          <AppCard style={styles.compactCard}>
+            <AppText variant="bodyStrong">Gelişimini Takip Et</AppText>
+            <AppText tone="muted" variant="caption">
+              Kilo hedefini oluşturduğunda özetin burada görünür.
+            </AppText>
+            <AppButton
+              label="Hedef Belirle"
+              onPress={() => router.navigate('/progress')}
+              variant="secondary"
+            />
+          </AppCard>
+        )}
+      </View>
+
+      {latestWorkout ? (
+        <LastWorkoutCard
+          onOpen={() =>
+            router.navigate(`/workout/history/${latestWorkout.id}` as Href)
+          }
+          workout={latestWorkout}
+        />
+      ) : errors?.recent ? (
+        <AppText tone="muted" variant="caption">
+          Son antrenman bilgisi şu anda yüklenemedi.
+        </AppText>
+      ) : null}
+
+      <View style={styles.section}>
+        <SectionHeader title="Hızlı Erişim" />
+        <View style={styles.quickActions}>
+          <AppButton
+            label="Program"
+            onPress={() => router.navigate('/workout/program')}
+            style={styles.quickAction}
+            variant="ghost"
+          />
+          <AppButton
+            label="Geçmiş"
+            onPress={() => router.navigate('/workout/history')}
+            style={styles.quickAction}
+            variant="ghost"
+          />
+          <AppButton
+            label="Ölçüm Ekle"
+            onPress={() =>
+              router.navigate(
+                bodyOverview.data.summary ? '/progress/add' : '/progress'
+              )
+            }
+            style={styles.quickAction}
+            variant="ghost"
+          />
         </View>
       </View>
-      {bodyOverview.data.profile && bodyOverview.data.progress ? (
-        <GoalCard
-          profile={bodyOverview.data.profile}
-          progress={bodyOverview.data.progress}
-        />
-      ) : (
-        <AppCard style={styles.setupCard} tone="raised">
-          <AppText accessibilityRole="header" variant="heading">
-            {appStrings.progress.setupCtaTitle}
-          </AppText>
-          <AppText selectable tone="muted">
-            {bodyOverview.error
-              ? appStrings.progress.loadError
-              : appStrings.progress.setupCtaDescription}
-          </AppText>
-          <AppButton
-            disabled={bodyOverview.loading}
-            label={
-              bodyOverview.error
-                ? appStrings.progress.retry
-                : appStrings.progress.setupCtaAction
-            }
-            onPress={() =>
-              bodyOverview.error
-                ? bodyOverview.retry()
-                : router.navigate('/progress')
-            }
-          />
-        </AppCard>
-      )}
-      <LastWorkoutCard
-        onOpen={
-          latestWorkout
-            ? () =>
-                router.navigate(`/workout/history/${latestWorkout.id}` as Href)
-            : undefined
-        }
-        workout={latestWorkout}
-      />
-      <MotivationBanner />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  welcome: {
-    gap: theme.spacing.sm,
-  },
-  section: {
-    gap: theme.spacing.lg,
-  },
-  setupCard: { gap: theme.spacing.lg },
-  statsGrid: {
+  compactCard: { gap: theme.spacing.md },
+  quickAction: { flex: 1, minWidth: 92 },
+  quickActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
-  statCard: {
-    flexBasis: '46%',
-    flexGrow: 1,
-  },
-  compactStatCard: {
-    flexBasis: '100%',
-  },
+  section: { gap: theme.spacing.md },
 });

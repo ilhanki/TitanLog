@@ -30,15 +30,14 @@ export function LastWorkoutCard({ onOpen, workout }: LastWorkoutCardProps) {
               {formatWorkoutDate(workout.completedAt)}
             </AppText>
           </View>
-          <AppText selectable tone="muted">
-            {workout.exerciseNames.join(' · ')}
-          </AppText>
-          <View style={styles.volume}>
+          <View style={styles.summary}>
             <AppText selectable tone="muted" variant="caption">
-              {workout.completedSetCount} {appStrings.workout.sets} ·{' '}
-              {appStrings.home.totalVolume}
+              {workout.durationMinutes === null
+                ? 'Süre bilgisi yok'
+                : `${workout.durationMinutes} dk`}{' '}
+              · {workout.completedSetCount} {appStrings.workout.sets}
             </AppText>
-            <AppText selectable variant="metric">
+            <AppText selectable variant="bodyStrong">
               {formatWorkoutWeight(workout.totalVolume)} kg
             </AppText>
           </View>
@@ -69,10 +68,11 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     justifyContent: 'space-between',
   },
-  volume: {
-    backgroundColor: theme.colors.backgroundElevated,
-    borderRadius: theme.radii.md,
-    gap: theme.spacing.xs,
-    padding: theme.spacing.lg,
+  summary: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    justifyContent: 'space-between',
   },
 });
