@@ -26,6 +26,7 @@ type WeightSelectorFieldProps = {
   kind: WeightWheelKind;
   label: string;
   onChangeText: (value: string) => void;
+  onGestureActiveChange?: (active: boolean) => void;
   title: string;
   value: string;
 };
@@ -48,6 +49,7 @@ export function WeightSelectorField({
   kind,
   label,
   onChangeText,
+  onGestureActiveChange,
   title,
   value,
 }: WeightSelectorFieldProps) {
@@ -67,6 +69,7 @@ export function WeightSelectorField({
           max={2000}
           min={2.5}
           onChangeText={onChangeText}
+          onGestureActiveChange={onGestureActiveChange}
           parseValue={parseWeightInput}
           step={2.5}
           unit="kilogram"

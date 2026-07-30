@@ -60,6 +60,7 @@ export function AddWorkoutExerciseScreen() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [numericGestureActive, setNumericGestureActive] = useState(false);
   const allowNavigation = useUnsavedChangesGuard(selected !== null);
 
   const load = useCallback(async () => {
@@ -153,6 +154,7 @@ export function AddWorkoutExerciseScreen() {
         backgroundColor={workoutTheme.background}
         edges={['top', 'bottom']}
         keyboardAware
+        scrollViewProps={{ scrollEnabled: !numericGestureActive }}
       >
         <AppButton
           label={appStrings.common.goBack}
@@ -183,6 +185,7 @@ export function AddWorkoutExerciseScreen() {
             errors={errors}
             exerciseName={selected.name}
             onChange={setDefaults}
+            onGestureActiveChange={setNumericGestureActive}
             values={defaults}
           />
           <AppButton

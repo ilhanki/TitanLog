@@ -233,6 +233,42 @@ export function createWorkoutProgramRepository(database: SQLiteDatabase) {
       });
     },
 
+    async reorderExerciseToIndex(
+      workoutDayId: number,
+      exerciseId: number,
+      targetIndex: number
+    ): Promise<boolean> {
+      let changed = false;
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        await requireActiveDay(transaction, workoutDayId);
+        const rows = await transaction.getAllAsync<OrderRow>(
+          `SELECT id, exercise_id, sort_order
+           FROM workout_day_exercises
+           WHERE workout_day_id = ?
+           ORDER BY sort_order, id`,
+          workoutDayId
+        );
+        const currentIndex = rows.findIndex(
+          (row) => row.exercise_id === exerciseId
+        );
+        if (
+          currentIndex < 0 ||
+          !Number.isSafeInteger(targetIndex) ||
+          targetIndex < 0 ||
+          targetIndex >= rows.length
+        ) {
+          throw new WorkoutProgramError('reorder_unavailable');
+        }
+        if (currentIndex === targetIndex) return;
+        const ordered = [...rows];
+        const [moved] = ordered.splice(currentIndex, 1);
+        ordered.splice(targetIndex, 0, moved!);
+        await normalizeSortOrders(transaction, ordered);
+        changed = true;
+      });
+      return changed;
+    },
+
     async removeExerciseFromDay(
       workoutDayId: number,
       exerciseId: number

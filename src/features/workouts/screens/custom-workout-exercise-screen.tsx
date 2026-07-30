@@ -61,6 +61,7 @@ export function CustomWorkoutExerciseScreen() {
   const [loadError, setLoadError] = useState(false);
   const [dayMissing, setDayMissing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [numericGestureActive, setNumericGestureActive] = useState(false);
   const savingRef = useRef(false);
   const dirty =
     name.length > 0 ||
@@ -231,6 +232,7 @@ export function CustomWorkoutExerciseScreen() {
       backgroundColor={workoutTheme.background}
       edges={['top', 'bottom']}
       keyboardAware
+      scrollViewProps={{ scrollEnabled: !numericGestureActive }}
     >
       <AppButton
         label={appStrings.common.goBack}
@@ -280,6 +282,7 @@ export function CustomWorkoutExerciseScreen() {
           errors={errors}
           exerciseName={name || appStrings.workout.customExerciseTitle}
           onChange={setDefaults}
+          onGestureActiveChange={setNumericGestureActive}
           values={defaults}
         />
         <AppButton

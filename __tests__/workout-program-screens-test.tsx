@@ -19,6 +19,7 @@ const mockGetActiveSession = jest.fn();
 const mockUpdateWorkoutDay = jest.fn();
 const mockUpdateExerciseDefaults = jest.fn();
 const mockReorderExercise = jest.fn();
+const mockReorderExerciseToIndex = jest.fn();
 const mockRemoveExerciseFromDay = jest.fn();
 const mockGetAvailableExercises = jest.fn();
 const mockAddExistingExercise = jest.fn();
@@ -125,6 +126,7 @@ jest.mock('@/features/workouts/data/workout-program-repository', () => {
       getAvailableExercises: mockGetAvailableExercises,
       removeExerciseFromDay: mockRemoveExerciseFromDay,
       reorderExercise: mockReorderExercise,
+      reorderExerciseToIndex: mockReorderExerciseToIndex,
       updateExerciseDefaults: mockUpdateExerciseDefaults,
       updateWorkoutDay: mockUpdateWorkoutDay,
     }),
@@ -142,6 +144,7 @@ describe('workout program screens', () => {
     mockUpdateWorkoutDay.mockResolvedValue(undefined);
     mockUpdateExerciseDefaults.mockResolvedValue(undefined);
     mockReorderExercise.mockResolvedValue(undefined);
+    mockReorderExerciseToIndex.mockResolvedValue(true);
     mockRemoveExerciseFromDay.mockResolvedValue(1);
     mockGetAvailableExercises.mockResolvedValue([
       {
@@ -250,29 +253,35 @@ describe('workout program screens', () => {
     expect(mockUpdateWorkoutDay).not.toHaveBeenCalled();
   });
 
-  it('updates exercise defaults and invokes explicit reorder controls', async () => {
-    const { getByLabelText, getByRole } = await render(
+  it('updates compact exercise defaults and exposes accessible handle reordering', async () => {
+    const { getByRole, getByTestId, queryByText } = await render(
       <WorkoutProgramDayScreen />
     );
     await waitFor(() =>
       expect(
         getByRole('button', {
-          name: `Lat Pulldown: ${appStrings.workout.editDefaults}`,
+          name: 'Lat Pulldown varsayılanlarını düzenle',
         })
       ).toBeTruthy()
     );
     await fireEvent.press(
       getByRole('button', {
-        name: `Lat Pulldown: ${appStrings.workout.editDefaults}`,
+        name: 'Lat Pulldown varsayılanlarını düzenle',
       })
     );
+    expect(getByTestId('exercise-defaults-modal')).toBeTruthy();
+    await fireEvent.press(
+      getByTestId(
+        `Lat Pulldown ${appStrings.workout.defaultWeight}-inline-display`
+      )
+    );
     await fireEvent.changeText(
-      getByLabelText(`Lat Pulldown ${appStrings.workout.defaultWeight}`),
+      getByTestId(
+        `Lat Pulldown ${appStrings.workout.defaultWeight}-inline-input`
+      ),
       '55,5'
     );
-    await fireEvent.press(
-      getByRole('button', { name: appStrings.workout.saveDefaults })
-    );
+    await fireEvent.press(getByRole('button', { name: 'Kaydet' }));
     await waitFor(() =>
       expect(mockUpdateExerciseDefaults).toHaveBeenCalledWith(
         1,
@@ -280,14 +289,16 @@ describe('workout program screens', () => {
         expect.objectContaining({ weightKg: 55.5 })
       )
     );
-    await fireEvent.press(
-      getByRole('button', {
-        name: `Dumbbell Curl: ${appStrings.workout.moveUp}`,
-      })
+    await fireEvent(
+      getByTestId('program-exercise-drag-handle-12'),
+      'accessibilityAction',
+      { nativeEvent: { actionName: 'moveUp' } }
     );
     await waitFor(() =>
       expect(mockReorderExercise).toHaveBeenCalledWith(1, 12, 'up')
     );
+    expect(queryByText(appStrings.workout.moveUp)).toBeNull();
+    expect(queryByText(appStrings.workout.moveDown)).toBeNull();
   });
 
   it('requires a stronger native confirmation for the final exercise', async () => {
@@ -301,13 +312,13 @@ describe('workout program screens', () => {
     await waitFor(() =>
       expect(
         getByRole('button', {
-          name: `Lat Pulldown: ${appStrings.workout.removeFromDay}`,
+          name: 'Lat Pulldown hareketini program gününden kaldır',
         })
       ).toBeTruthy()
     );
     await fireEvent.press(
       getByRole('button', {
-        name: `Lat Pulldown: ${appStrings.workout.removeFromDay}`,
+        name: 'Lat Pulldown hareketini program gününden kaldır',
       })
     );
     expect(Alert.alert).toHaveBeenCalledWith(

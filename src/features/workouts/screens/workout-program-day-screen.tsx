@@ -9,6 +9,7 @@ import { useCallback, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Alert,
+  Keyboard,
   Pressable,
   StyleSheet,
   View,
@@ -21,10 +22,14 @@ import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/section-header';
 import { appStrings } from '@/constants/strings';
+import { ExerciseDefaultsModal } from '@/features/workouts/components/exercise-defaults-modal';
+import type { ExerciseDefaultsFormValues } from '@/features/workouts/components/exercise-defaults-form';
 import {
-  ExerciseDefaultsForm,
-  type ExerciseDefaultsFormValues,
-} from '@/features/workouts/components/exercise-defaults-form';
+  getProgramExerciseDropIndex,
+  PROGRAM_EXERCISE_PANEL_GAP,
+  PROGRAM_EXERCISE_PANEL_HEIGHT,
+  ProgramExercisePanel,
+} from '@/features/workouts/components/program-exercise-panel';
 import {
   createWorkoutProgramRepository,
   WorkoutProgramError,
@@ -49,13 +54,20 @@ import {
   parseDefaultSetCount,
   parseDefaultWeight,
 } from '@/features/workouts/utils/workout-program-validation';
-import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
 import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
 type DefaultsEditor = {
   exercise: WorkoutExercise;
+  originalValues: ExerciseDefaultsFormValues;
   values: ExerciseDefaultsFormValues;
+};
+
+type ExerciseDragState = {
+  distanceY: number;
+  exerciseId: number;
+  initialIndex: number;
+  targetIndex: number;
 };
 
 type DefaultsErrors = Partial<
@@ -110,11 +122,20 @@ export function WorkoutProgramDayScreen() {
   );
   const operationRef = useRef(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [exerciseDrag, setExerciseDrag] = useState<ExerciseDragState | null>(
+    null
+  );
+  const exerciseDragRef = useRef<ExerciseDragState | null>(null);
 
   const metadataDirty = Boolean(
     originalDraft && draft && isWorkoutDayDraftDirty(originalDraft, draft)
   );
-  useUnsavedChangesGuard(metadataDirty || defaultsEditor !== null);
+  const defaultsDirty = Boolean(
+    defaultsEditor &&
+    JSON.stringify(defaultsEditor.values) !==
+      JSON.stringify(defaultsEditor.originalValues)
+  );
+  useUnsavedChangesGuard(metadataDirty || defaultsDirty);
 
   const assignDraft = useCallback((next: WorkoutDayDraft) => {
     draftRef.current = next;
@@ -267,6 +288,7 @@ export function WorkoutProgramDayScreen() {
         defaultsEditor.exercise.id,
         defaults
       );
+      Keyboard.dismiss();
       setDefaultsEditor(null);
       setDefaultsErrors({});
       await load();
@@ -281,6 +303,31 @@ export function WorkoutProgramDayScreen() {
     }
   };
 
+  const closeDefaultsEditor = () => {
+    if (!defaultsEditor) return;
+    const close = () => {
+      Keyboard.dismiss();
+      setDefaultsEditor(null);
+      setDefaultsErrors({});
+    };
+    if (!defaultsDirty) {
+      close();
+      return;
+    }
+    Alert.alert(
+      appStrings.workout.discardTitle,
+      appStrings.workout.discardDescription,
+      [
+        { style: 'cancel', text: appStrings.workout.keepEditing },
+        {
+          onPress: close,
+          style: 'destructive',
+          text: appStrings.workout.discardConfirm,
+        },
+      ]
+    );
+  };
+
   const reorder = async (exerciseId: number, direction: 'up' | 'down') => {
     if (operationRef.current) return;
     operationRef.current = true;
@@ -293,8 +340,83 @@ export function WorkoutProgramDayScreen() {
         direction
       );
       await load();
+      const currentIndex = day?.exercises.findIndex(
+        (exercise) => exercise.id === exerciseId
+      );
+      if (currentIndex !== undefined && currentIndex >= 0) {
+        const nextIndex =
+          direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        AccessibilityInfo.announceForAccessibility(
+          `${nextIndex + 1}. sıraya taşındı.`
+        );
+      }
     } catch {
       setSaveError(appStrings.workout.reorderError);
+    } finally {
+      operationRef.current = false;
+      setPendingExerciseId(null);
+    }
+  };
+
+  const beginExerciseDrag = (exerciseId: number, initialIndex: number) => {
+    if (operationRef.current || exerciseDragRef.current) return;
+    const next = {
+      distanceY: 0,
+      exerciseId,
+      initialIndex,
+      targetIndex: initialIndex,
+    };
+    exerciseDragRef.current = next;
+    setExerciseDrag(next);
+  };
+
+  const moveExerciseDrag = (distanceY: number) => {
+    const current = exerciseDragRef.current;
+    if (!current || !day) return;
+    const next = {
+      ...current,
+      distanceY,
+      targetIndex: getProgramExerciseDropIndex(
+        current.initialIndex,
+        distanceY,
+        day.exercises.length
+      ),
+    };
+    exerciseDragRef.current = next;
+    setExerciseDrag(next);
+  };
+
+  const cancelExerciseDrag = () => {
+    exerciseDragRef.current = null;
+    setExerciseDrag(null);
+  };
+
+  const finishExerciseDrag = async (distanceY: number) => {
+    const current = exerciseDragRef.current;
+    if (!current || !day || operationRef.current) return;
+    const targetIndex = getProgramExerciseDropIndex(
+      current.initialIndex,
+      distanceY,
+      day.exercises.length
+    );
+    cancelExerciseDrag();
+    if (targetIndex === current.initialIndex) return;
+    operationRef.current = true;
+    setPendingExerciseId(current.exerciseId);
+    setSaveError(null);
+    try {
+      await createWorkoutProgramRepository(database).reorderExerciseToIndex(
+        dayId,
+        current.exerciseId,
+        targetIndex
+      );
+      await load();
+      AccessibilityInfo.announceForAccessibility(
+        `${targetIndex + 1}. sıraya taşındı.`
+      );
+    } catch {
+      setSaveError(appStrings.workout.reorderError);
+      await load();
     } finally {
       operationRef.current = false;
       setPendingExerciseId(null);
@@ -386,11 +508,20 @@ export function WorkoutProgramDayScreen() {
     );
   }
 
+  const draggedExercise = exerciseDrag
+    ? (day.exercises.find(
+        (exercise) => exercise.id === exerciseDrag.exerciseId
+      ) ?? null)
+    : null;
+  const exerciseRowPitch =
+    PROGRAM_EXERCISE_PANEL_HEIGHT + PROGRAM_EXERCISE_PANEL_GAP;
+
   return (
     <Screen
       backgroundColor={workoutTheme.background}
       edges={['top', 'bottom']}
       keyboardAware
+      scrollViewProps={{ scrollEnabled: exerciseDrag === null }}
     >
       <AppButton
         label={appStrings.common.goBack}
@@ -489,150 +620,154 @@ export function WorkoutProgramDayScreen() {
         ) : null}
         <View style={styles.exerciseList}>
           {day.exercises.map((exercise, index) => {
-            const pending = pendingExerciseId === exercise.id;
+            const isDragged = exercise.id === exerciseDrag?.exerciseId;
+            const shiftUp = Boolean(
+              exerciseDrag &&
+              exerciseDrag.initialIndex < exerciseDrag.targetIndex &&
+              index > exerciseDrag.initialIndex &&
+              index <= exerciseDrag.targetIndex
+            );
+            const shiftDown = Boolean(
+              exerciseDrag &&
+              exerciseDrag.targetIndex < exerciseDrag.initialIndex &&
+              index >= exerciseDrag.targetIndex &&
+              index < exerciseDrag.initialIndex
+            );
             return (
-              <View key={exercise.id} style={styles.exerciseRow}>
-                <View
-                  accessibilityLabel={`${index + 1}. ${exercise.name}, ${exercise.setCount} set, ${exercise.targetReps} tekrar, ${formatWorkoutWeight(exercise.weightKg)} kg, ${exercise.weightMode === 'per_hand' ? appStrings.workout.perHandWeight : appStrings.workout.totalWeight}`}
-                  accessible
-                  style={styles.exerciseSummary}
-                >
-                  <AppText numberOfLines={1} variant="bodyStrong">
-                    {index + 1}. {exercise.name}
-                  </AppText>
-                  <AppText selectable tone="muted" variant="caption">
-                    {exercise.setCount} set · {exercise.targetReps} tekrar ·{' '}
-                    {formatWorkoutWeight(exercise.weightKg)} kg ·{' '}
-                    {exercise.weightMode === 'per_hand'
-                      ? appStrings.workout.perHandWeight
-                      : appStrings.workout.totalWeight}
-                  </AppText>
-                </View>
-                <View style={styles.actions}>
-                  <AppButton
-                    accessibilityLabel={`${exercise.name}: ${appStrings.workout.exerciseHistoryAction}`}
-                    disabled={pending}
-                    label={appStrings.workout.exerciseHistoryAction}
-                    onPress={() =>
-                      router.push(
-                        `/workout/exercise/${exercise.id}/history` as Href
-                      )
-                    }
-                    style={styles.wideAction}
-                    variant="secondary"
-                  />
-                  <AppButton
-                    accessibilityLabel={`${exercise.name}: ${appStrings.workout.editDefaults}`}
-                    disabled={pending}
-                    label={appStrings.workout.editDefaults}
-                    onPress={() => {
-                      setDefaultsErrors({});
-                      setDefaultsEditor({
-                        exercise,
-                        values: toDefaultsValues(exercise),
-                      });
-                    }}
-                    style={styles.wideAction}
-                    variant="ghost"
-                  />
-                  <View style={styles.moveActions}>
-                    <AppButton
-                      accessibilityLabel={`${exercise.name}: ${appStrings.workout.moveUp}`}
-                      disabled={pending || index === 0}
-                      icon="arrow-up"
-                      label={appStrings.workout.moveUp}
-                      onPress={() => void reorder(exercise.id, 'up')}
-                      style={styles.moveAction}
-                      variant="ghost"
-                    />
-                    <AppButton
-                      accessibilityLabel={`${exercise.name}: ${appStrings.workout.moveDown}`}
-                      disabled={pending || index === day.exercises.length - 1}
-                      icon="arrow-down"
-                      label={appStrings.workout.moveDown}
-                      onPress={() => void reorder(exercise.id, 'down')}
-                      style={styles.moveAction}
-                      variant="ghost"
-                    />
-                  </View>
-                  <AppButton
-                    accessibilityLabel={`${exercise.name}: ${appStrings.workout.removeFromDay}`}
-                    disabled={pending}
-                    label={appStrings.workout.removeFromDay}
-                    onPress={() => remove(exercise)}
-                    style={styles.wideAction}
-                    variant="ghost"
-                  />
-                </View>
-                {defaultsEditor?.exercise.id === exercise.id ? (
-                  <View style={styles.defaultsEditor}>
-                    <ExerciseDefaultsForm
-                      errors={defaultsErrors}
-                      exerciseName={exercise.name}
-                      onChange={(values) =>
-                        setDefaultsEditor({ exercise, values })
-                      }
-                      values={defaultsEditor.values}
-                    />
-                    <View style={styles.editorActions}>
-                      <AppButton
-                        disabled={savingExercise}
-                        label={appStrings.workout.closeEditor}
-                        onPress={() => {
-                          setDefaultsEditor(null);
-                          setDefaultsErrors({});
-                        }}
-                        style={styles.editorAction}
-                        variant="ghost"
-                      />
-                      <AppButton
-                        disabled={savingExercise}
-                        label={
-                          savingExercise
-                            ? appStrings.workout.saving
-                            : appStrings.workout.saveDefaults
-                        }
-                        onPress={() => void saveDefaults()}
-                        style={styles.editorAction}
-                      />
-                    </View>
-                  </View>
-                ) : null}
+              <View
+                key={exercise.id}
+                style={
+                  shiftUp
+                    ? { transform: [{ translateY: -exerciseRowPitch }] }
+                    : shiftDown
+                      ? { transform: [{ translateY: exerciseRowPitch }] }
+                      : undefined
+                }
+              >
+                <ProgramExercisePanel
+                  disabled={
+                    pendingExerciseId === exercise.id ||
+                    operationRef.current ||
+                    (exerciseDrag !== null && !isDragged)
+                  }
+                  exercise={exercise}
+                  index={index}
+                  onAccessibleMove={(direction) =>
+                    void reorder(exercise.id, direction)
+                  }
+                  onDragCancel={cancelExerciseDrag}
+                  onDragEnd={(distanceY) => void finishExerciseDrag(distanceY)}
+                  onDragMove={moveExerciseDrag}
+                  onDragStart={() => beginExerciseDrag(exercise.id, index)}
+                  onEditDefaults={() => {
+                    const values = toDefaultsValues(exercise);
+                    setDefaultsErrors({});
+                    setSaveError(null);
+                    setDefaultsEditor({
+                      exercise,
+                      originalValues: values,
+                      values,
+                    });
+                  }}
+                  onOpenHistory={() =>
+                    router.push(
+                      `/workout/exercise/${exercise.id}/history` as Href
+                    )
+                  }
+                  onRemove={() => remove(exercise)}
+                  placeholder={isDragged}
+                  totalCount={day.exercises.length}
+                />
               </View>
             );
           })}
+          {exerciseDrag ? (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.dropIndicator,
+                { top: exerciseDrag.targetIndex * exerciseRowPitch },
+              ]}
+              testID="program-exercise-drop-placeholder"
+            />
+          ) : null}
+          {draggedExercise && exerciseDrag ? (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.dragOverlay,
+                {
+                  transform: [
+                    {
+                      translateY:
+                        exerciseDrag.initialIndex * exerciseRowPitch +
+                        exerciseDrag.distanceY,
+                    },
+                  ],
+                },
+              ]}
+            >
+              <ProgramExercisePanel
+                disabled
+                dragging
+                exercise={draggedExercise}
+                index={exerciseDrag.targetIndex}
+                onAccessibleMove={() => undefined}
+                onDragCancel={() => undefined}
+                onDragEnd={() => undefined}
+                onDragMove={() => undefined}
+                onDragStart={() => undefined}
+                onEditDefaults={() => undefined}
+                onOpenHistory={() => undefined}
+                onRemove={() => undefined}
+                totalCount={day.exercises.length}
+              />
+            </View>
+          ) : null}
         </View>
       </View>
+      <ExerciseDefaultsModal
+        errors={defaultsErrors}
+        exercise={defaultsEditor?.exercise ?? null}
+        onChange={(values) =>
+          setDefaultsEditor((current) =>
+            current ? { ...current, values } : current
+          )
+        }
+        onClose={closeDefaultsEditor}
+        onSave={() => void saveDefaults()}
+        saveError={saveError}
+        saving={savingExercise}
+        values={defaultsEditor?.values ?? null}
+        visible={defaultsEditor !== null}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: { gap: theme.spacing.sm },
   backButton: { alignSelf: 'flex-start' },
-  defaultsEditor: {
-    borderTopColor: workoutTheme.separator,
-    borderTopWidth: theme.borders.hairline,
-    gap: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
+  dragOverlay: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 2,
   },
-  editorAction: { flex: 1 },
-  editorActions: { flexDirection: 'row', gap: theme.spacing.sm },
+  dropIndicator: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radii.pill,
+    height: theme.borders.strong,
+    left: theme.spacing.sm,
+    position: 'absolute',
+    right: theme.spacing.sm,
+    zIndex: 3,
+  },
   exerciseList: {
-    backgroundColor: workoutTheme.surface,
-    borderColor: workoutTheme.separator,
-    borderRadius: theme.radii.md,
-    borderWidth: theme.borders.thin,
-    overflow: 'hidden',
-  },
-  exerciseRow: {
-    borderBottomColor: workoutTheme.separator,
-    borderBottomWidth: theme.borders.hairline,
-    gap: theme.spacing.md,
-    padding: theme.spacing.md,
+    gap: PROGRAM_EXERCISE_PANEL_GAP,
+    position: 'relative',
   },
   exerciseSection: { gap: theme.spacing.md },
-  exerciseSummary: { gap: theme.spacing.xs },
   formSection: {
     backgroundColor: workoutTheme.surface,
     borderColor: workoutTheme.separator,
@@ -641,8 +776,6 @@ const styles = StyleSheet.create({
     gap: theme.spacing.lg,
     padding: theme.spacing.md,
   },
-  moveAction: { flex: 1 },
-  moveActions: { flexDirection: 'row', gap: theme.spacing.sm },
   notice: {
     backgroundColor: workoutTheme.surfaceActive,
     borderColor: theme.colors.warning,
@@ -667,5 +800,4 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
   },
   weekdays: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm },
-  wideAction: { width: '100%' },
 });

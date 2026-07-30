@@ -294,6 +294,47 @@ describe('workout program repository', () => {
     ).toEqual([101, 103, 102]);
   });
 
+  it('drops an exercise directly at the requested index in one transaction', async () => {
+    const rows = [
+      { exercise_id: 11, id: 101, sort_order: 1 },
+      { exercise_id: 12, id: 102, sort_order: 2 },
+      { exercise_id: 13, id: 103, sort_order: 3 },
+    ];
+    const transaction = createTransaction({
+      getAllAsync: jest.fn().mockResolvedValue(rows),
+    });
+
+    await expect(
+      createWorkoutProgramRepository(
+        createDatabase(transaction)
+      ).reorderExerciseToIndex(1, 11, 2)
+    ).resolves.toBe(true);
+
+    expect(
+      transaction.runAsync.mock.calls.slice(-3).map((call) => call[2])
+    ).toEqual([102, 103, 101]);
+    expect(transaction.runAsync.mock.calls.join(' ')).not.toMatch(
+      /workout_sessions|workout_session_exercises|workout_sets|body_/i
+    );
+  });
+
+  it('does not write when a dropped exercise remains at the same index', async () => {
+    const rows = [
+      { exercise_id: 11, id: 101, sort_order: 1 },
+      { exercise_id: 12, id: 102, sort_order: 2 },
+    ];
+    const transaction = createTransaction({
+      getAllAsync: jest.fn().mockResolvedValue(rows),
+    });
+
+    await expect(
+      createWorkoutProgramRepository(
+        createDatabase(transaction)
+      ).reorderExerciseToIndex(1, 12, 1)
+    ).resolves.toBe(false);
+    expect(transaction.runAsync).not.toHaveBeenCalled();
+  });
+
   it('removes only the day association and preserves the global exercise', async () => {
     const transaction = createTransaction({
       getAllAsync: jest.fn().mockResolvedValue([]),
