@@ -234,10 +234,10 @@ describe('workout screens', () => {
       expect(getByText(appStrings.workout.tableRepetitions)).toBeTruthy();
       expect(
         getByLabelText(`Dumbbell Curl ${appStrings.workout.weightLabel}`)
-      ).toHaveProp('value', '17,5');
+      ).toHaveProp('accessibilityValue', { text: '17,5 kilogram' });
       expect(
         getByLabelText(`Dumbbell Curl ${appStrings.workout.repetitionLabel}`)
-      ).toHaveProp('value', '12');
+      ).toHaveProp('accessibilityValue', { text: '12 tekrar' });
     });
     expect(queryByText('Set 1')).toBeNull();
     expect(
@@ -435,7 +435,7 @@ describe('workout screens', () => {
   });
 
   it('shows a Turkish validation message for an incomplete set', async () => {
-    const { getByLabelText, getByRole, getByText } = await render(
+    const { getByLabelText, getByRole, getByTestId, getByText } = await render(
       <WorkoutExerciseRow
         exercise={{
           ...activeSession.exercises[0]!,
@@ -451,7 +451,11 @@ describe('workout screens', () => {
       />
     );
 
-    await fireEvent.changeText(getByLabelText('Dumbbell Curl Tekrar'), '');
+    await fireEvent.press(getByTestId('Dumbbell Curl Tekrar-inline-display'));
+    await fireEvent.changeText(
+      getByTestId('Dumbbell Curl Tekrar-inline-input'),
+      ''
+    );
 
     await fireEvent.press(
       getByRole('button', { name: 'Dumbbell Curl setini tamamla' })
@@ -484,7 +488,7 @@ describe('workout screens', () => {
       ],
     };
     mockGetSessionDetails.mockResolvedValue(sessionWithCompletedSet);
-    const { getByLabelText, getByRole, getByText } = await render(
+    const { getByLabelText, getByRole, getByTestId, getByText } = await render(
       <ActiveWorkoutScreen />
     );
 
@@ -498,12 +502,18 @@ describe('workout screens', () => {
     );
 
     expect(getByText(appStrings.workout.setEditorTitle)).toBeTruthy();
-    await fireEvent.changeText(
-      getByLabelText('Dumbbell Curl Set 1 Kilo (kg)'),
-      '18,5'
+    await fireEvent.press(
+      getByTestId('Dumbbell Curl Set 1 Kilo (kg)-inline-display')
     );
     await fireEvent.changeText(
-      getByLabelText('Dumbbell Curl Set 1 Tekrar'),
+      getByTestId('Dumbbell Curl Set 1 Kilo (kg)-inline-input'),
+      '18,5'
+    );
+    await fireEvent.press(
+      getByTestId('Dumbbell Curl Set 1 Tekrar-inline-display')
+    );
+    await fireEvent.changeText(
+      getByTestId('Dumbbell Curl Set 1 Tekrar-inline-input'),
       '10'
     );
     await fireEvent.press(

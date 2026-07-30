@@ -25,6 +25,7 @@ type WorkoutExerciseRowProps = {
   ) => Promise<void>;
   onOpenEditor: () => void;
   onOpenHistory?: () => void;
+  onNumericGestureActiveChange?: (active: boolean) => void;
   previousPerformance?: ExerciseAppearance | null;
   previousPerformanceError?: boolean;
   previousPerformanceLoading?: boolean;
@@ -35,6 +36,7 @@ export function WorkoutExerciseRow({
   onComplete,
   onOpenEditor,
   onOpenHistory,
+  onNumericGestureActiveChange,
   previousPerformance = null,
   previousPerformanceError = false,
   previousPerformanceLoading = false,
@@ -166,9 +168,10 @@ export function WorkoutExerciseRow({
         formatValue={String}
         inputMode="numeric"
         keyboardType="number-pad"
-        max={1000}
+        max={100}
         min={1}
         onChangeText={setRepetitions}
+        onGestureActiveChange={onNumericGestureActiveChange}
         parseValue={parseRepetitionInput}
         step={1}
         style={styles.repetitionInput}
@@ -187,6 +190,7 @@ export function WorkoutExerciseRow({
         max={2000}
         min={2.5}
         onChangeText={setWeight}
+        onGestureActiveChange={onNumericGestureActiveChange}
         parseValue={parseWeightInput}
         step={2.5}
         style={styles.weightInput}

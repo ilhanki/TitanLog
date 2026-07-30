@@ -71,6 +71,7 @@ export function ActiveWorkoutScreen() {
   const [performanceLoading, setPerformanceLoading] = useState(true);
   const [performanceError, setPerformanceError] = useState(false);
   const [recordMessage, setRecordMessage] = useState<string | null>(null);
+  const [numericGestureActive, setNumericGestureActive] = useState(false);
   const announcedRecords = useRef(
     new Map<number, Map<PersonalRecordResult['kind'], number>>()
   );
@@ -290,6 +291,7 @@ export function ActiveWorkoutScreen() {
       contentContainerStyle={styles.screenContent}
       edges={['top', 'bottom']}
       keyboardAware
+      scrollViewProps={{ scrollEnabled: !numericGestureActive }}
     >
       <View style={styles.topBar}>
         <AppButton
@@ -429,6 +431,7 @@ export function ActiveWorkoutScreen() {
               )
             }
             onOpenEditor={() => setEditorExerciseId(exercise.id)}
+            onNumericGestureActiveChange={setNumericGestureActive}
             previousPerformance={previous.get(exercise.exerciseId) ?? null}
             previousPerformanceError={performanceError}
             previousPerformanceLoading={performanceLoading}

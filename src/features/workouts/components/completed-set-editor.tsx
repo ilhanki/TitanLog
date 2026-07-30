@@ -34,6 +34,7 @@ type CompletedSetEditorProps = {
 type CompletedSetRowProps = {
   disabled: boolean;
   exerciseName: string;
+  onGestureActiveChange: (active: boolean) => void;
   onSave: (weightKg: number, actualReps: number) => Promise<void>;
   workoutSet: WorkoutSet;
 };
@@ -41,6 +42,7 @@ type CompletedSetRowProps = {
 function CompletedSetRow({
   disabled,
   exerciseName,
+  onGestureActiveChange,
   onSave,
   workoutSet,
 }: CompletedSetRowProps) {
@@ -88,6 +90,7 @@ function CompletedSetRow({
         max={2000}
         min={2.5}
         onChangeText={setWeight}
+        onGestureActiveChange={onGestureActiveChange}
         parseValue={parseWeightInput}
         step={2.5}
         style={styles.input}
@@ -100,9 +103,10 @@ function CompletedSetRow({
         formatValue={String}
         inputMode="numeric"
         keyboardType="number-pad"
-        max={1000}
+        max={100}
         min={1}
         onChangeText={setRepetitions}
+        onGestureActiveChange={onGestureActiveChange}
         parseValue={parseRepetitionInput}
         step={1}
         style={styles.repetitionInput}
@@ -141,6 +145,7 @@ export function CompletedSetEditor({
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pendingRef = useRef(false);
+  const [numericGestureActive, setNumericGestureActive] = useState(false);
 
   const runAction = async (key: string, action: () => Promise<void>) => {
     if (pendingRef.current) return;
@@ -194,12 +199,14 @@ export function CompletedSetEditor({
             contentContainerStyle={styles.content}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
+            scrollEnabled={!numericGestureActive}
           >
             {completedSets.map((workoutSet) => (
               <CompletedSetRow
                 disabled={pendingKey !== null}
                 exerciseName={exercise?.name ?? ''}
                 key={workoutSet.id}
+                onGestureActiveChange={setNumericGestureActive}
                 onSave={(weightKg, actualReps) =>
                   runAction(`save-${workoutSet.id}`, () =>
                     onSaveSet(workoutSet.id, weightKg, actualReps)

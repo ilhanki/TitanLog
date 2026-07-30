@@ -5,6 +5,8 @@ import { Keyboard } from 'react-native';
 import { WeightSelectorField } from '@/components/weight-selector-field';
 import {
   getInlineWheelStep,
+  getInlineWheelStepDifference,
+  getInlineWheelTranslation,
   getInlineWheelValues,
   InlineNumericWheelField,
   shouldCaptureInlineWheelGesture,
@@ -19,9 +21,11 @@ import {
 function WeightHarness({
   disabled = false,
   initialValue = '50',
+  onGestureActiveChange,
 }: {
   disabled?: boolean;
   initialValue?: string;
+  onGestureActiveChange?: (active: boolean) => void;
 }) {
   const [value, setValue] = useState(initialValue);
   return (
@@ -34,6 +38,7 @@ function WeightHarness({
       max={2000}
       min={2.5}
       onChangeText={setValue}
+      onGestureActiveChange={onGestureActiveChange}
       parseValue={parseWeightInput}
       step={2.5}
       unit="kilogram"
@@ -50,7 +55,7 @@ function RepetitionHarness() {
       formatValue={String}
       inputMode="numeric"
       keyboardType="number-pad"
-      max={1000}
+      max={100}
       min={1}
       onChangeText={setValue}
       parseValue={parseRepetitionInput}
@@ -93,33 +98,32 @@ const weightOptions = {
 };
 
 describe('inline numeric wheel field', () => {
-  it('maps downward movement to increase and upward movement to decrease', () => {
+  it('maps accumulated downward and upward movement to only newly crossed steps', () => {
     expect(getInlineWheelStep(20)).toBe(1);
     expect(getInlineWheelStep(-20)).toBe(-1);
-    expect(getInlineWheelStep(7)).toBe(0);
-    expect(stepInlineNumericValue('50', 1, weightOptions)).toBe('52,5');
-    expect(stepInlineNumericValue('50', -1, weightOptions)).toBe('47,5');
-    expect(
-      stepInlineNumericValue('12', 1, {
-        formatValue: String,
-        max: 1000,
-        min: 1,
-        parseValue: parseRepetitionInput,
-        step: 1,
-      })
-    ).toBe('13');
-    expect(
-      stepInlineNumericValue('12', -1, {
-        formatValue: String,
-        max: 1000,
-        min: 1,
-        parseValue: parseRepetitionInput,
-        step: 1,
-      })
-    ).toBe('11');
+    expect(getInlineWheelStepDifference(37, 1)).toBe(1);
+    expect(getInlineWheelStepDifference(-37, -1)).toBe(-1);
+    expect(getInlineWheelStepDifference(20, 1)).toBe(0);
+    expect(getInlineWheelTranslation(12)).toBeLessThanOrEqual(9);
+    expect(getInlineWheelTranslation(-12)).toBeGreaterThanOrEqual(-9);
   });
 
-  it('shows higher values above and lower values below without rounding exact drafts', () => {
+  it('changes repetitions by one and weight by 2.5 in the approved direction', () => {
+    expect(stepInlineNumericValue('50', 1, weightOptions)).toBe('52,5');
+    expect(stepInlineNumericValue('50', -1, weightOptions)).toBe('47,5');
+    const repetitionOptions = {
+      formatValue: String,
+      max: 100,
+      min: 1,
+      parseValue: parseRepetitionInput,
+      step: 1,
+    };
+    expect(stepInlineNumericValue('12', 1, repetitionOptions)).toBe('13');
+    expect(stepInlineNumericValue('12', -1, repetitionOptions)).toBe('11');
+    expect(stepInlineNumericValue('100', 1, repetitionOptions)).toBe('100');
+  });
+
+  it('shows larger values above, smaller values below, and preserves exact drafts', () => {
     expect(getInlineWheelValues('50', weightOptions)).toEqual([
       '52,5',
       '50',
@@ -137,131 +141,137 @@ describe('inline numeric wheel field', () => {
     ]);
   });
 
-  it('captures only deliberate vertical movement and leaves taps and horizontal gestures free', () => {
+  it('activates only deliberate dominant vertical movement', () => {
     expect(shouldCaptureInlineWheelGesture(0, 7)).toBe(false);
-    expect(shouldCaptureInlineWheelGesture(12, 8)).toBe(false);
+    expect(shouldCaptureInlineWheelGesture(8, 9)).toBe(false);
     expect(shouldCaptureInlineWheelGesture(0, 8)).toBe(true);
     expect(shouldCaptureInlineWheelGesture(0, -8)).toBe(true);
     expect(shouldCaptureInlineWheelGesture(0, 20, true)).toBe(false);
+    expect(shouldCaptureInlineWheelGesture(0, 20, false, true)).toBe(false);
   });
 
-  it('opens typing only after a tap and never opens an extra picker panel', async () => {
+  it('owns the complete display surface without mounting an intercepting TextInput', async () => {
     const { getByTestId, queryByTestId } = await render(<WeightHarness />);
-    const input = getByTestId('Lat Pulldown Kilo (kg)-inline-input');
+    const surface = getByTestId('Lat Pulldown Kilo (kg)-inline-wheel');
 
+    expect(surface).toHaveProp('onMoveShouldSetResponder');
+    expect(surface).toHaveProp('onMoveShouldSetResponderCapture');
+    expect(surface).toHaveProp('onResponderTerminationRequest');
+    expect(getByTestId('Lat Pulldown Kilo (kg)-inline-display')).toBeTruthy();
+    expect(queryByTestId('Lat Pulldown Kilo (kg)-inline-input')).toBeNull();
+  });
+
+  it('mounts and focuses TextInput only after a genuine tap', async () => {
+    const { getByTestId, queryByTestId } = await render(<WeightHarness />);
+
+    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-display'));
+
+    const input = getByTestId('Lat Pulldown Kilo (kg)-inline-input');
     expect(input).toHaveProp('editable', true);
-    expect(input).toHaveStyle({ opacity: 0 });
-    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-wheel'));
-    expect(input).toHaveProp('editable', true);
-    expect(input).not.toHaveStyle({ opacity: 0 });
     expect(input).toHaveProp('value', '50');
+    expect(queryByTestId('Lat Pulldown Kilo (kg)-inline-display')).toBeNull();
     expect(queryByTestId('weight-wheel-modal')).toBeNull();
   });
 
   it('accepts comma and period drafts, submits locally, and dismisses the keyboard', async () => {
     const dismiss = jest.spyOn(Keyboard, 'dismiss');
-    const { getByTestId } = await render(<WeightHarness />);
+    const { getByTestId, queryByTestId } = await render(<WeightHarness />);
+    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-display'));
     const input = getByTestId('Lat Pulldown Kilo (kg)-inline-input');
 
-    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-wheel'));
     await fireEvent.changeText(input, '57,5');
-    expect(input).toHaveProp('value', '57,5');
     await fireEvent.changeText(input, '57.5');
     await fireEvent(input, 'submitEditing');
 
-    expect(input).toHaveProp('value', '57.5');
-    expect(input).toHaveProp('editable', true);
+    expect(queryByTestId('Lat Pulldown Kilo (kg)-inline-input')).toBeNull();
+    expect(getByTestId('Lat Pulldown Kilo (kg)-inline-display')).toHaveProp(
+      'accessibilityValue',
+      { text: '57.5 kilogram' }
+    );
     expect(dismiss).toHaveBeenCalled();
     dismiss.mockRestore();
   });
 
-  it('restores the last valid draft on blur and keeps exact valid values', async () => {
+  it('restores the last valid value after invalid editing ends', async () => {
     const { getByTestId } = await render(<WeightHarness initialValue="18" />);
+    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-display'));
     const input = getByTestId('Lat Pulldown Kilo (kg)-inline-input');
-
-    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-wheel'));
     await fireEvent.changeText(input, 'geçersiz');
     await fireEvent(input, 'blur');
 
-    expect(input).toHaveProp('value', '18');
-    expect(input).toHaveStyle({ opacity: 0 });
+    expect(getByTestId('Lat Pulldown Kilo (kg)-inline-display')).toHaveProp(
+      'accessibilityValue',
+      { text: '18 kilogram' }
+    );
   });
 
-  it('allows only one inline field to stay in typing mode', async () => {
-    const { getByTestId } = await render(<TwoFieldHarness />);
-    const weight = getByTestId('Lat Pulldown Kilo (kg)-inline-input');
-    const repetitions = getByTestId('Lat Pulldown tekrar sayısı-inline-input');
-
-    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-wheel'));
-    expect(weight).not.toHaveStyle({ opacity: 0 });
+  it('allows only one inline field to edit at a time', async () => {
+    const { getByTestId, queryByTestId } = await render(<TwoFieldHarness />);
+    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-display'));
     await fireEvent.press(
-      getByTestId('Lat Pulldown tekrar sayısı-inline-wheel')
+      getByTestId('Lat Pulldown tekrar sayısı-inline-display')
     );
 
-    expect(weight).toHaveStyle({ opacity: 0 });
-    expect(repetitions).not.toHaveStyle({ opacity: 0 });
+    expect(queryByTestId('Lat Pulldown Kilo (kg)-inline-input')).toBeNull();
+    expect(getByTestId('Lat Pulldown tekrar sayısı-inline-input')).toBeTruthy();
   });
 
-  it('supports semantic accessible increment and decrement with the Turkish hint', async () => {
+  it('keeps semantic accessibility actions and the truthful Turkish hint', async () => {
     const { getByTestId } = await render(<WeightHarness />);
-    const field = getByTestId('Lat Pulldown Kilo (kg)-inline-input');
+    const field = getByTestId('Lat Pulldown Kilo (kg)-inline-display');
 
+    expect(field).toHaveProp('accessibilityRole', 'adjustable');
     expect(field).toHaveProp(
       'accessibilityHint',
       'Aşağı kaydırarak artır, yukarı kaydırarak azalt; yazmak için dokun.'
     );
-    expect(field).toHaveProp('accessibilityValue', {
-      text: '50 kilogram',
-    });
     await fireEvent(field, 'accessibilityAction', {
       nativeEvent: { actionName: 'increment' },
     });
-    expect(getByTestId('Lat Pulldown Kilo (kg)-inline-input')).toHaveProp(
-      'value',
-      '52,5'
+    expect(getByTestId('Lat Pulldown Kilo (kg)-inline-display')).toHaveProp(
+      'accessibilityValue',
+      { text: '52,5 kilogram' }
     );
     await fireEvent(
-      getByTestId('Lat Pulldown Kilo (kg)-inline-input'),
+      getByTestId('Lat Pulldown Kilo (kg)-inline-display'),
       'accessibilityAction',
-      {
-        nativeEvent: { actionName: 'decrement' },
-      }
+      { nativeEvent: { actionName: 'decrement' } }
     );
-    expect(getByTestId('Lat Pulldown Kilo (kg)-inline-input')).toHaveProp(
-      'value',
-      '50'
+    expect(getByTestId('Lat Pulldown Kilo (kg)-inline-display')).toHaveProp(
+      'accessibilityValue',
+      { text: '50 kilogram' }
     );
   });
 
-  it('keeps completed or pending fields locked', async () => {
-    const { getByTestId } = await render(<WeightHarness disabled />);
-    const input = getByTestId('Lat Pulldown Kilo (kg)-inline-input');
-
-    expect(input).toHaveProp('editable', false);
-    await fireEvent(
-      getByTestId('Lat Pulldown Kilo (kg)-inline-input'),
-      'accessibilityAction',
-      {
-        nativeEvent: { actionName: 'increment' },
-      }
+  it('prevents disabled fields from dragging, typing, or adjusting', async () => {
+    const { getByTestId, queryByTestId } = await render(
+      <WeightHarness disabled />
     );
-    expect(input).toHaveProp('value', '50');
+    const display = getByTestId('Lat Pulldown Kilo (kg)-inline-display');
+    await fireEvent.press(display);
+    await fireEvent(display, 'accessibilityAction', {
+      nativeEvent: { actionName: 'increment' },
+    });
+
+    expect(queryByTestId('Lat Pulldown Kilo (kg)-inline-input')).toBeNull();
+    expect(display).toHaveProp('accessibilityValue', {
+      text: '50 kilogram',
+    });
   });
 
-  it('keeps exercise default weight inline while body modal behavior stays separate', async () => {
+  it('keeps exercise defaults inline while the body-weight modal stays separate', async () => {
     const { getByTestId, queryByTestId } = await render(
       <ExerciseDefaultWeightHarness />
     );
-
     await fireEvent(
-      getByTestId('Varsayılan ağırlık-inline-input'),
+      getByTestId('Varsayılan ağırlık-inline-display'),
       'accessibilityAction',
       { nativeEvent: { actionName: 'increment' } }
     );
 
-    expect(getByTestId('Varsayılan ağırlık-inline-input')).toHaveProp(
-      'value',
-      '20'
+    expect(getByTestId('Varsayılan ağırlık-inline-display')).toHaveProp(
+      'accessibilityValue',
+      { text: '20 kilogram' }
     );
     expect(queryByTestId('weight-wheel-modal')).toBeNull();
   });

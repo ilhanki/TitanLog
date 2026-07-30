@@ -112,7 +112,7 @@ function StatefulExerciseRow({
 describe('compact workout table', () => {
   it('shows previous performance and opens history without changing the draft', async () => {
     const onOpenHistory = jest.fn();
-    const { getByLabelText, getByRole, getByText, queryByTestId } =
+    const { getByLabelText, getByRole, getByTestId, getByText, queryByTestId } =
       await render(
         <WorkoutExerciseRow
           exercise={createExercise(1, 'Lat Pulldown')}
@@ -132,15 +132,16 @@ describe('compact workout table', () => {
     );
     expect(onOpenHistory).toHaveBeenCalledTimes(1);
 
+    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-display'));
     await fireEvent.changeText(
-      getByLabelText('Lat Pulldown Kilo (kg)'),
+      getByTestId('Lat Pulldown Kilo (kg)-inline-input'),
       '52,5'
     );
     expect(getByText('Geçen: en yüksek 55 kg · 2 set')).toBeTruthy();
     expect(queryByTestId('weight-wheel-modal')).toBeNull();
     expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
-      'value',
-      '52,5'
+      'accessibilityValue',
+      { text: '52,5 kilogram' }
     );
   });
 
@@ -156,7 +157,10 @@ describe('compact workout table', () => {
     );
 
     expect(getByText('Geçmiş yükleniyor')).toBeTruthy();
-    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('editable', true);
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp(
+      'accessibilityRole',
+      'adjustable'
+    );
     await rerender(
       <WorkoutExerciseRow
         exercise={exercise}
@@ -169,8 +173,8 @@ describe('compact workout table', () => {
       getByText(appStrings.workout.previousPerformanceUnavailable)
     ).toBeTruthy();
     expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
-      'editable',
-      true
+      'accessibilityRole',
+      'adjustable'
     );
   });
   it('renders every exercise simultaneously as one editable row', async () => {
@@ -196,10 +200,10 @@ describe('compact workout table', () => {
       expect(getByText(exercise.name)).toBeTruthy();
       expect(
         getByLabelText(`${exercise.name} ${appStrings.workout.weightLabel}`)
-      ).toHaveProp('value', '50');
+      ).toHaveProp('accessibilityValue', { text: '50 kilogram' });
       expect(
         getByLabelText(`${exercise.name} ${appStrings.workout.repetitionLabel}`)
-      ).toHaveProp('value', '12');
+      ).toHaveProp('accessibilityValue', { text: '12 tekrar' });
       expect(getByLabelText(`${exercise.name} setini tamamla`)).toBeTruthy();
     }
     expect(JSON.stringify(toJSON())).not.toContain('"horizontal":true');
@@ -217,8 +221,14 @@ describe('compact workout table', () => {
       />
     );
 
-    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '12');
-    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp('value', '50');
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp(
+      'accessibilityValue',
+      { text: '12 tekrar' }
+    );
+    expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
+      'accessibilityValue',
+      { text: '50 kilogram' }
+    );
   });
 
   it('updates only the active row draft through inline wheel actions', async () => {
@@ -240,8 +250,8 @@ describe('compact workout table', () => {
     );
 
     expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
-      'value',
-      '52,5'
+      'accessibilityValue',
+      { text: '52,5 kilogram' }
     );
     expect(queryByTestId('weight-wheel-modal')).toBeNull();
     expect(onComplete).not.toHaveBeenCalled();
@@ -259,7 +269,10 @@ describe('compact workout table', () => {
       />
     );
 
-    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '10');
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp(
+      'accessibilityValue',
+      { text: '10 tekrar' }
+    );
   });
 
   it('prefers persisted actual repetitions and preserves an edited draft', async () => {
@@ -268,17 +281,19 @@ describe('compact workout table', () => {
     });
     const onComplete = jest.fn();
     const onOpenEditor = jest.fn();
-    const { getByLabelText, rerender } = await render(
+    const { getByLabelText, getByTestId, rerender } = await render(
       <WorkoutExerciseRow
         exercise={exercise}
         onComplete={onComplete}
         onOpenEditor={onOpenEditor}
       />
     );
-    const repetitionInput = getByLabelText('Lat Pulldown Tekrar');
-
-    expect(repetitionInput).toHaveProp('value', '8');
-    expect(repetitionInput).toHaveProp('editable', true);
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp(
+      'accessibilityValue',
+      { text: '8 tekrar' }
+    );
+    await fireEvent.press(getByTestId('Lat Pulldown Tekrar-inline-display'));
+    const repetitionInput = getByTestId('Lat Pulldown Tekrar-inline-input');
     await fireEvent.changeText(repetitionInput, '9');
     await rerender(
       <WorkoutExerciseRow
@@ -308,28 +323,39 @@ describe('compact workout table', () => {
       />
     );
 
-    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '12');
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp(
+      'accessibilityValue',
+      { text: '12 tekrar' }
+    );
   });
 
   it('advances the same row and inherits values after completion', async () => {
-    const { getByLabelText, getByText } = await render(
+    const { getByLabelText, getByTestId, getByText } = await render(
       <StatefulExerciseRow exercise={createExercise(1, 'Lat Pulldown')} />
     );
 
+    await fireEvent.press(getByTestId('Lat Pulldown Kilo (kg)-inline-display'));
     await fireEvent.changeText(
-      getByLabelText('Lat Pulldown Kilo (kg)'),
+      getByTestId('Lat Pulldown Kilo (kg)-inline-input'),
       '52,5'
     );
-    await fireEvent.changeText(getByLabelText('Lat Pulldown Tekrar'), '10');
+    await fireEvent.press(getByTestId('Lat Pulldown Tekrar-inline-display'));
+    await fireEvent.changeText(
+      getByTestId('Lat Pulldown Tekrar-inline-input'),
+      '10'
+    );
     await fireEvent.press(getByLabelText('Lat Pulldown setini tamamla'));
 
     await waitFor(() => expect(getByText('1/3')).toBeTruthy());
     expect(getByText('Lat Pulldown')).toBeTruthy();
     expect(getByLabelText('Lat Pulldown Kilo (kg)')).toHaveProp(
-      'value',
-      '52,5'
+      'accessibilityValue',
+      { text: '52,5 kilogram' }
     );
-    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp('value', '10');
+    expect(getByLabelText('Lat Pulldown Tekrar')).toHaveProp(
+      'accessibilityValue',
+      { text: '10 tekrar' }
+    );
   });
 
   it('keeps a fully completed exercise visible in the same row', async () => {
@@ -429,8 +455,8 @@ describe('compact workout table', () => {
       { nativeEvent: { actionName: 'increment' } }
     );
     expect(getByLabelText('Lat Pulldown Set 1 Kilo (kg)')).toHaveProp(
-      'value',
-      '52,5'
+      'accessibilityValue',
+      { text: '52,5 kilogram' }
     );
     expect(queryByTestId('weight-wheel-modal')).toBeNull();
     await fireEvent.press(

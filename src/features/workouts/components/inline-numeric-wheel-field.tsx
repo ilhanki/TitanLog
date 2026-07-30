@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
   PanResponder,
@@ -21,6 +21,7 @@ import { theme } from '@/theme/tokens';
 export const INLINE_WHEEL_ITEM_HEIGHT = 18;
 export const INLINE_WHEEL_STEP_DISTANCE = INLINE_WHEEL_ITEM_HEIGHT;
 export const INLINE_WHEEL_GESTURE_THRESHOLD = 8;
+export const INLINE_WHEEL_VERTICAL_DOMINANCE_RATIO = 1.25;
 const INLINE_WHEEL_CONTENT_PADDING =
   (theme.layout.compactTouchTarget - INLINE_WHEEL_ITEM_HEIGHT) / 2;
 
@@ -28,15 +29,34 @@ export function getInlineWheelStep(distanceY: number): number {
   return Math.trunc(distanceY / INLINE_WHEEL_STEP_DISTANCE);
 }
 
+export function getInlineWheelStepDifference(
+  accumulatedDistanceY: number,
+  appliedStepCount: number
+): number {
+  return getInlineWheelStep(accumulatedDistanceY) - appliedStepCount;
+}
+
+export function getInlineWheelTranslation(distanceY: number): number {
+  const appliedDistance =
+    getInlineWheelStep(distanceY) * INLINE_WHEEL_STEP_DISTANCE;
+  return Math.max(
+    -INLINE_WHEEL_ITEM_HEIGHT / 2,
+    Math.min(INLINE_WHEEL_ITEM_HEIGHT / 2, distanceY - appliedDistance)
+  );
+}
+
 export function shouldCaptureInlineWheelGesture(
   distanceX: number,
   distanceY: number,
-  disabled = false
+  disabled = false,
+  editing = false
 ): boolean {
   return (
     !disabled &&
+    !editing &&
     Math.abs(distanceY) >= INLINE_WHEEL_GESTURE_THRESHOLD &&
-    Math.abs(distanceY) > Math.abs(distanceX)
+    Math.abs(distanceY) >
+      Math.abs(distanceX) * INLINE_WHEEL_VERTICAL_DOMINANCE_RATIO
   );
 }
 
@@ -51,6 +71,7 @@ type InlineNumericWheelFieldProps = {
   max: number;
   min: number;
   onChangeText: (value: string) => void;
+  onGestureActiveChange?: (active: boolean) => void;
   parseValue: (value: string) => number | null;
   step: number;
   style?: StyleProp<ViewStyle>;
@@ -113,6 +134,7 @@ export function InlineNumericWheelField({
   max,
   min,
   onChangeText,
+  onGestureActiveChange,
   parseValue,
   step,
   style,
@@ -122,14 +144,35 @@ export function InlineNumericWheelField({
   const valueRef = useRef(value);
   const lastValidValueRef = useRef(value);
   const gestureStepRef = useRef(0);
+  const gestureActiveRef = useRef(false);
+  const disabledRef = useRef(disabled);
+  const editingRef = useRef(false);
   const editorIdRef = useRef(Symbol(accessibilityLabel));
   const inputRef = useRef<TextInput>(null);
+  const changeByRef = useRef<(direction: number) => void>(() => undefined);
+  const finishEditingRef = useRef<(dismissKeyboard?: boolean) => void>(
+    () => undefined
+  );
+  const gestureActiveChangeRef = useRef(onGestureActiveChange);
   const [editing, setEditing] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [translationY, setTranslationY] = useState(0);
+
+  disabledRef.current = disabled;
+  editingRef.current = editing;
+  gestureActiveChangeRef.current = onGestureActiveChange;
 
   useEffect(() => {
     valueRef.current = value;
     if (parseValue(value) !== null) lastValidValueRef.current = value;
   }, [parseValue, value]);
+
+  const setGestureActive = useCallback((active: boolean) => {
+    if (gestureActiveRef.current === active) return;
+    gestureActiveRef.current = active;
+    setDragging(active);
+    gestureActiveChangeRef.current?.(active);
+  }, []);
 
   const finishEditing = useCallback(
     (dismissKeyboard = true) => {
@@ -144,16 +187,22 @@ export function InlineNumericWheelField({
       if (activeInlineEditor?.id === editorIdRef.current) {
         activeInlineEditor = null;
       }
+      editingRef.current = false;
       setEditing(false);
       if (dismissKeyboard) Keyboard.dismiss();
     },
     [onChangeText, parseValue]
   );
+  finishEditingRef.current = finishEditing;
 
   useEffect(
     () => () => {
       if (activeInlineEditor?.id === editorIdRef.current) {
         activeInlineEditor = null;
+      }
+      if (gestureActiveRef.current) {
+        gestureActiveRef.current = false;
+        gestureActiveChangeRef.current?.(false);
       }
     },
     []
@@ -168,17 +217,18 @@ export function InlineNumericWheelField({
   }, [editing, finishEditing]);
 
   const beginEditing = useCallback(() => {
-    if (disabled || editing) return;
+    if (disabledRef.current || editingRef.current) return;
     if (activeInlineEditor?.id !== editorIdRef.current) {
       activeInlineEditor?.finish(false);
       activeInlineEditor = {
-        finish: finishEditing,
+        finish: finishEditingRef.current,
         id: editorIdRef.current,
       };
     }
+    editingRef.current = true;
     setEditing(true);
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, [disabled, editing, finishEditing]);
+  }, []);
 
   const handleChangeText = useCallback(
     (next: string) => {
@@ -191,7 +241,7 @@ export function InlineNumericWheelField({
 
   const changeBy = useCallback(
     (direction: number) => {
-      if (disabled) return;
+      if (disabledRef.current) return;
       const next = stepInlineNumericValue(valueRef.current, direction, {
         formatValue,
         max,
@@ -201,36 +251,57 @@ export function InlineNumericWheelField({
       });
       if (next === valueRef.current) return;
       valueRef.current = next;
+      lastValidValueRef.current = next;
       onChangeText(next);
     },
-    [disabled, formatValue, max, min, onChangeText, parseValue, step]
+    [formatValue, max, min, onChangeText, parseValue, step]
   );
+  changeByRef.current = changeBy;
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, gesture) =>
-          shouldCaptureInlineWheelGesture(gesture.dx, gesture.dy, disabled),
-        onPanResponderGrant: () => {
-          if (editing) finishEditing();
-          gestureStepRef.current = 0;
-          Keyboard.dismiss();
-        },
-        onPanResponderMove: (_, gesture) => {
-          const currentStep = getInlineWheelStep(gesture.dy);
-          const difference = currentStep - gestureStepRef.current;
-          if (difference === 0) return;
-          gestureStepRef.current = currentStep;
-          changeBy(difference);
-        },
-        onPanResponderRelease: () => {
-          gestureStepRef.current = 0;
-        },
-        onPanResponderTerminate: () => {
-          gestureStepRef.current = 0;
-        },
-      }),
-    [changeBy, disabled, editing, finishEditing]
+  const finishGesture = useCallback(() => {
+    gestureStepRef.current = 0;
+    setTranslationY(0);
+    setGestureActive(false);
+  }, [setGestureActive]);
+
+  const panResponderRef = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        shouldCaptureInlineWheelGesture(
+          gesture.dx,
+          gesture.dy,
+          disabledRef.current,
+          editingRef.current
+        ),
+      onMoveShouldSetPanResponderCapture: (_, gesture) =>
+        shouldCaptureInlineWheelGesture(
+          gesture.dx,
+          gesture.dy,
+          disabledRef.current,
+          editingRef.current
+        ),
+      onPanResponderGrant: () => {
+        gestureStepRef.current = 0;
+        Keyboard.dismiss();
+        setGestureActive(true);
+      },
+      onPanResponderMove: (_, gesture) => {
+        const difference = getInlineWheelStepDifference(
+          gesture.dy,
+          gestureStepRef.current
+        );
+        if (difference !== 0) {
+          gestureStepRef.current += difference;
+          changeByRef.current(difference);
+        }
+        setTranslationY(getInlineWheelTranslation(gesture.dy));
+      },
+      onPanResponderRelease: finishGesture,
+      onPanResponderTerminate: finishGesture,
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+    })
   );
 
   const wheelOptions = { formatValue, max, min, parseValue, step };
@@ -238,60 +309,85 @@ export function InlineNumericWheelField({
     value,
     wheelOptions
   );
+  const interactionHint = `${appStrings.common.inlineWheelHint}${accessibilityHint ? ` ${accessibilityHint}` : ''}`;
 
   return (
-    <Pressable
-      {...panResponder.panHandlers}
-      disabled={disabled}
-      onPress={beginEditing}
+    <View
+      {...panResponderRef.current.panHandlers}
       style={[styles.container, style, disabled && styles.disabled]}
       testID={`${accessibilityLabel}-inline-wheel`}
     >
-      {!editing ? (
-        <View
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          pointerEvents="none"
-          style={styles.wheelValues}
+      {editing ? (
+        <TextInput
+          accessibilityLabel={accessibilityLabel}
+          accessibilityValue={{ text: `${value} ${unit}` }}
+          autoFocus
+          editable={!disabled}
+          inputMode={inputMode}
+          keyboardType={keyboardType}
+          onBlur={() => finishEditing()}
+          onChangeText={handleChangeText}
+          onSubmitEditing={() => finishEditing()}
+          ref={inputRef}
+          selectTextOnFocus
+          submitBehavior="blurAndSubmit"
+          style={[styles.input, inputStyle]}
+          testID={`${accessibilityLabel}-inline-input`}
+          value={value}
+        />
+      ) : (
+        <Pressable
+          accessibilityActions={[
+            { label: appStrings.common.increase, name: 'increment' },
+            { label: appStrings.common.decrease, name: 'decrement' },
+          ]}
+          accessibilityHint={interactionHint}
+          accessibilityLabel={accessibilityLabel}
+          accessibilityRole="adjustable"
+          accessibilityState={{ disabled }}
+          accessibilityValue={{ text: `${value} ${unit}` }}
+          disabled={disabled}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'increment')
+              changeByRef.current(1);
+            if (event.nativeEvent.actionName === 'decrement')
+              changeByRef.current(-1);
+          }}
+          onPress={beginEditing}
+          style={styles.gestureSurface}
+          testID={`${accessibilityLabel}-inline-display`}
         >
-          <AppText style={styles.neighbourValue} variant="caption">
-            {higherValue}
-          </AppText>
-          <AppText style={styles.selectedValue} variant="bodyStrong">
-            {selectedValue}
-          </AppText>
-          <AppText style={styles.neighbourValue} variant="caption">
-            {lowerValue}
-          </AppText>
-        </View>
-      ) : null}
-      <TextInput
-        accessibilityActions={[
-          { label: appStrings.common.increase, name: 'increment' },
-          { label: appStrings.common.decrease, name: 'decrement' },
-        ]}
-        accessibilityHint={`${appStrings.common.inlineWheelHint}${accessibilityHint ? ` ${accessibilityHint}` : ''}`}
-        accessibilityLabel={accessibilityLabel}
-        accessibilityValue={{ text: `${value} ${unit}` }}
-        editable={!disabled}
-        inputMode={inputMode}
-        keyboardType={keyboardType}
-        onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'increment') changeBy(1);
-          if (event.nativeEvent.actionName === 'decrement') changeBy(-1);
-        }}
-        onBlur={() => finishEditing()}
-        onChangeText={handleChangeText}
-        onFocus={beginEditing}
-        onSubmitEditing={() => finishEditing()}
-        ref={inputRef}
-        selectTextOnFocus
-        submitBehavior="blurAndSubmit"
-        style={[styles.input, !editing && styles.hiddenInput, inputStyle]}
-        testID={`${accessibilityLabel}-inline-input`}
-        value={value}
-      />
-    </Pressable>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            pointerEvents="none"
+            style={[
+              styles.wheelValues,
+              { transform: [{ translateY: translationY }] },
+            ]}
+          >
+            <AppText
+              style={[styles.neighbourValue, dragging && styles.dragNeighbour]}
+              variant="caption"
+            >
+              {higherValue}
+            </AppText>
+            <AppText
+              style={[styles.selectedValue, dragging && styles.dragSelected]}
+              variant="bodyStrong"
+            >
+              {selectedValue}
+            </AppText>
+            <AppText
+              style={[styles.neighbourValue, dragging && styles.dragNeighbour]}
+              variant="caption"
+            >
+              {lowerValue}
+            </AppText>
+          </View>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -306,7 +402,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   disabled: { opacity: 0.72 },
-  hiddenInput: { opacity: 0 },
+  dragNeighbour: { opacity: 0.82 },
+  dragSelected: { transform: [{ scale: 0.97 }] },
+  gestureSurface: { flex: 1, justifyContent: 'center' },
   input: {
     color: theme.colors.text,
     flex: 1,
