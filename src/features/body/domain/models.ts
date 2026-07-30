@@ -41,3 +41,13 @@ export type BodyProgress = {
   targetReached: boolean;
   totalChangeKg: number;
 };
+
+export type BodyWeightSummary = {
+  currentSource: 'measurement' | 'profile';
+  currentWeightKg: number;
+  latestMeasurementAt: string | null;
+  measurementCount: number;
+  previousChangeKg: number | null;
+  profile: BodyProfile;
+  progress: BodyProgress;
+};

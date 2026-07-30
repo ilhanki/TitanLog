@@ -6,17 +6,17 @@ import { StyleSheet, View } from 'react-native';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import { WeightSelectorField } from '@/components/weight-selector-field';
 import { EmptyState } from '@/components/empty-state';
-import { ProgressBar } from '@/components/progress-bar';
 import { Screen } from '@/components/screen';
 import { SectionHeader } from '@/components/section-header';
+import { WeightSelectorField } from '@/components/weight-selector-field';
 import { appStrings } from '@/constants/strings';
+import { BodyProgressRail } from '@/features/body/components/body-progress-rail';
+import { MeasurementHistoryRow } from '@/features/body/components/measurement-history-row';
 import {
   BodyProfileError,
   createBodyProfileRepository,
 } from '@/features/body/data/body-profile-repository';
-import type { BodyMeasurement } from '@/features/body/domain/models';
 import { useBodyOverview } from '@/features/body/hooks/use-body-overview';
 import {
   formatBodyDate,
@@ -28,63 +28,11 @@ import {
 } from '@/features/body/utils/body-values';
 import { theme } from '@/theme/tokens';
 
-function MeasurementCard({
-  measurement,
-  older,
-  onOpen,
-}: {
-  measurement: BodyMeasurement;
-  older: BodyMeasurement | null;
-  onOpen: () => void;
-}) {
-  const dimensions = [
-    measurement.waistCm
-      ? `${appStrings.progress.waist}: ${formatBodyValue(measurement.waistCm)} cm`
-      : null,
-    measurement.chestCm
-      ? `${appStrings.progress.chest}: ${formatBodyValue(measurement.chestCm)} cm`
-      : null,
-  ].filter(Boolean);
-  return (
-    <AppCard style={styles.historyCard}>
-      <View style={styles.rowBetween}>
-        <View style={styles.copy}>
-          <AppText variant="bodyStrong">
-            {formatBodyValue(measurement.weightKg)} kg
-          </AppText>
-          <AppText tone="muted" variant="caption">
-            {formatBodyDate(measurement.measuredAt)}
-          </AppText>
-        </View>
-        {older ? (
-          <AppText tone="primary" variant="bodyStrong">
-            {formatSignedBodyValue(measurement.weightKg - older.weightKg)}
-          </AppText>
-        ) : null}
-      </View>
-      {dimensions.length ? (
-        <AppText selectable tone="muted">
-          {dimensions.join(' · ')}
-        </AppText>
-      ) : null}
-      {measurement.note ? (
-        <AppText selectable tone="muted">
-          {measurement.note}
-        </AppText>
-      ) : null}
-      <AppButton
-        label={appStrings.progress.editMeasurement}
-        onPress={onOpen}
-        variant="secondary"
-      />
-    </AppCard>
-  );
-}
-
 export function ProgressScreen() {
   const database = useSQLiteContext();
   const router = useRouter();
-  const { data, error, loading, retry } = useBodyOverview();
+  const { data, error, hasMore, loadMore, loading, loadingMore, retry } =
+    useBodyOverview();
   const [startingWeight, setStartingWeight] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
   const [startingError, setStartingError] = useState<string | null>(null);
@@ -96,35 +44,6 @@ export function ProgressScreen() {
   const [pending, setPending] = useState(false);
   const submissionPending = useRef(false);
 
-  const logSetupFailure = (error: unknown) => {
-    if (!__DEV__) return;
-    const diagnosticError =
-      error instanceof BodyProfileError && error.cause ? error.cause : error;
-    const record =
-      typeof diagnosticError === 'object' && diagnosticError !== null
-        ? (diagnosticError as Record<string, unknown>)
-        : null;
-    const message =
-      diagnosticError instanceof Error
-        ? diagnosticError.message
-            .replace(/(['"]).*?\1/g, '$1[redacted]$1')
-            .replace(/\b\d+(?:[.,]\d+)?\b/g, '[number]')
-            .slice(0, 240)
-        : 'Unknown error';
-    console.error('[BodyProfileSetup] Profile creation failed', {
-      code:
-        typeof record?.code === 'string' || typeof record?.code === 'number'
-          ? String(record.code)
-          : undefined,
-      message,
-      name:
-        diagnosticError instanceof Error
-          ? diagnosticError.name
-          : 'UnknownError',
-      operation: 'createProfileWithInitialMeasurement',
-    });
-  };
-
   const saveProfile = async () => {
     if (submissionPending.current) return;
     setStartingError(null);
@@ -135,9 +54,7 @@ export function ProgressScreen() {
     const target = parseBodyWeight(targetWeight);
     if (starting === null) setStartingError(appStrings.progress.invalidWeight);
     if (target === null) setTargetError(appStrings.progress.invalidWeight);
-    if (starting === null || target === null) {
-      return;
-    }
+    if (starting === null || target === null) return;
     if (starting === target) {
       setRelationshipError(appStrings.progress.equalGoal);
       return;
@@ -149,14 +66,19 @@ export function ProgressScreen() {
         database
       ).createProfileWithInitialMeasurement(starting, target);
       retry();
-    } catch (error) {
+    } catch (caught) {
       if (
-        error instanceof BodyProfileError &&
-        error.code === 'profile_exists'
+        caught instanceof BodyProfileError &&
+        caught.code === 'profile_exists'
       ) {
         retry();
       } else {
-        logSetupFailure(error);
+        if (__DEV__) {
+          console.error('[BodyProfileSetup] Profile creation failed', {
+            code: caught instanceof BodyProfileError ? caught.code : 'unknown',
+            operation: 'createProfileWithInitialMeasurement',
+          });
+        }
         setSubmissionError(appStrings.progress.saveError);
       }
     } finally {
@@ -168,11 +90,13 @@ export function ProgressScreen() {
   if (loading) {
     return (
       <Screen>
-        <EmptyState
-          description={appStrings.progress.loading}
-          icon="chart-timeline-variant"
-          title={appStrings.database.loadingTitle}
-        />
+        <AppText accessibilityRole="header" variant="title">
+          Gelişim
+        </AppText>
+        <AppCard style={styles.loadingCard}>
+          <AppText variant="heading">Verilerin hazırlanıyor</AppText>
+          <AppText tone="muted">Kayıtlı ölçümlerin güvenle yükleniyor.</AppText>
+        </AppCard>
       </Screen>
     );
   }
@@ -180,28 +104,32 @@ export function ProgressScreen() {
   if (error) {
     return (
       <Screen>
+        <AppText accessibilityRole="header" variant="title">
+          Gelişim
+        </AppText>
         <EmptyState
           description={appStrings.progress.loadError}
           icon="alert-circle-outline"
-          title={appStrings.database.errorTitle}
+          title="Gelişim verileri açılamadı"
         />
         <AppButton label={appStrings.progress.retry} onPress={retry} />
       </Screen>
     );
   }
 
-  if (!data.profile || !data.latest || !data.progress) {
+  if (!data.profile || !data.summary) {
     return (
       <Screen keyboardAware>
         <AppText accessibilityRole="header" variant="title">
-          {appStrings.progress.title}
+          Gelişim
         </AppText>
         <AppCard style={styles.setup} tone="raised">
           <AppText accessibilityRole="header" variant="heading">
-            {appStrings.progress.setupTitle}
+            Gelişimini Takip Et
           </AppText>
           <AppText selectable tone="muted">
-            {appStrings.progress.setupDescription}
+            Kilo hedefini ve ölçümlerini eklediğinde değişimini burada
+            görebilirsin.
           </AppText>
           <WeightSelectorField
             editable={!pending}
@@ -221,11 +149,6 @@ export function ProgressScreen() {
             title="Hedef Kilonu Seç"
             value={targetWeight}
           />
-          <AppButton
-            disabled={pending}
-            label={appStrings.progress.saveGoal}
-            onPress={() => void saveProfile()}
-          />
           {relationshipError || submissionError ? (
             <AppText
               accessibilityLiveRegion="polite"
@@ -237,137 +160,195 @@ export function ProgressScreen() {
               {relationshipError ?? submissionError}
             </AppText>
           ) : null}
+          <AppButton
+            disabled={pending}
+            label={appStrings.progress.saveGoal}
+            onPress={() => void saveProfile()}
+          />
         </AppCard>
       </Screen>
     );
   }
 
-  const { profile, progress } = data;
-  const summary = [
-    { label: appStrings.progress.start, value: profile.startingWeightKg },
-    { label: appStrings.progress.current, value: progress.currentWeightKg },
-    { label: appStrings.progress.target, value: profile.targetWeightKg },
+  const { summary } = data;
+  const { profile, progress } = summary;
+  const lastMeasurement = summary.latestMeasurementAt
+    ? formatBodyDate(summary.latestMeasurementAt)
+    : 'Henüz ölçüm eklenmedi';
+  const remainingText = progress.targetReached
+    ? 'Hedef değerine ulaşıldı'
+    : `${formatBodyValue(progress.remainingWeightKg)} kg kaldı`;
+  const statistics = [
+    {
+      label: 'Toplam Değişim',
+      value: formatSignedBodyValue(progress.totalChangeKg),
+    },
+    { label: 'Hedefe Kalan', value: remainingText },
+    { label: 'Son Ölçüm', value: lastMeasurement },
+    { label: 'Ölçüm Sayısı', value: String(summary.measurementCount) },
   ];
 
   return (
     <Screen>
       <AppText accessibilityRole="header" variant="title">
-        {appStrings.progress.title}
+        Gelişim
       </AppText>
-      <AppCard style={styles.mainCard} tone="accent">
-        <View style={styles.rowBetween}>
-          <View style={styles.copy}>
-            <AppText tone="primary" variant="label">
-              {appStrings.progress.currentWeight}
+
+      <AppCard
+        accessibilityLabel={`Güncel kilo ${formatBodyValue(summary.currentWeightKg)} kilogram. Başlangıç ${formatBodyValue(profile.startingWeightKg)} kilogram. Hedef ${formatBodyValue(profile.targetWeightKg)} kilogram. ${remainingText}.`}
+        accessible
+        style={styles.hero}
+        tone="raised"
+      >
+        <AppText tone="primary" variant="label">
+          Güncel Kilo
+        </AppText>
+        <AppText selectable style={styles.currentWeight} variant="display">
+          {formatBodyValue(summary.currentWeightKg)} kg
+        </AppText>
+        <View style={styles.heroSupport}>
+          <View style={styles.heroMetric}>
+            <AppText tone="muted" variant="caption">
+              Başlangıçtan
             </AppText>
-            <AppText variant="metric">
-              {formatBodyValue(progress.currentWeightKg)} kg
+            <AppText selectable style={styles.number} variant="bodyStrong">
+              {formatSignedBodyValue(progress.totalChangeKg)}
             </AppText>
           </View>
-          <AppText tone="primary" variant="heading">
-            %{progress.progressPercentage}
-          </AppText>
+          <View style={[styles.heroMetric, styles.heroMetricEnd]}>
+            <AppText tone="muted" variant="caption">
+              Hedefe Kalan
+            </AppText>
+            <AppText selectable style={styles.number} variant="bodyStrong">
+              {progress.targetReached
+                ? '0 kg'
+                : `${formatBodyValue(progress.remainingWeightKg)} kg`}
+            </AppText>
+          </View>
         </View>
-        <ProgressBar
-          accessibilityLabel={`${appStrings.progress.title}: %${progress.progressPercentage}`}
-          progress={progress.progress}
-        />
-        <AppText selectable tone={progress.targetReached ? 'success' : 'muted'}>
-          {progress.targetReached
-            ? appStrings.progress.reached
-            : `${appStrings.progress.remaining}: ${formatBodyValue(progress.remainingWeightKg)} kg`}
+        <AppText selectable tone="muted" variant="caption">
+          {summary.currentSource === 'measurement'
+            ? `Son ölçüm · ${lastMeasurement}`
+            : 'Profil başlangıç değeri · Henüz ölçüm değil'}
         </AppText>
       </AppCard>
 
-      <View style={styles.summaryGrid}>
-        {summary.map((item) => (
-          <AppCard key={item.label} style={styles.summaryCard}>
-            <AppText tone="muted" variant="caption">
-              {item.label}
-            </AppText>
-            <AppText variant="bodyStrong">
-              {formatBodyValue(item.value)} kg
-            </AppText>
-          </AppCard>
-        ))}
-        <AppCard style={styles.summaryCard}>
-          <AppText tone="muted" variant="caption">
-            {appStrings.progress.totalChange}
-          </AppText>
-          <AppText variant="bodyStrong">
-            {formatSignedBodyValue(progress.totalChangeKg)}
-          </AppText>
-        </AppCard>
-      </View>
-
-      <AppCard style={styles.copy}>
-        <AppText variant="bodyStrong">
-          {appStrings.progress.latestChange}
-        </AppText>
-        <AppText selectable tone="muted">
-          {progress.changeFromPreviousKg === null
-            ? appStrings.progress.noPreviousChange
-            : formatSignedBodyValue(progress.changeFromPreviousKg)}
-        </AppText>
+      <AppCard style={styles.railCard}>
+        <BodyProgressRail summary={summary} />
       </AppCard>
 
       <View style={styles.actions}>
         <AppButton
-          label={appStrings.progress.addMeasurement}
+          label="Yeni Ölçüm"
           onPress={() => router.push('/progress/add' as Href)}
           style={styles.action}
         />
         <AppButton
-          label={appStrings.progress.editGoal}
+          label="Hedefi Düzenle"
           onPress={() => router.push('/progress/settings' as Href)}
           style={styles.action}
           variant="secondary"
         />
       </View>
 
+      <View style={styles.statistics}>
+        {statistics.map((item) => (
+          <View key={item.label} style={styles.statistic}>
+            <AppText tone="muted" variant="caption">
+              {item.label}
+            </AppText>
+            <AppText selectable style={styles.number} variant="bodyStrong">
+              {item.value || '—'}
+            </AppText>
+          </View>
+        ))}
+      </View>
+
       <View style={styles.section}>
-        <SectionHeader title={appStrings.progress.history} />
-        {data.measurements.length === 1 ? (
-          <EmptyState
-            description={appStrings.progress.noExtraMeasurementDescription}
-            icon="scale-bathroom"
-            title={appStrings.progress.noExtraMeasurement}
+        <SectionHeader title="Ölçüm Geçmişi" />
+        {data.measurements.length === 0 ? (
+          <AppCard style={styles.emptyHistory}>
+            <AppText variant="bodyStrong">Henüz ölçüm eklenmedi</AppText>
+            <AppText tone="muted">
+              İlk ölçümünü eklediğinde değişim burada görünür.
+            </AppText>
+            <AppButton
+              label="İlk Ölçümü Ekle"
+              onPress={() => router.push('/progress/add' as Href)}
+              variant="secondary"
+            />
+          </AppCard>
+        ) : (
+          <View style={styles.historyList}>
+            {data.measurements.map((measurement, index) => (
+              <MeasurementHistoryRow
+                key={measurement.id}
+                latest={index === 0}
+                measurement={measurement}
+                older={data.measurements[index + 1] ?? null}
+                onPress={() =>
+                  router.push(`/progress/measurement/${measurement.id}` as Href)
+                }
+              />
+            ))}
+          </View>
+        )}
+        {hasMore ? (
+          <AppButton
+            disabled={loadingMore}
+            label={
+              loadingMore ? 'Ölçümler Yükleniyor' : 'Daha Fazla Ölçüm Göster'
+            }
+            onPress={loadMore}
+            variant="ghost"
           />
         ) : null}
-        {data.measurements.map((measurement, index) => (
-          <MeasurementCard
-            key={measurement.id}
-            measurement={measurement}
-            older={data.measurements[index + 1] ?? null}
-            onOpen={() =>
-              router.push(`/progress/measurement/${measurement.id}` as Href)
-            }
-          />
-        ))}
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  action: { flexGrow: 1 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md },
-  copy: { gap: theme.spacing.sm },
-  historyCard: { gap: theme.spacing.md },
-  mainCard: { gap: theme.spacing.lg },
-  rowBetween: {
-    alignItems: 'center',
+  action: { flex: 1 },
+  actions: { flexDirection: 'row', gap: theme.spacing.sm },
+  currentWeight: { fontVariant: ['tabular-nums'] },
+  emptyHistory: { gap: theme.spacing.md },
+  hero: { gap: theme.spacing.md },
+  heroMetric: { flex: 1, gap: theme.spacing.xs },
+  heroMetricEnd: { alignItems: 'flex-end' },
+  heroSupport: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: theme.spacing.md,
     justifyContent: 'space-between',
   },
-  section: { gap: theme.spacing.lg },
+  historyList: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.lg,
+    borderWidth: theme.borders.thin,
+    overflow: 'hidden',
+  },
+  loadingCard: { gap: theme.spacing.md, minHeight: 132 },
+  number: { fontVariant: ['tabular-nums'] },
+  railCard: { gap: theme.spacing.md },
+  section: { gap: theme.spacing.md },
   setup: { gap: theme.spacing.lg },
-  summaryCard: { flexBasis: '46%', flexGrow: 1, gap: theme.spacing.xs },
-  summaryGrid: {
+  statistic: {
+    borderBottomColor: theme.colors.border,
+    borderBottomWidth: theme.borders.hairline,
+    flexBasis: '46%',
+    flexGrow: 1,
+    gap: theme.spacing.xs,
+    minHeight: 58,
+    padding: theme.spacing.md,
+  },
+  statistics: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.lg,
+    borderWidth: theme.borders.thin,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: theme.spacing.md,
+    overflow: 'hidden',
   },
 });

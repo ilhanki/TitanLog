@@ -59,10 +59,17 @@ export function createBodyMeasurementRepository(database: SQLiteDatabase) {
   };
 
   return {
-    async listMeasurements(): Promise<BodyMeasurement[]> {
+    async listMeasurements(limit = 20, offset = 0): Promise<BodyMeasurement[]> {
+      const safeLimit = Number.isSafeInteger(limit)
+        ? Math.min(Math.max(limit, 1), 100)
+        : 20;
+      const safeOffset = Number.isSafeInteger(offset) ? Math.max(offset, 0) : 0;
       const rows = await database.getAllAsync<MeasurementRow>(
         `SELECT ${selectFields} FROM body_measurements
-         ORDER BY measured_at DESC, created_at DESC, id DESC`
+         ORDER BY measured_at DESC, created_at DESC, id DESC
+         LIMIT ? OFFSET ?`,
+        safeLimit,
+        safeOffset
       );
       return rows.map(mapMeasurement);
     },

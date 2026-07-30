@@ -2,6 +2,7 @@ import type {
   BodyMeasurement,
   BodyProfile,
   BodyProgress,
+  BodyWeightSummary,
 } from '@/features/body/domain/models';
 
 const WEIGHT_MIN_KG = 20;
@@ -52,15 +53,20 @@ export function calculateBodyProgress(
   const { startingWeightKg, targetWeightKg } = profile;
   const currentWeightKg = latest.weightKg;
   const direction = targetWeightKg > startingWeightKg ? 'gain' : 'loss';
-  const rawProgress =
-    direction === 'loss'
+  const equalGoal = startingWeightKg === targetWeightKg;
+  const rawProgress = equalGoal
+    ? currentWeightKg === targetWeightKg
+      ? 1
+      : 0
+    : direction === 'loss'
       ? (startingWeightKg - currentWeightKg) /
         (startingWeightKg - targetWeightKg)
       : (currentWeightKg - startingWeightKg) /
         (targetWeightKg - startingWeightKg);
   const progress = Math.min(Math.max(rawProgress, 0), 1);
-  const targetReached =
-    direction === 'loss'
+  const targetReached = equalGoal
+    ? currentWeightKg === targetWeightKg
+    : direction === 'loss'
       ? currentWeightKg <= targetWeightKg
       : currentWeightKg >= targetWeightKg;
 
@@ -75,5 +81,52 @@ export function calculateBodyProgress(
       : Math.abs(targetWeightKg - currentWeightKg),
     targetReached,
     totalChangeKg: currentWeightKg - startingWeightKg,
+  };
+}
+
+export function isValidBodyWeight(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+export function getValidBodyMeasurements(
+  measurements: readonly BodyMeasurement[]
+): BodyMeasurement[] {
+  return measurements.filter(
+    (measurement) =>
+      isValidBodyWeight(measurement.weightKg) &&
+      Number.isFinite(new Date(measurement.measuredAt).getTime())
+  );
+}
+
+export function createBodyWeightSummary(
+  profile: BodyProfile | null,
+  measurements: readonly BodyMeasurement[],
+  measurementCount = measurements.length
+): BodyWeightSummary | null {
+  if (
+    !profile ||
+    !isValidBodyWeight(profile.startingWeightKg) ||
+    !isValidBodyWeight(profile.targetWeightKg)
+  ) {
+    return null;
+  }
+  const validMeasurements = getValidBodyMeasurements(measurements);
+  const latest = validMeasurements[0] ?? null;
+  const previous = validMeasurements[1] ?? null;
+  const currentWeightKg = latest?.weightKg ?? profile.startingWeightKg;
+  const progress = calculateBodyProgress(
+    profile,
+    { weightKg: currentWeightKg },
+    previous
+  );
+  return {
+    currentSource: latest ? 'measurement' : 'profile',
+    currentWeightKg,
+    latestMeasurementAt: latest?.measuredAt ?? null,
+    measurementCount: Math.max(measurementCount, validMeasurements.length),
+    previousChangeKg:
+      latest && previous ? latest.weightKg - previous.weightKg : null,
+    profile,
+    progress,
   };
 }
