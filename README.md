@@ -116,6 +116,7 @@ Expo Router'daki parantezli gruplar URL'nin parçası değildir. Aşağıdaki ta
 | `/profile`                               | Yerel profil ve uygulama bilgileri                |
 | `/profile/data`                          | Hesap, yerel yedek ve özel bulut yedeği yönetimi  |
 | `/auth/reset-password`                   | Doğrulanmış bağlantıyla şifre yenileme            |
+| `/auth/callback`                         | E-posta doğrulama callback'ini güvenle tamamlama  |
 
 `/auth/sign-in` ve `/auth/sign-up` isteğe bağlı hesap rotalarıdır. Supabase ortamı yapılandırılmadığında gerçek uzak başarı gösterilmez; yerel uygulama işlevleri ve yerel yedekleme kullanılmaya devam eder.
 

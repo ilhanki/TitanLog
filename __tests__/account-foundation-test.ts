@@ -1,4 +1,5 @@
 import {
+  completeAuthCallback,
   completePasswordReset,
   requestAccountDeletion,
   requestPasswordReset,
@@ -65,7 +66,12 @@ describe('optional account foundation', () => {
       password: 'password',
     });
     expect(mockSignUp).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'user@example.com' })
+      expect.objectContaining({
+        email: 'user@example.com',
+        options: expect.objectContaining({
+          emailRedirectTo: 'titanlog://auth/callback',
+        }),
+      })
     );
   });
 
@@ -83,6 +89,14 @@ describe('optional account foundation', () => {
     );
     expect(mockExchangeCodeForSession).toHaveBeenCalledWith('verified-code');
     expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'new-password' });
+  });
+
+  it('handles the verified email callback and rejects an unrelated route', async () => {
+    await completeAuthCallback('titanlog://auth/callback?code=callback-code');
+    expect(mockExchangeCodeForSession).toHaveBeenCalledWith('callback-code');
+    await expect(
+      completeAuthCallback('titanlog://profile?code=callback-code')
+    ).rejects.toMatchObject({ code: 'remote_failure' });
   });
 
   it('clears only the local session on sign-out', async () => {

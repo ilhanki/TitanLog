@@ -13,6 +13,7 @@ import { theme } from '@/theme/tokens';
 
 export function ResetPasswordScreen() {
   const router = useRouter();
+  const callbackUrl = Linking.useLinkingURL();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -33,10 +34,9 @@ export function ResetPasswordScreen() {
     setPending(true);
     setNotice(null);
     try {
-      const url = await Linking.getInitialURL();
-      if (!url) throw new Error('callback_missing');
-      await completePasswordReset(url, password);
-      router.replace('/auth/sign-in');
+      if (!callbackUrl) throw new Error('callback_missing');
+      await completePasswordReset(callbackUrl, password);
+      router.replace('/(tabs)/profile');
     } catch {
       setNotice(
         'Şifre yenileme bağlantısı geçersiz veya süresi dolmuş olabilir.'
@@ -82,6 +82,12 @@ export function ResetPasswordScreen() {
           disabled={pending}
           label={pending ? 'Güncelleniyor…' : 'Şifreyi Güncelle'}
           onPress={() => void submit()}
+        />
+        <AppButton
+          disabled={pending}
+          label="Vazgeç"
+          onPress={() => router.back()}
+          variant="ghost"
         />
       </AppCard>
     </Screen>

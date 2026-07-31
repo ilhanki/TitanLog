@@ -1,5 +1,8 @@
 import { getSupabaseClient } from '@/features/auth/supabase-client';
 
+export const AUTH_CALLBACK_URL = 'titanlog://auth/callback';
+export const PASSWORD_RESET_CALLBACK_URL = 'titanlog://auth/reset-password';
+
 export class AccountError extends Error {
   constructor(
     readonly code: 'not_configured' | 'not_authenticated' | 'remote_failure'
@@ -30,7 +33,10 @@ export async function signUp(
   const { data, error } = await requireClient().auth.signUp({
     email: email.trim().toLowerCase(),
     password,
-    options: { data: { display_name: name.trim() } },
+    options: {
+      data: { display_name: name.trim() },
+      emailRedirectTo: AUTH_CALLBACK_URL,
+    },
   });
   if (error) throw new AccountError('remote_failure');
   return data.session ? 'signed_in' : 'verification_required';
@@ -39,19 +45,34 @@ export async function signUp(
 export async function requestPasswordReset(email: string): Promise<void> {
   const { error } = await requireClient().auth.resetPasswordForEmail(
     email.trim().toLowerCase(),
-    { redirectTo: 'titanlog://auth/reset-password' }
+    { redirectTo: PASSWORD_RESET_CALLBACK_URL }
   );
   if (error) throw new AccountError('remote_failure');
 }
 
-export async function completePasswordReset(
+async function establishSessionFromCallback(
   callbackUrl: string,
-  password: string
+  expectedPath: '/callback' | '/reset-password'
 ): Promise<void> {
   const client = requireClient();
-  const parsedUrl = new URL(callbackUrl);
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(callbackUrl);
+  } catch {
+    throw new AccountError('remote_failure');
+  }
+  if (
+    parsedUrl.protocol !== 'titanlog:' ||
+    parsedUrl.hostname !== 'auth' ||
+    parsedUrl.pathname !== expectedPath
+  ) {
+    throw new AccountError('remote_failure');
+  }
   const query = new URLSearchParams(parsedUrl.search);
   const fragment = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
+  if (query.has('error') || fragment.has('error')) {
+    throw new AccountError('remote_failure');
+  }
   const code = query.get('code');
   if (code) {
     const { error } = await client.auth.exchangeCodeForSession(code);
@@ -68,6 +89,18 @@ export async function completePasswordReset(
     });
     if (error) throw new AccountError('remote_failure');
   }
+}
+
+export async function completeAuthCallback(callbackUrl: string): Promise<void> {
+  await establishSessionFromCallback(callbackUrl, '/callback');
+}
+
+export async function completePasswordReset(
+  callbackUrl: string,
+  password: string
+): Promise<void> {
+  const client = requireClient();
+  await establishSessionFromCallback(callbackUrl, '/reset-password');
   const { error } = await client.auth.updateUser({ password });
   if (error) throw new AccountError('remote_failure');
 }
