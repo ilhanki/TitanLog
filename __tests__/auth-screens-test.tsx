@@ -7,6 +7,7 @@ import { SignUpScreen } from '@/features/auth/sign-up-screen';
 
 const mockRouter = {
   back: jest.fn(),
+  replace: jest.fn(),
 };
 
 jest.mock('expo-router', () => ({
@@ -39,7 +40,7 @@ describe('authentication interface screens', () => {
     ).toBeTruthy();
   });
 
-  it('shows a development notice instead of pretending to sign in', async () => {
+  it('shows a safe error when the remote account client is not configured', async () => {
     const { getByLabelText, getByRole, getByText } = await render(
       <SignInScreen />
     );
@@ -56,17 +57,24 @@ describe('authentication interface screens', () => {
       getByRole('button', { name: appStrings.auth.signIn })
     );
 
-    expect(getByText(appStrings.auth.developmentNotice)).toBeTruthy();
+    expect(getByText(appStrings.auth.safeError)).toBeTruthy();
   });
 
-  it('shows a truthful notice for unavailable password recovery', async () => {
-    const { getByRole, getByText } = await render(<SignInScreen />);
+  it('does not fake password recovery when the remote client is unavailable', async () => {
+    const { getByLabelText, getByRole, getByText } = await render(
+      <SignInScreen />
+    );
+
+    await fireEvent.changeText(
+      getByLabelText(appStrings.auth.emailLabel),
+      'test@example.com'
+    );
 
     await fireEvent.press(
       getByRole('button', { name: appStrings.auth.forgotPassword })
     );
 
-    expect(getByText(appStrings.auth.passwordResetNotice)).toBeTruthy();
+    expect(getByText(appStrings.auth.safeError)).toBeTruthy();
   });
 
   it('validates password confirmation without creating an account', async () => {
@@ -95,6 +103,6 @@ describe('authentication interface screens', () => {
     );
 
     expect(getByText(appStrings.auth.validation.passwordMismatch)).toBeTruthy();
-    expect(queryByText(appStrings.auth.developmentNotice)).toBeNull();
+    expect(queryByText(appStrings.auth.safeError)).toBeNull();
   });
 });
