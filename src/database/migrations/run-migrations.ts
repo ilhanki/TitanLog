@@ -3,8 +3,14 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { migration001 } from '@/database/migrations/migration-001';
 import { migration002 } from '@/database/migrations/migration-002';
 import { migration003 } from '@/database/migrations/migration-003';
+import { migration004 } from '@/database/migrations/migration-004';
 
-const migrations = [migration001, migration002, migration003] as const;
+const migrations = [
+  migration001,
+  migration002,
+  migration003,
+  migration004,
+] as const;
 
 type UserVersionRow = {
   user_version: number;

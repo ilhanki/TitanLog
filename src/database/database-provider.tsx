@@ -16,6 +16,7 @@ import { AppText } from '@/components/app-text';
 import { appStrings } from '@/constants/strings';
 import { DATABASE_NAME } from '@/database/database-name';
 import { initializeDatabase } from '@/database/initialize-database';
+import { DatasetAccessGuard } from '@/features/data-safety/dataset-access-guard';
 import { theme } from '@/theme/tokens';
 
 type DatabaseErrorBoundaryProps = PropsWithChildren<{
@@ -120,7 +121,7 @@ export function DatabaseProvider({ children }: PropsWithChildren) {
           onInit={onInit}
           useSuspense
         >
-          {children}
+          <DatasetAccessGuard>{children}</DatasetAccessGuard>
         </SQLiteProvider>
       </Suspense>
     </DatabaseErrorBoundary>

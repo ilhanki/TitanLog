@@ -40,6 +40,12 @@ yarn-error.*
 # tests
 coverage/
 
+# personal data and local database artifacts
+*.titanlog
+*.sqlite
+*.sqlite3
+*.db
+
 # typescript
 *.tsbuildinfo
 
