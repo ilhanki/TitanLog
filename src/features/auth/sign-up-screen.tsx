@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -9,6 +10,7 @@ import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
 import { AuthLink } from '@/features/auth/auth-link';
 import { AuthScreenHeader } from '@/features/auth/auth-screen-header';
+import { signUp } from '@/features/auth/auth-service';
 import {
   hasFieldErrors,
   validateSignUp,
@@ -25,11 +27,14 @@ const initialFields: SignUpFields = {
 };
 
 export function SignUpScreen() {
+  const router = useRouter();
   const [fields, setFields] = useState(initialFields);
   const [errors, setErrors] = useState<FieldErrors<SignUpFields>>({});
   const [notice, setNotice] = useState<string>();
+  const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const nextErrors = validateSignUp(fields);
     setErrors(nextErrors);
 
@@ -38,7 +43,22 @@ export function SignUpScreen() {
       return;
     }
 
-    setNotice(appStrings.auth.developmentNotice);
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    try {
+      const result = await signUp(fields.name, fields.email, fields.password);
+      if (result === 'verification_required') {
+        setNotice(appStrings.auth.verificationSent);
+      } else {
+        router.replace('/(tabs)/profile');
+      }
+    } catch {
+      setNotice(appStrings.auth.safeError);
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
   }
 
   return (
@@ -99,7 +119,11 @@ export function SignUpScreen() {
           secureTextEntry
           value={fields.passwordConfirmation}
         />
-        <AppButton label={appStrings.auth.signUp} onPress={handleSubmit} />
+        <AppButton
+          disabled={pending}
+          label={pending ? 'Hesap oluşturuluyor…' : appStrings.auth.signUp}
+          onPress={() => void handleSubmit()}
+        />
         {notice ? (
           <AppText
             accessibilityLiveRegion="polite"

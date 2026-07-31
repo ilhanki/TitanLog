@@ -23,10 +23,14 @@ export function validateSignIn(
 
   if (isBlank(fields.email)) {
     errors.email = appStrings.auth.validation.emailRequired;
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) {
+    errors.email = appStrings.auth.validation.emailInvalid;
   }
 
   if (isBlank(fields.password)) {
     errors.password = appStrings.auth.validation.passwordRequired;
+  } else if (fields.password.length < 8) {
+    errors.password = appStrings.auth.validation.passwordTooShort;
   }
 
   return errors;

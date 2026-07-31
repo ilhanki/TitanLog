@@ -40,10 +40,18 @@ export const appStrings = {
     existingAccountPrompt: 'Zaten hesabın var mı? Giriş Yap',
     developmentNotice: 'Hesap işlemleri şu anda kullanılamıyor.',
     passwordResetNotice: 'Şifre yenileme şu anda kullanılamıyor.',
+    passwordResetSent:
+      'Şifre yenileme bağlantısı gönderildiyse e-posta kutunda görünecek.',
+    verificationSent:
+      'Hesabın oluşturuldu. Devam etmek için e-posta adresini doğrula.',
+    safeError:
+      'Hesap işlemi tamamlanamadı. Bağlantını ve bilgilerini kontrol edip tekrar dene.',
     validation: {
       nameRequired: 'Ad soyad alanı zorunludur.',
       emailRequired: 'E-posta alanı zorunludur.',
+      emailInvalid: 'Geçerli bir e-posta adresi gir.',
       passwordRequired: 'Şifre alanı zorunludur.',
+      passwordTooShort: 'Şifre en az 8 karakter olmalıdır.',
       passwordConfirmationRequired: 'Şifre tekrarı alanı zorunludur.',
       passwordMismatch: 'Şifreler eşleşmiyor.',
     },
