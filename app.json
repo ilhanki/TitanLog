@@ -2,7 +2,7 @@
   "expo": {
     "name": "TitanLog",
     "slug": "titanlog",
-    "description": "Antrenman, beslenme ve ilerleme takibi için geliştirilen mobil fitness uygulaması.",
+    "description": "Çevrimdışı antrenman ve ilerleme takibi için geliştirilen mobil fitness uygulaması.",
     "githubUrl": "https://github.com/ilhanki/TitanLog",
     "version": "0.1.0",
     "orientation": "portrait",
