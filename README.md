@@ -2,7 +2,7 @@
 
 TitanLog; antrenman programını, aktif set takibini, vücut ölçümlerini ve geçmiş karşılaştırmalarını cihaz üzerinde saklayan Android öncelikli, çevrimdışı çalışan bir fitness takip uygulamasıdır.
 
-Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1.0-alpha.9`, güncel yerel geliştirme sürümü ise Sprint 9 için hazırlanan `0.1.0-alpha.10`'dur. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
+Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1.0-alpha.9`, güncel yerel geliştirme sürümü ise birleşik Sprint 10–11 için hazırlanan `0.1.0-alpha.11`'dir. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
 
 [![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
 [![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-20232A?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
@@ -90,7 +90,10 @@ Egzersiz rekorları yalnız geçerli ve tamamlanmış setlerden hesaplanır; eş
 - İçe aktarma öncesinde biçim, boyut, değer ve referans bütünlüğü doğrulaması
 - Mevcut yerel verinin tamamını tek transaction içinde değiştiren, birleştirme yapmayan geri yükleme
 - İsteğe bağlı Supabase e-posta/şifre hesabı ve SecureStore tabanlı kalıcı mobil oturum
-- Kullanıcının açık eylemiyle çalışan tek özel bulut yedeği; otomatik veya arka plan eşitlemesi yok
+- Kullanıcının açık eylemiyle çalışan, manuel bulut yedeğinden ayrı revizyonlu cihaz eşitleme akışı
+- Değişmez tam veri kümesi snapshot'ları, deterministik SHA-256 özeti ve eski cihaz yazmalarını engelleyen compare-and-swap uzak başlık
+- Yerel ve bulut verisi birlikte değiştiğinde sessiz kazanan seçmek yerine açık çatışma çözümü
+- Yıkıcı bulut indirmesinden önce uygulamaya özel konumda tek bir yerel kurtarma arşivi
 - Bir yerel veri kümesi için misafir veya açıkça onaylanmış tek hesap sahipliği
 - Hesap uyuşmazlığında başka hesaba ait veriyi sessizce gösterme ya da yüklemeyi engelleyen koruma
 
@@ -114,7 +117,7 @@ Expo Router'daki parantezli gruplar URL'nin parçası değildir. Aşağıdaki ta
 | `/progress/measurement/[measurementId]`  | Mevcut ölçümü düzenleme                           |
 | `/progress/settings`                     | Başlangıç ve hedef kilo ayarları                  |
 | `/profile`                               | Yerel profil ve uygulama bilgileri                |
-| `/profile/data`                          | Hesap, yerel yedek ve özel bulut yedeği yönetimi  |
+| `/profile/data`                          | Hesap, yedekler ve manuel cihaz eşitleme yönetimi |
 | `/auth/reset-password`                   | Doğrulanmış bağlantıyla şifre yenileme            |
 | `/auth/callback`                         | E-posta doğrulama callback'ini güvenle tamamlama  |
 
@@ -122,20 +125,21 @@ Expo Router'daki parantezli gruplar URL'nin parçası değildir. Aşağıdaki ta
 
 ## Teknoloji yığını
 
-| Teknoloji                    | Sürüm / rol                                    |
-| ---------------------------- | ---------------------------------------------- |
-| React                        | `19.1.0`                                       |
-| React Native                 | `0.81.5`                                       |
-| Expo                         | SDK `54` (`~54.0.35`)                          |
-| Expo Router                  | `~6.0.24`, dosya tabanlı yönlendirme           |
-| Expo SQLite                  | `~16.0.10`, yerel kalıcılık                    |
-| Expo FileSystem / Sharing    | Geçici yerel yedek ve sistem paylaşımı         |
-| Expo SecureStore             | Mobil Supabase oturumunun güvenli saklanması   |
-| Supabase JS                  | İsteğe bağlı hesap ve manuel özel bulut yedeği |
-| TypeScript                   | `~5.9.2`, sıkı statik kontrol                  |
-| Jest                         | `~29.7.0`, otomatik testler                    |
-| React Native Testing Library | `^14.0.1`, etkileşim testleri                  |
-| ESLint / Prettier            | Kod kalitesi ve biçim tutarlılığı              |
+| Teknoloji                    | Sürüm / rol                                       |
+| ---------------------------- | ------------------------------------------------- |
+| React                        | `19.1.0`                                          |
+| React Native                 | `0.81.5`                                          |
+| Expo                         | SDK `54` (`~54.0.35`)                             |
+| Expo Router                  | `~6.0.24`, dosya tabanlı yönlendirme              |
+| Expo SQLite                  | `~16.0.10`, yerel kalıcılık                       |
+| Expo FileSystem / Sharing    | Yerel yedek, kurtarma kopyası ve paylaşım         |
+| Expo Crypto / Network        | SHA-256 içerik özeti ve çevrimdışı ağ kontrolü    |
+| Expo SecureStore             | Mobil Supabase oturumunun güvenli saklanması      |
+| Supabase JS                  | İsteğe bağlı hesap, özel yedek ve manuel eşitleme |
+| TypeScript                   | `~5.9.2`, sıkı statik kontrol                     |
+| Jest                         | `~29.7.0`, otomatik testler                       |
+| React Native Testing Library | `^14.0.1`, etkileşim testleri                     |
+| ESLint / Prettier            | Kod kalitesi ve biçim tutarlılığı                 |
 
 ## Mimari
 
@@ -148,7 +152,7 @@ flowchart LR
     Screens --> Repositories["Tipli repository ve veri güvenliği katmanı<br/>src/features/"]
     Repositories --> SQLite["Expo SQLite"]
     Screens --> SecureStore["Expo SecureStore<br/>yalnız oturum"]
-    Screens --> Supabase["Supabase Auth + özel Storage<br/>yalnız açık kullanıcı eylemi"]
+    Screens --> Supabase["Supabase Auth + özel Storage<br/>yedek ve revizyonlu eşitleme"]
     Migrations["Sıralı migration'lar ve seed<br/>src/database/"] --> SQLite
     Tests["Jest ve RNTL<br/>__tests__/"] -. doğrular .-> Screens
     Tests -. doğrular .-> Repositories
@@ -170,7 +174,10 @@ Başlıca yapı taşları:
 - Geri yükleme birleştirme yapmaz; doğrulanmış yedek mevcut yerel veri kümesinin tamamının yerini alır ve hata halinde transaction geri alınır.
 - Erişim ve yenileme token'ları SQLite'a, yedek dosyasına, loglara veya README'ye yazılmaz; mobilde Expo SecureStore kullanılır.
 - Bulut yedeği canlı eşitleme değildir. Yalnız kullanıcı düğmeye bastığında, oturum açmış kullanıcının özel `<user-id>/latest.titanlog` nesnesi yüklenir veya indirilir.
-- Storage bucket public değildir; RLS politikaları başka kullanıcıların nesne ve metadata erişimini engeller.
+- Cihaz eşitleme de yalnız kullanıcının açık eylemiyle çalışır; arka plan, realtime veya otomatik giriş eşitlemesi yapmaz. Her başarılı gönderim yeni ve değişmez bir revizyon üretir.
+- İndirme, yerel veriyi değiştirmeden önce boyut, SHA-256, arşiv sürümü ve ilişki bütünlüğünü yeniden doğrular; sonra tek exclusive transaction kullanır.
+- Eşitleme bookkeeping verisi fitness arşivine, içerik özetine veya kurtarma kopyasına girmez.
+- Storage bucket'ları public değildir; RLS politikaları başka kullanıcıların nesne ve metadata erişimini engeller.
 - Çıkış yapmak yerel antrenman verisini silmez. Uzak hesap silme sunucu tarafı Edge Function ve yakın tarihli oturum gerektirir.
 - Depoya `.env`, token, kişisel yedek, SQLite dosyası, üretilmiş export veya makine yolu dahil edilmez.
 
@@ -208,7 +215,7 @@ EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-Anon/publishable anahtar istemciye açık bir anahtardır ve yalnız RLS ile korunmuş işlemler için kullanılır. Service-role anahtarı uygulamaya konmaz. Özel bucket, metadata RLS politikaları ve hesap silme Edge Function kurulumu [`supabase/README.md`](supabase/README.md) içinde açıklanır.
+Anon/publishable anahtar istemciye açık bir anahtardır ve yalnız RLS ile korunmuş işlemler için kullanılır. Service-role anahtarı uygulamaya konmaz. SQL sırası, özel bucket'lar, Edge Function'lar ve gerçek ortam kabul planı [`supabase/README.md`](supabase/README.md) ile [`docs/manual-device-sync.md`](docs/manual-device-sync.md) içinde açıklanır.
 
 ## Kullanılabilir komutlar
 
@@ -236,14 +243,15 @@ npm test -- --runInBand
 npx expo-doctor
 ```
 
-Mevcut test paketi repository ve SQLite davranışlarını, migration ve seed akışlarını, ekran etkileşimlerini, Home durum önceliğini, vücut gelişimi hesaplarını, hedef izolasyonunu, program düzenlemeyi, antrenman ve egzersiz geçmişini, kimlik eşleştirmeyi, önceki performans ile kişisel rekor kurallarını, Titan Iron temasını ve ağırlık seçim çarklarını kapsar. Fiziksel cihaz testi otomatik kontrollerin yerine geçmez; ikisi birlikte kullanılır.
+Mevcut test paketi repository ve SQLite davranışlarının yanında deterministik arşiv hashing'ini, migration 4→5 geçişini, revizyon karar matrisini, eski yazma engelini, kurtarma arşivini, ilişki bütünlüğünü ve statik SQL/RLS güvenlik sınırlarını kapsar. Fiziksel cihaz ve gerçek Supabase testleri otomatik kontrollerin yerine geçmez; üçü birlikte kullanılır.
 
 ## Veritabanı ve migration'lar
 
-- Güncel şema sürümü `4`'tür.
+- Güncel yerel SQLite şema sürümü `5`'tir. `.titanlog` veri şeması geriye uyumluluk için `4`, arşiv biçimi ise `1` olarak kalır.
 - Migration'lar sürüm sırasıyla ve işlem içinde uygulanır.
 - Migration 1–3 yayımlanmış şema geçmişidir ve geriye dönük olarak düzenlenmemelidir.
 - Migration 4 mevcut verileri yeniden yazmadan kurulum kimliği, isteğe bağlı sahip hesap ve son yedek zamanlarını tek `dataset_metadata` satırında tutar.
+- Migration 5 yalnız son kabul edilen uzak revizyon/özet, son eşitlenen yerel özet, başarılı eşitleme zamanı, güvenli sonuç kodu ve isteğe bağlı işlem kimliği tutan tekil `sync_state` kaydını ekler; fitness tablolarını yeniden yazmaz.
 - Tamamlanan antrenmanlar, sonradan değişen programdan bağımsız salt okunur snapshot'lar saklar.
 - Oturum egzersizi snapshot'ları kalıcı egzersiz kimliğini korur; böylece yeniden adlandırma geçmiş bağlantısını bozmaz.
 - Önceki performans ve rekor sorguları yalnız tamamlanmış, aktif oturumdan daha eski kayıtları kullanır.
@@ -266,7 +274,7 @@ TitanLog/
 │   ├── components/              # Ortak arayüz bileşenleri
 │   ├── constants/               # Merkezi Türkçe metinler
 │   ├── database/                # Migration, seed ve veritabanı kurulumu
-│   ├── features/                # Ürün, auth ve data-safety modülleri
+│   ├── features/                # Ürün, auth, data-safety ve sync modülleri
 │   └── theme/                   # Titan Iron tasarım token'ları
 ├── __tests__/                   # Repository, ekran ve davranış testleri
 ├── assets/                      # Uygulama görsel varlıkları
@@ -280,14 +288,14 @@ TitanLog/
 
 TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelini kullanır. Yayımlanan kilometre taşları mevcut HEAD üzerinde açıklamalı Git tag'leriyle işaretlenir ve fiziksel cihaz doğrulamasından sonra yayımlanır.
 
-- Yerel paket hazırlığı: `0.1.0-alpha.10`
+- Yerel paket hazırlığı: `0.1.0-alpha.11`
 - Son yayımlanan tag: `v0.1.0-alpha.9`
-- Planlanan sonraki tag: `v0.1.0-alpha.10`
+- Planlanan sonraki tag: `v0.1.0-alpha.11`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
 
-`v0.1.0-alpha.10` henüz oluşturulmamış veya origin'e gönderilmemiştir. Sprint 9 yerel yedek/geri yükleme, hesap, sahiplik ve manuel bulut akışları Samsung Galaxy A55 doğrulamasını; Supabase e-posta, Storage RLS ve Edge Function davranışları ise yapılandırılmış gerçek uzak ortam doğrulamasını beklemektedir.
+`v0.1.0-alpha.10` hiç oluşturulmamış veya origin'e gönderilmemiştir; birleşik aday onu aşar. `v0.1.0-alpha.11` de henüz oluşturulmamıştır. Hesap, özel Storage, RLS, Edge Function ve iki cihaz davranışları yapılandırılmış gerçek Supabase ortamı ile Samsung Galaxy A55 kabul testini beklemektedir.
 
 ## Yol haritası
 
@@ -301,7 +309,9 @@ TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelin
 - [ ] Birden fazla antrenman programı
 - [x] Kullanıcı kontrollü sürümlü yerel yedek ve replace-only geri yükleme
 - [x] İsteğe bağlı hesap ve manuel özel bulut yedeği temeli
-- [ ] Gerçek çoklu cihaz eşitlemesi ve PT ilişki temeli
+- [x] Güvenli manuel, revizyonlu tam veri kümesi eşitleme temeli
+- [ ] Gerçek Supabase ve iki cihaz kabul doğrulaması
+- [ ] PT–sporcu ilişki temeli
 - [ ] Sağlık platformu entegrasyonları
 - [ ] Üretim mağazası derlemesi ve dağıtımı
 
@@ -311,12 +321,12 @@ Tarihler ve teslim kapsamları fiziksel doğrulama sonuçlarına göre belirleni
 
 - Geliştirme ve fiziksel test önceliği Android'dir.
 - Uygulama erken alfa aşamasında ve Expo Go tabanlı geliştirme akışındadır.
-- Otomatik veya kayıt bazlı çoklu cihaz eşitlemesi yoktur; bulut yalnız manuel tek yedek nesnesidir.
+- Otomatik, arka plan, realtime veya kayıt bazlı merge eşitlemesi yoktur; eşitleme tam veri kümesi snapshot'ı ve açık kullanıcı onayı kullanır.
 - Google Play üzerinde üretim sürümü yayımlanmamıştır.
-- Sprint 9 hesap ve veri güvenliği akışları Samsung Galaxy A55 üzerinde henüz doğrulanmamıştır.
+- Sprint 10–11 cihaz eşitleme akışları Samsung Galaxy A55 ve gerçek Supabase üzerinde henüz doğrulanmamıştır.
 - Egzersiz geçmişinde grafik veya otomatik ağırlık/antrenman önerisi yoktur; kayıtlar yalnız geçmiş performansı açıklar.
 - Expo SQLite web kalıcılığı birincil desteklenen kullanım ortamı değildir.
-- Supabase kimlik bilgileri, SQL migration'ı ve Edge Function deploy edilmeden gerçek uzak hesap, bulut yedeği ve hesap silme doğrulanamaz.
+- Supabase kimlik bilgileri, SQL migration'ları ve Edge Function'lar deploy edilmeden gerçek uzak hesap, bulut yedeği, cihaz eşitleme, RLS izolasyonu ve hesap silme doğrulanamaz.
 
 ## Katkıda bulunma
 
