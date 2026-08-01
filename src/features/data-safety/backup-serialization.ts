@@ -1,8 +1,5 @@
-import type { TitanLogBackup } from '@/features/data-safety/backup-types';
-import {
-  parseBackupJson,
-  validateBackup,
-} from '@/features/data-safety/backup-validator';
+import type { TitanLogBackup } from './backup-types';
+import { parseBackupJson, validateBackup } from './backup-validator';
 
 function sortValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortValue);

@@ -6,6 +6,28 @@ const json = (body: unknown, status: number) =>
     headers: { 'content-type': 'application/json' },
   });
 
+async function removeSyncRevisions(
+  admin: ReturnType<typeof createClient>,
+  userId: string
+): Promise<boolean> {
+  const prefix = `${userId}/revisions`;
+  const paths: string[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await admin.storage
+      .from('titanlog-sync')
+      .list(prefix, { limit: 1000, offset });
+    if (error) return false;
+    const page = data ?? [];
+    paths.push(...page.map((item) => `${prefix}/${item.name}`));
+    if (page.length < 1000) break;
+    offset += page.length;
+  }
+  if (paths.length === 0) return true;
+  const { error } = await admin.storage.from('titanlog-sync').remove(paths);
+  return !error;
+}
+
 Deno.serve(async (request) => {
   if (request.method !== 'POST')
     return json({ error: 'method_not_allowed' }, 405);
@@ -48,6 +70,19 @@ Deno.serve(async (request) => {
   const admin = createClient(url, serviceRoleKey, {
     auth: { persistSession: false },
   });
+  if (!(await removeSyncRevisions(admin, data.user.id)))
+    return json({ error: 'sync_revision_deletion_failed' }, 500);
+  const { error: syncOperationError } = await admin
+    .from('sync_operations')
+    .delete()
+    .eq('user_id', data.user.id);
+  if (syncOperationError)
+    return json({ error: 'sync_operation_deletion_failed' }, 500);
+  const { error: syncHeadError } = await admin
+    .from('sync_heads')
+    .delete()
+    .eq('user_id', data.user.id);
+  if (syncHeadError) return json({ error: 'sync_head_deletion_failed' }, 500);
   const { error: backupError } = await admin.storage
     .from('titanlog-backups')
     .remove([`${data.user.id}/latest.titanlog`]);

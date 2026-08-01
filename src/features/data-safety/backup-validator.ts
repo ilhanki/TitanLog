@@ -3,7 +3,7 @@ import {
   expectedBackupType,
   isValidBackupValue,
   structuralType,
-} from '@/features/data-safety/backup-contract';
+} from './backup-contract';
 import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
@@ -15,7 +15,7 @@ import {
   type BackupTableName,
   type BackupValue,
   type TitanLogBackup,
-} from '@/features/data-safety/backup-types';
+} from './backup-types';
 
 export type BackupValidationIssue = {
   actual?: string;

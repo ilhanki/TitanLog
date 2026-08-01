@@ -3,7 +3,7 @@ import type {
   BackupRow,
   BackupTableName,
   BackupValue,
-} from '@/features/data-safety/backup-types';
+} from './backup-types';
 
 export type BackupColumnKind =
   'number' | 'nullable-number' | 'string' | 'nullable-string';
