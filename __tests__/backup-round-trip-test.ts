@@ -6,8 +6,10 @@ import { migration001 } from '@/database/migrations/migration-001';
 import { migration002 } from '@/database/migrations/migration-002';
 import { migration003 } from '@/database/migrations/migration-003';
 import { migration004 } from '@/database/migrations/migration-004';
+import { migration005 } from '@/database/migrations/migration-005';
 import {
   createBackupArchive,
+  replaceBackupData,
   restoreBackupArchive,
 } from '@/features/data-safety/backup-repository';
 import {
@@ -15,6 +17,7 @@ import {
   serializeBackup,
 } from '@/features/data-safety/backup-serialization';
 import { validateBackup } from '@/features/data-safety/backup-validator';
+import { createSyncStateRepository } from '@/features/sync/sync-state-repository';
 import { createWorkoutSessionRepository } from '@/features/workouts/data/workout-session-repository';
 
 type SQLiteParameter = bigint | null | number | string | Uint8Array;
@@ -87,6 +90,11 @@ function migrateToVersion4(fixture: MigratedSchema4Fixture): void {
         updated_at = '2026-07-31T09:00:00.000Z'
     WHERE id = 1;
   `);
+}
+
+function migrateToVersion5(fixture: MigratedSchema4Fixture): void {
+  fixture.exec(migration005.sql);
+  fixture.exec(`PRAGMA user_version = ${migration005.version}`);
 }
 
 function seedAlpha9Dataset(fixture: MigratedSchema4Fixture): void {
@@ -166,6 +174,7 @@ describe('schema-4 backup round trip', () => {
     migrateThroughVersion3(fixture);
     seedAlpha9Dataset(fixture);
     migrateToVersion4(fixture);
+    migrateToVersion5(fixture);
   });
 
   afterEach(() => {
@@ -227,6 +236,7 @@ describe('schema-4 backup round trip', () => {
         migration002,
         migration003,
         migration004,
+        migration005,
       ]) {
         fresh.exec(migration.sql);
       }
@@ -354,6 +364,7 @@ describe('schema-4 backup round trip', () => {
         migration002,
         migration003,
         migration004,
+        migration005,
       ]) {
         target.exec(migration.sql);
         target.exec(`PRAGMA user_version = ${migration.version}`);
@@ -370,5 +381,117 @@ describe('schema-4 backup round trip', () => {
     } finally {
       target.close();
     }
+  });
+
+  it('keeps schema-5 sync bookkeeping outside schema-4 archives', async () => {
+    await fixture.runAsync(
+      `UPDATE sync_state
+       SET last_remote_revision = 7,
+           last_remote_content_hash = ?, last_local_content_hash = ?,
+           last_successful_sync_at = ?, pending_operation_id = ?
+       WHERE id = 1`,
+      'a'.repeat(64),
+      'b'.repeat(64),
+      '2026-08-01T12:00:00.000Z',
+      '123e4567-e89b-12d3-a456-426614174000'
+    );
+
+    const archive = await createBackupArchive(
+      fixture as unknown as SQLiteDatabase
+    );
+    const serialized = serializeBackup(archive);
+
+    expect(archive.schemaVersion).toBe(4);
+    expect(serialized).not.toMatch(
+      /sync_state|last_remote|pending_operation|123e4567/
+    );
+    expect(validateBackup(archive)).toEqual(archive);
+  });
+
+  it('replaces fitness data and advances sync state in one real transaction', async () => {
+    const archive = await createBackupArchive(
+      fixture as unknown as SQLiteDatabase
+    );
+    const target = new MigratedSchema4Fixture();
+    try {
+      for (const migration of [
+        migration001,
+        migration002,
+        migration003,
+        migration004,
+        migration005,
+      ]) {
+        target.exec(migration.sql);
+      }
+      const transactionSpy = jest.spyOn(
+        target,
+        'withExclusiveTransactionAsync'
+      );
+      await target.withExclusiveTransactionAsync(async (transaction) => {
+        await replaceBackupData(transaction, archive);
+        await createSyncStateRepository(transaction).recordSuccess(
+          5,
+          'a'.repeat(64),
+          'a'.repeat(64),
+          '2026-08-01T12:00:00.000Z'
+        );
+      });
+      expect(transactionSpy).toHaveBeenCalledTimes(1);
+      expect(
+        await target.getFirstAsync<{ count: number }>(
+          'SELECT COUNT(*) AS count FROM workout_sessions'
+        )
+      ).toEqual({ count: 3 });
+      expect(
+        await createSyncStateRepository(
+          target as unknown as SQLiteDatabase
+        ).getState()
+      ).toMatchObject({
+        lastRemoteRevision: 5,
+        lastRemoteContentHash: 'a'.repeat(64),
+        lastLocalContentHash: 'a'.repeat(64),
+      });
+      expect(await target.getAllAsync('PRAGMA foreign_key_check')).toHaveLength(
+        0
+      );
+    } finally {
+      target.close();
+    }
+  });
+
+  it('rolls back a real replacement before sync state can advance', async () => {
+    const archive = await createBackupArchive(
+      fixture as unknown as SQLiteDatabase
+    );
+    await expect(
+      fixture.withExclusiveTransactionAsync(async (transaction) => {
+        await replaceBackupData(transaction, {
+          ...archive,
+          data: Object.fromEntries(
+            Object.keys(archive.data).map((table) => [table, []])
+          ) as unknown as typeof archive.data,
+          summary: {
+            exercises: 0,
+            measurements: 0,
+            programs: 0,
+            sets: 0,
+            workouts: 0,
+          },
+        });
+        throw new Error('simulated_crash');
+      })
+    ).rejects.toThrow('simulated_crash');
+    expect(
+      await fixture.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) AS count FROM workout_sessions'
+      )
+    ).toEqual({ count: 3 });
+    expect(
+      await createSyncStateRepository(
+        fixture as unknown as SQLiteDatabase
+      ).getState()
+    ).toMatchObject({
+      lastRemoteRevision: null,
+    });
   });
 });
