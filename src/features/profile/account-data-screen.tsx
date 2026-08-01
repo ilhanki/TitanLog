@@ -25,6 +25,25 @@ import {
   pickLocalBackup,
   shareLocalBackup,
 } from '@/features/data-safety/local-backup-service';
+import { DeviceSyncCard } from '@/features/sync/device-sync-card';
+import {
+  cancelManualSync,
+  hasRecoveryArchive,
+  inspectManualSync,
+  pullManualSync,
+  pushManualSync,
+} from '@/features/sync/manual-sync-service';
+import {
+  readRecoveryArchive,
+  shareRecoveryArchive,
+} from '@/features/sync/recovery-archive-service';
+import { createSyncStateRepository } from '@/features/sync/sync-state-repository';
+import type {
+  ManualSyncPhase,
+  SyncCheck,
+  SyncIdentityState,
+  SyncState,
+} from '@/features/sync/sync-types';
 import { theme } from '@/theme/tokens';
 
 function formatDate(value: string | null | undefined): string {
@@ -48,19 +67,67 @@ function previewText(archive: TitanLogBackup): string {
   ].join('\n');
 }
 
+function syncPreview(check: SyncCheck, title: string): string {
+  const local = check.local?.archive.summary;
+  const cloud = check.remoteHead?.summary;
+  return [
+    title,
+    '',
+    local
+      ? `Bu cihaz: ${local.programs} program · ${local.workouts} antrenman · ${local.measurements} ölçüm`
+      : null,
+    cloud
+      ? `Bulut: ${cloud.programs} program · ${cloud.workouts} antrenman · ${cloud.measurements} ölçüm`
+      : 'Bulutta henüz TitanLog verisi yok.',
+    check.remoteHead ? `Bulut revizyonu: ${check.remoteHead.revision}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+function syncMessage(phase: ManualSyncPhase): string {
+  const messages: Partial<Record<ManualSyncPhase, string>> = {
+    signed_out: 'Cihaz eşitleme için hesabına giriş yapmalısın.',
+    dataset_unowned: 'Önce yerel veri kümesini açıkça bu hesaba bağlamalısın.',
+    account_mismatch:
+      'Bu cihazdaki veri kümesi başka bir hesaba ait. Eşitleme engellendi.',
+    unchanged: 'Bu cihaz ve bulut zaten eşitlenmiş durumda.',
+    completed: 'Cihaz eşitleme güvenle tamamlandı.',
+    offline: 'İnternet bağlantısı yok. Yerel verilerin değişmeden korunuyor.',
+    unsupported_remote_version:
+      'Bulut verisi bu uygulama sürümünden daha yeni. Uygulamayı güncellemelisin.',
+    validation_failure:
+      'Bulut verileri doğrulanamadı. Yerel verilerin değiştirilmedi.',
+    authentication_failure:
+      'Oturum doğrulanamadı. Yeniden giriş yaptıktan sonra tekrar deneyebilirsin.',
+    recoverable_server_failure:
+      'Eşitleme servisine ulaşılamadı. Yerel verilerin değiştirilmedi.',
+    conflict:
+      'Bulut bu sırada değişti. Güncel durum yeniden karşılaştırılmalı.',
+  };
+  return messages[phase] ?? 'Eşitleme durumu güncellendi.';
+}
+
 export function AccountDataScreen() {
   const router = useRouter();
   const database = useSQLiteContext();
   const { configured, user } = useAuth();
   const [ownership, setOwnership] = useState<DatasetOwnership | null>(null);
+  const [syncState, setSyncState] = useState<SyncState | null>(null);
+  const [syncCheck, setSyncCheck] = useState<SyncCheck | null>(null);
+  const [recoveryAvailable, setRecoveryAvailable] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const pendingRef = useRef(false);
 
   const loadOwnership = useCallback(async () => {
-    setOwnership(
-      await createDatasetOwnershipRepository(database).getOwnership()
-    );
+    const [nextOwnership, nextSyncState] = await Promise.all([
+      createDatasetOwnershipRepository(database).getOwnership(),
+      createSyncStateRepository(database).getState(),
+    ]);
+    setOwnership(nextOwnership);
+    setSyncState(nextSyncState);
+    setRecoveryAvailable(hasRecoveryArchive());
   }, [database]);
   useEffect(() => {
     void loadOwnership();
@@ -122,6 +189,155 @@ export function AccountDataScreen() {
     user && ownership?.ownerAccountId && ownership.ownerAccountId !== user.id
   );
   const claimed = Boolean(user && ownership?.ownerAccountId === user.id);
+  const syncIdentity: SyncIdentityState = !user
+    ? 'signed_out'
+    : ownerMismatch
+      ? 'account_mismatch'
+      : !claimed
+        ? 'dataset_unowned'
+        : 'owned';
+  useEffect(() => {
+    setSyncCheck(null);
+  }, [syncIdentity]);
+  const syncPhase: ManualSyncPhase =
+    pending === 'sync-check'
+      ? 'checking_cloud'
+      : pending === 'sync-upload'
+        ? 'uploading'
+        : pending === 'sync-download'
+          ? 'downloading'
+          : (syncCheck?.phase ??
+            (syncIdentity === 'owned' ? 'ready' : syncIdentity));
+
+  const applySyncResult = async (result: SyncCheck) => {
+    setSyncCheck(result);
+    await loadOwnership();
+    setNotice(syncMessage(result.phase));
+  };
+
+  const runSyncPush = (check: SyncCheck) =>
+    void run('sync-upload', async () => {
+      await applySyncResult(
+        await pushManualSync(database, check, user?.id ?? null)
+      );
+    });
+
+  const runSyncPull = (check: SyncCheck) =>
+    void run('sync-download', async () => {
+      await applySyncResult(
+        await pullManualSync(database, check, user?.id ?? null)
+      );
+    });
+
+  const cancelSyncChoice = () => {
+    void cancelManualSync(database);
+    setNotice('Eşitleme iptal edildi. Yerel ve bulut verileri değiştirilmedi.');
+  };
+
+  const confirmLocalOverwrite = (check: SyncCheck) => {
+    Alert.alert(
+      'Bulut verilerinin üzerine yazılsın mı?',
+      syncPreview(
+        check,
+        'Bu cihazdaki veriler yeni bir immutable revizyon olarak yüklenecek. Buluttaki mevcut revizyon doğrudan silinmeyecek.'
+      ),
+      [
+        { style: 'cancel', text: 'Vazgeç' },
+        {
+          style: 'destructive',
+          text: 'Bu Cihazdaki Verileri Kullan',
+          onPress: () => runSyncPush(check),
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
+  const confirmCloudReplacement = (check: SyncCheck) => {
+    Alert.alert(
+      'Bu cihazdaki veriler değiştirilsin mi?',
+      syncPreview(
+        check,
+        'Bulut verileri yeniden indirilecek ve doğrulanacak. Yerel değişiklikten önce app-private bir kurtarma kopyası oluşturulacak.'
+      ),
+      [
+        { style: 'cancel', text: 'Vazgeç' },
+        {
+          style: 'destructive',
+          text: 'Buluttaki Verileri Kullan',
+          onPress: () => runSyncPull(check),
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
+  const showConflict = (check: SyncCheck) => {
+    Alert.alert(
+      'Eşitleme Çakışması',
+      syncPreview(
+        check,
+        `Bu cihaz ve bulut son eşitlemeden sonra ayrı ayrı değişti. Son eşitleme: ${formatDate(
+          check.state?.lastSuccessfulSyncAt
+        )}\nBulut güncellemesi: ${formatDate(check.remoteHead?.updatedAt)}`
+      ),
+      [
+        {
+          text: 'Bu cihazdaki verileri kullan',
+          onPress: () => confirmLocalOverwrite(check),
+        },
+        {
+          text: 'Buluttaki verileri kullan',
+          onPress: () => confirmCloudReplacement(check),
+        },
+        { style: 'cancel', text: 'Vazgeç', onPress: cancelSyncChoice },
+      ],
+      { cancelable: false }
+    );
+  };
+
+  const handleSyncCheck = () =>
+    void run('sync-check', async () => {
+      const check = await inspectManualSync(database, user?.id ?? null);
+      setSyncCheck(check);
+      await loadOwnership();
+      if (check.phase === 'cloud_empty' || check.phase === 'local_changed') {
+        Alert.alert(
+          check.phase === 'cloud_empty'
+            ? 'İlk Cihaz Eşitlemesi'
+            : 'Bu Cihazdaki Değişiklikleri Yükle',
+          syncPreview(
+            check,
+            check.phase === 'cloud_empty'
+              ? 'Bulutta veri yok. Bu cihazdaki doğrulanmış veriler ilk revizyon olarak yüklensin mi?'
+              : 'Bulut son kabul edilen revizyonda. Bu cihazdaki değişiklikler yeni revizyon olarak yüklensin mi?'
+          ),
+          [
+            { style: 'cancel', text: 'Vazgeç', onPress: cancelSyncChoice },
+            {
+              text: 'Bu Cihazdaki Verileri Yükle',
+              onPress: () => runSyncPush(check),
+            },
+          ],
+          { cancelable: false }
+        );
+      } else if (check.phase === 'cloud_changed') {
+        confirmCloudReplacement(check);
+      } else if (check.phase === 'conflict') {
+        showConflict(check);
+      } else {
+        setNotice(syncMessage(check.phase));
+      }
+    });
+
+  const ownershipLabel =
+    syncIdentity === 'signed_out'
+      ? 'Oturum kapalı'
+      : syncIdentity === 'dataset_unowned'
+        ? 'Sahiplik onayı bekleniyor'
+        : syncIdentity === 'account_mismatch'
+          ? 'Hesap uyuşmazlığı'
+          : 'Bu hesaba bağlı';
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -188,6 +404,31 @@ export function AccountDataScreen() {
           />
         </View>
       </AppCard>
+
+      <DeviceSyncCard
+        disabled={pending !== null}
+        lastSuccessfulSyncAt={formatDate(syncState?.lastSuccessfulSyncAt)}
+        onExportRecovery={() =>
+          void run('recovery-export', async () => {
+            await shareRecoveryArchive();
+            setNotice('Kurtarma kopyası paylaşım için hazırlandı.');
+          })
+        }
+        onRestoreRecovery={() =>
+          void run('recovery-restore', async () => {
+            confirmRestore(await readRecoveryArchive());
+          })
+        }
+        onSync={handleSyncCheck}
+        ownershipLabel={ownershipLabel}
+        phase={syncPhase}
+        recoveryAvailable={recoveryAvailable}
+        remoteRevision={
+          syncCheck?.remoteHead?.revision ??
+          syncState?.lastRemoteRevision ??
+          null
+        }
+      />
 
       <AppCard style={styles.section}>
         <AppText variant="heading">Özel Bulut Yedeği</AppText>

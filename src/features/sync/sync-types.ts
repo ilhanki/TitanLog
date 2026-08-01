@@ -24,12 +24,45 @@ export type SyncState = {
 };
 
 export type RemoteSyncHead = {
+  archiveFormatVersion: number;
   archiveSchemaVersion: number;
   byteSize: number;
   contentHash: string;
   revision: number;
   summary: BackupSummary;
   updatedAt: string;
+};
+
+export type ManualSyncPhase =
+  | 'signed_out'
+  | 'dataset_unowned'
+  | 'account_mismatch'
+  | 'ready'
+  | 'checking_cloud'
+  | 'cloud_empty'
+  | 'uploading'
+  | 'downloading'
+  | 'unchanged'
+  | 'local_changed'
+  | 'cloud_changed'
+  | 'conflict'
+  | 'completed'
+  | 'offline'
+  | 'unsupported_remote_version'
+  | 'validation_failure'
+  | 'authentication_failure'
+  | 'recoverable_server_failure';
+
+export type SyncIdentityState =
+  'signed_out' | 'dataset_unowned' | 'account_mismatch' | 'owned';
+
+export type SyncCheck = {
+  hasLocalChanges: boolean;
+  hasRemoteChanges: boolean;
+  local: HashedSyncArchive | null;
+  phase: ManualSyncPhase;
+  remoteHead: RemoteSyncHead | null;
+  state: SyncState | null;
 };
 
 export type HashedSyncArchive = {
