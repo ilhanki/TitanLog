@@ -30,40 +30,68 @@ const INSERT_ORDER: BackupTableName[] = [
 ];
 const DELETE_ORDER = [...INSERT_ORDER].reverse();
 
+export type BackupArchiveStage =
+  'snapshot_read' | 'archive_build' | 'archive_validation';
+
+export class BackupArchiveError extends Error {
+  constructor(
+    readonly stage: BackupArchiveStage,
+    options?: ErrorOptions
+  ) {
+    super(stage, options);
+    this.name = 'BackupArchiveError';
+  }
+}
+
 export async function createBackupArchive(
   database: SQLiteDatabase
 ): Promise<TitanLogBackup> {
-  let archive: TitanLogBackup | null = null;
-  await database.withExclusiveTransactionAsync(async (transaction) => {
-    const metadata = await transaction.getFirstAsync<{
-      installation_id: string;
-    }>('SELECT installation_id FROM dataset_metadata WHERE id = 1');
-    if (!metadata) throw new Error('dataset_metadata_missing');
-    const entries = await Promise.all(
-      BACKUP_TABLES.map(
-        async (table) =>
-          [
-            table,
-            await transaction.getAllAsync<BackupRow>(
-              `SELECT * FROM ${table} ORDER BY id`
-            ),
-          ] as const
-      )
-    );
-    const data = Object.fromEntries(entries) as BackupData;
-    archive = validateBackup({
+  let snapshot: { data: BackupData; installationId: string } | null = null;
+  try {
+    await database.withExclusiveTransactionAsync(async (transaction) => {
+      const metadata = await transaction.getFirstAsync<{
+        installation_id: string;
+      }>('SELECT installation_id FROM dataset_metadata WHERE id = 1');
+      if (!metadata) {
+        throw new BackupArchiveError('archive_build');
+      }
+      const entries: [BackupTableName, BackupRow[]][] = [];
+      for (const table of BACKUP_TABLES) {
+        entries.push([
+          table,
+          await transaction.getAllAsync<BackupRow>(
+            `SELECT * FROM ${table} ORDER BY id`
+          ),
+        ]);
+      }
+      snapshot = {
+        data: Object.fromEntries(entries) as BackupData,
+        installationId: metadata.installation_id,
+      };
+    });
+  } catch (error) {
+    if (error instanceof BackupArchiveError) throw error;
+    throw new BackupArchiveError('snapshot_read', { cause: error });
+  }
+  if (!snapshot) throw new BackupArchiveError('archive_build');
+  const { data, installationId } = snapshot as {
+    data: BackupData;
+    installationId: string;
+  };
+  try {
+    return validateBackup({
       appVersion: packageJson.version,
       createdAt: new Date().toISOString(),
       data,
-      deviceId: metadata.installation_id,
+      deviceId: installationId,
       format: BACKUP_FORMAT,
       formatVersion: BACKUP_FORMAT_VERSION,
       schemaVersion: BACKUP_SCHEMA_VERSION,
       summary: createBackupSummary(data),
     });
-  });
-  if (!archive) throw new Error('backup_snapshot_failed');
-  return archive;
+  } catch (error) {
+    throw new BackupArchiveError('archive_validation', { cause: error });
+  }
 }
 
 export async function restoreBackupArchive(

@@ -29,6 +29,10 @@ jest.mock('@/features/auth/auth-provider', () => ({
   useAuth: () => ({ configured: false, initializing: false, user: null }),
 }));
 jest.mock('@/features/data-safety/local-backup-service', () => ({
+  localBackupErrorMessage: jest.fn(
+    () =>
+      'Android paylaşım ekranı açılamadı. Yerel verilerin değişmeden korundu.'
+  ),
   pickLocalBackup: jest.fn(),
   shareLocalBackup: jest.fn(),
 }));
@@ -40,6 +44,7 @@ import * as BackupRepository from '@/features/data-safety/backup-repository';
 import * as LocalBackupService from '@/features/data-safety/local-backup-service';
 
 const mockPickLocalBackup = LocalBackupService.pickLocalBackup as jest.Mock;
+const mockShareLocalBackup = LocalBackupService.shareLocalBackup as jest.Mock;
 const mockRestoreBackup = BackupRepository.restoreBackupArchive as jest.Mock;
 jest.mock('@/features/data-safety/cloud-backup-service', () => ({
   downloadCloudBackup: jest.fn(),
@@ -67,6 +72,7 @@ describe('account and data screen restore safety', () => {
       ownerAccountId: null,
     });
     mockPickLocalBackup.mockResolvedValue(backup);
+    mockShareLocalBackup.mockResolvedValue(backup);
     mockRestoreBackup.mockResolvedValue(undefined);
     jest.spyOn(Alert, 'alert');
   });
@@ -111,5 +117,29 @@ describe('account and data screen restore safety', () => {
     await waitFor(() => expect(mockPickLocalBackup).toHaveBeenCalled());
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(mockRestoreBackup).not.toHaveBeenCalled();
+  });
+
+  it('shows a safe Turkish message when the Android share sheet cannot open', async () => {
+    mockShareLocalBackup.mockRejectedValue(new Error('native private detail'));
+    const { getByRole, getByText, queryByText } = await render(
+      <AccountDataScreen />
+    );
+    await waitFor(() =>
+      expect(
+        getByRole('button', { name: 'Yerel Yedek Oluştur' }).props
+          .accessibilityState.disabled
+      ).toBe(false)
+    );
+    await act(async () => {
+      fireEvent.press(getByRole('button', { name: 'Yerel Yedek Oluştur' }));
+    });
+    await waitFor(() =>
+      expect(
+        getByText(
+          'Android paylaşım ekranı açılamadı. Yerel verilerin değişmeden korundu.'
+        )
+      ).toBeTruthy()
+    );
+    expect(queryByText('native private detail')).toBeNull();
   });
 });

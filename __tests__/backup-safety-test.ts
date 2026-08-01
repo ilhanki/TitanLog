@@ -227,14 +227,19 @@ describe('versioned backup safety', () => {
   });
 
   it('exports every table inside one consistent transaction', async () => {
+    let statementInProgress = false;
     const transaction = {
       getFirstAsync: jest
         .fn()
         .mockResolvedValue({ installation_id: 'installation-123' }),
       getAllAsync: jest.fn(async (sql: string) => {
+        if (statementInProgress) throw new Error('concurrent_statement');
+        statementInProgress = true;
+        await Promise.resolve();
         const table = Object.keys(data).find((name) =>
           sql.includes(`FROM ${name}`)
         );
+        statementInProgress = false;
         return table ? data[table as keyof BackupData] : [];
       }),
     };

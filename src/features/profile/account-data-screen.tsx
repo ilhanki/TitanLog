@@ -21,6 +21,7 @@ import {
   type DatasetOwnership,
 } from '@/features/data-safety/dataset-ownership-repository';
 import {
+  localBackupErrorMessage,
   pickLocalBackup,
   shareLocalBackup,
 } from '@/features/data-safety/local-backup-service';
@@ -74,12 +75,15 @@ export function AccountDataScreen() {
       await operation();
     } catch (error) {
       setNotice(
-        error instanceof DatasetOwnershipError &&
-          error.code === 'owner_mismatch'
-          ? 'Bu cihazdaki veri kümesi başka bir hesaba ait. Bulut işlemi engellendi.'
-          : error instanceof DatasetOwnershipError && error.code === 'unclaimed'
-            ? 'Bulut yedeğinden önce bu yerel veri kümesini hesabına bağlamalısın.'
-            : 'İşlem tamamlanamadı. Yerel verilerin değişmeden korundu.'
+        name === 'local-export'
+          ? localBackupErrorMessage(error)
+          : error instanceof DatasetOwnershipError &&
+              error.code === 'owner_mismatch'
+            ? 'Bu cihazdaki veri kümesi başka bir hesaba ait. Bulut işlemi engellendi.'
+            : error instanceof DatasetOwnershipError &&
+                error.code === 'unclaimed'
+              ? 'Bulut yedeğinden önce bu yerel veri kümesini hesabına bağlamalısın.'
+              : 'İşlem tamamlanamadı. Yerel verilerin değişmeden korundu.'
       );
     } finally {
       pendingRef.current = false;
