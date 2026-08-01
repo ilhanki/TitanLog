@@ -15,6 +15,7 @@ import {
   serializeBackup,
 } from '@/features/data-safety/backup-serialization';
 import { validateBackup } from '@/features/data-safety/backup-validator';
+import { createWorkoutSessionRepository } from '@/features/workouts/data/workout-session-repository';
 
 type SQLiteParameter = bigint | null | number | string | Uint8Array;
 
@@ -255,6 +256,77 @@ describe('schema-4 backup round trip', () => {
     } finally {
       fresh.close();
     }
+  });
+
+  it('omits legacy orphaned session snapshots without mutating the database', async () => {
+    fixture.exec('PRAGMA foreign_keys = OFF');
+    fixture.exec(`
+      INSERT INTO workout_session_exercises
+        (id, session_id, exercise_id, exercise_name_snapshot,
+         muscle_group_snapshot, weight_mode_snapshot, sort_order, created_at)
+      VALUES
+        (99, 999, 1, 'Detached snapshot', 'Group', 'total', 1,
+         '2026-07-28T10:00:00.000Z');
+
+      INSERT INTO workout_sets
+        (id, session_exercise_id, set_number, target_reps, actual_reps,
+         weight_kg, is_completed, completed_at, created_at, updated_at)
+      VALUES
+        (99, 99, 1, 10, 10, 20, 1, '2026-07-28T10:10:00.000Z',
+         '2026-07-28T10:00:00.000Z', '2026-07-28T10:10:00.000Z');
+    `);
+    fixture.exec('PRAGMA foreign_keys = ON');
+    const before = await fixture.getFirstAsync<{ changes: number }>(
+      'SELECT total_changes() AS changes'
+    );
+
+    const archive = await createBackupArchive(
+      fixture as unknown as SQLiteDatabase
+    );
+
+    const after = await fixture.getFirstAsync<{ changes: number }>(
+      'SELECT total_changes() AS changes'
+    );
+    const persistedOrphan = await fixture.getFirstAsync<{ id: number }>(
+      'SELECT id FROM workout_session_exercises WHERE id = 99'
+    );
+    expect(after).toEqual(before);
+    expect(persistedOrphan).toEqual({ id: 99 });
+    expect(
+      archive.data.workout_session_exercises.some((row) => row.id === 99)
+    ).toBe(false);
+    expect(archive.data.workout_sets.some((row) => row.id === 99)).toBe(false);
+    expect(validateBackup(archive)).toEqual(archive);
+  });
+
+  it('deletes completed session descendants when foreign-key cascades are disabled', async () => {
+    fixture.exec('PRAGMA foreign_keys = OFF');
+
+    await createWorkoutSessionRepository(
+      fixture as unknown as SQLiteDatabase
+    ).deleteCompletedSession(2);
+
+    const sessions = await fixture.getAllAsync<{ id: number }>(
+      'SELECT id FROM workout_sessions ORDER BY id'
+    );
+    const sessionExercises = await fixture.getAllAsync<{
+      id: number;
+      session_id: number;
+    }>('SELECT id, session_id FROM workout_session_exercises ORDER BY id');
+    const sets = await fixture.getAllAsync<{
+      id: number;
+      session_exercise_id: number;
+    }>('SELECT id, session_exercise_id FROM workout_sets ORDER BY id');
+
+    expect(sessions).toEqual([{ id: 1 }, { id: 3 }]);
+    expect(sessionExercises).toEqual([
+      { id: 1, session_id: 1 },
+      { id: 3, session_id: 3 },
+    ]);
+    expect(sets).toEqual([
+      { id: 1, session_exercise_id: 1 },
+      { id: 3, session_exercise_id: 3 },
+    ]);
   });
 
   it('keeps ownership metadata private for guest and claimed datasets', async () => {

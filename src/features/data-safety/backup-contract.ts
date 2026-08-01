@@ -1,4 +1,5 @@
 import type {
+  BackupData,
   BackupRow,
   BackupTableName,
   BackupValue,
@@ -123,6 +124,24 @@ export function normalizePersistedBackupRow(
       ];
     })
   ) as BackupRow;
+}
+
+export function omitOrphanedSessionSnapshots(data: BackupData): BackupData {
+  const sessionIds = new Set(data.workout_sessions.map((row) => row.id));
+  const workoutSessionExercises = data.workout_session_exercises.filter((row) =>
+    sessionIds.has(row.session_id)
+  );
+  const sessionExerciseIds = new Set(
+    workoutSessionExercises.map((row) => row.id)
+  );
+
+  return {
+    ...data,
+    workout_session_exercises: workoutSessionExercises,
+    workout_sets: data.workout_sets.filter((row) =>
+      sessionExerciseIds.has(row.session_exercise_id)
+    ),
+  };
 }
 
 export function isValidBackupValue(

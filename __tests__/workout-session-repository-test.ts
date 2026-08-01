@@ -508,7 +508,18 @@ describe('workout session repository', () => {
       expect.stringContaining('SELECT status FROM workout_sessions'),
       10
     );
-    expect(transaction.runAsync).toHaveBeenCalledWith(
+    expect(transaction.runAsync).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('DELETE FROM workout_sets'),
+      10
+    );
+    expect(transaction.runAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('DELETE FROM workout_session_exercises'),
+      10
+    );
+    expect(transaction.runAsync).toHaveBeenNthCalledWith(
+      3,
       expect.stringContaining("WHERE id = ? AND status = 'completed'"),
       10
     );

@@ -4,6 +4,7 @@ import packageJson from '../../../package.json';
 import {
   backupTableColumns,
   normalizePersistedBackupRow,
+  omitOrphanedSessionSnapshots,
 } from '@/features/data-safety/backup-contract';
 import {
   BACKUP_FORMAT,
@@ -74,7 +75,12 @@ export async function createBackupArchive(
         ]);
       }
       snapshot = {
-        data: Object.fromEntries(entries) as BackupData,
+        // Older builds could leave detached session snapshots when a completed
+        // session was deleted on an exclusive SQLite connection. Those rows are
+        // unreachable from the app and cannot form a restorable archive.
+        data: omitOrphanedSessionSnapshots(
+          Object.fromEntries(entries) as BackupData
+        ),
         installationId: metadata.installation_id,
       };
     });
