@@ -119,21 +119,29 @@ export async function restoreBackupArchive(
 ): Promise<void> {
   const validated = validateBackup(archive);
   await database.withExclusiveTransactionAsync(async (transaction) => {
-    for (const table of DELETE_ORDER)
-      await transaction.runAsync(`DELETE FROM ${table}`);
-    for (const table of INSERT_ORDER) {
-      for (const row of validated.data[table]) {
-        const columns = Object.keys(row);
-        const placeholders = columns.map(() => '?').join(', ');
-        await transaction.runAsync(
-          `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`,
-          ...columns.map((column) => row[column] as BackupRow[string])
-        );
-      }
-    }
-    const integrity = await transaction.getAllAsync<{ table: string }>(
-      'PRAGMA foreign_key_check'
-    );
-    if (integrity.length > 0) throw new Error('restore_integrity_failed');
+    await replaceBackupData(transaction, validated);
   });
+}
+
+export async function replaceBackupData(
+  transaction: SQLiteDatabase,
+  archive: TitanLogBackup
+): Promise<void> {
+  const validated = validateBackup(archive);
+  for (const table of DELETE_ORDER)
+    await transaction.runAsync(`DELETE FROM ${table}`);
+  for (const table of INSERT_ORDER) {
+    for (const row of validated.data[table]) {
+      const columns = Object.keys(row);
+      const placeholders = columns.map(() => '?').join(', ');
+      await transaction.runAsync(
+        `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`,
+        ...columns.map((column) => row[column] as BackupRow[string])
+      );
+    }
+  }
+  const integrity = await transaction.getAllAsync<{ table: string }>(
+    'PRAGMA foreign_key_check'
+  );
+  if (integrity.length > 0) throw new Error('restore_integrity_failed');
 }
