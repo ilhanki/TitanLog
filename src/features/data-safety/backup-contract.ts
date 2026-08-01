@@ -1,0 +1,150 @@
+import type {
+  BackupRow,
+  BackupTableName,
+  BackupValue,
+} from '@/features/data-safety/backup-types';
+
+export type BackupColumnKind =
+  'number' | 'nullable-number' | 'string' | 'nullable-string';
+
+export type BackupTableSchema = Record<string, BackupColumnKind>;
+
+export const BACKUP_TABLE_SCHEMAS: Record<BackupTableName, BackupTableSchema> =
+  {
+    workout_plans: {
+      id: 'number',
+      name: 'string',
+      description: 'string',
+      is_active: 'number',
+      created_at: 'string',
+      updated_at: 'string',
+    },
+    workout_days: {
+      id: 'number',
+      plan_id: 'number',
+      name: 'string',
+      subtitle: 'string',
+      sort_order: 'number',
+      created_at: 'string',
+      updated_at: 'string',
+    },
+    workout_day_schedules: {
+      id: 'number',
+      workout_day_id: 'number',
+      iso_weekday: 'number',
+    },
+    exercises: {
+      id: 'number',
+      name: 'string',
+      muscle_group: 'string',
+      equipment: 'string',
+      created_at: 'string',
+      updated_at: 'string',
+    },
+    workout_day_exercises: {
+      id: 'number',
+      workout_day_id: 'number',
+      exercise_id: 'number',
+      sort_order: 'number',
+      default_set_count: 'number',
+      default_target_reps: 'number',
+      default_weight_kg: 'number',
+      weight_mode: 'string',
+    },
+    workout_sessions: {
+      id: 'number',
+      workout_day_id: 'number',
+      workout_name_snapshot: 'string',
+      status: 'string',
+      started_at: 'string',
+      completed_at: 'nullable-string',
+      cancelled_at: 'nullable-string',
+      created_at: 'string',
+      updated_at: 'string',
+    },
+    workout_session_exercises: {
+      id: 'number',
+      session_id: 'number',
+      exercise_id: 'number',
+      exercise_name_snapshot: 'string',
+      muscle_group_snapshot: 'string',
+      weight_mode_snapshot: 'string',
+      sort_order: 'number',
+      created_at: 'string',
+    },
+    workout_sets: {
+      id: 'number',
+      session_exercise_id: 'number',
+      set_number: 'number',
+      target_reps: 'number',
+      actual_reps: 'nullable-number',
+      weight_kg: 'number',
+      is_completed: 'number',
+      completed_at: 'nullable-string',
+      created_at: 'string',
+      updated_at: 'string',
+    },
+    body_profiles: {
+      id: 'number',
+      starting_weight_kg: 'number',
+      target_weight_kg: 'number',
+      created_at: 'string',
+      updated_at: 'string',
+    },
+    body_measurements: {
+      id: 'number',
+      measured_at: 'string',
+      weight_kg: 'number',
+      waist_cm: 'nullable-number',
+      chest_cm: 'nullable-number',
+      upper_arm_cm: 'nullable-number',
+      hip_cm: 'nullable-number',
+      thigh_cm: 'nullable-number',
+      note: 'nullable-string',
+      created_at: 'string',
+      updated_at: 'string',
+    },
+  };
+
+export function backupTableColumns(table: BackupTableName): string[] {
+  return Object.keys(BACKUP_TABLE_SCHEMAS[table]);
+}
+
+export function normalizePersistedBackupRow(
+  table: BackupTableName,
+  persisted: Record<string, unknown>
+): BackupRow {
+  return Object.fromEntries(
+    Object.entries(BACKUP_TABLE_SCHEMAS[table]).map(([column, kind]) => {
+      const value = persisted[column];
+      return [
+        column,
+        value === undefined && kind.startsWith('nullable-') ? null : value,
+      ];
+    })
+  ) as BackupRow;
+}
+
+export function isValidBackupValue(
+  value: unknown,
+  kind: BackupColumnKind
+): value is BackupValue {
+  if (kind.startsWith('nullable-') && value === null) return true;
+  if (kind.endsWith('number')) {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+  return typeof value === 'string';
+}
+
+export function expectedBackupType(kind: BackupColumnKind): string {
+  return (
+    kind.replace('nullable-', '') +
+    (kind.startsWith('nullable-') ? '|null' : '')
+  );
+}
+
+export function structuralType(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}

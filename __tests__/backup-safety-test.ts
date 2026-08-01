@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { normalizePersistedBackupRow } from '@/features/data-safety/backup-contract';
 import {
   createBackupArchive,
   restoreBackupArchive,
@@ -213,17 +214,105 @@ describe('versioned backup safety', () => {
     ).toThrow('missing_relationship');
   });
 
-  it('rejects a workout day without a scheduled weekday before restore', () => {
+  it('preserves a schema-valid legacy workout day without a schedule', () => {
     const unscheduled = structuredClone(data);
     unscheduled.workout_day_schedules = [];
-    expect(() =>
+    expect(
       validateBackup(
         archive({
           data: unscheduled,
           summary: createBackupSummary(unscheduled),
         })
+      ).data.workout_days
+    ).toHaveLength(1);
+  });
+
+  it('reports a safe field path without exposing a malformed value', () => {
+    const malformed = structuredClone(data) as unknown as BackupData;
+    delete malformed.body_measurements[0]!.note;
+    try {
+      validateBackup(
+        archive({
+          data: malformed,
+          summary: createBackupSummary(malformed),
+        })
+      );
+      throw new Error('expected_validation_failure');
+    } catch (error) {
+      expect(error).toBeInstanceOf(BackupValidationError);
+      expect((error as BackupValidationError).issue).toEqual({
+        actual: 'undefined',
+        code: 'missing_field',
+        expected: 'string|null',
+        path: 'data.body_measurements[0].note',
+        recordIndex: 0,
+        section: 'data',
+        table: 'body_measurements',
+      });
+    }
+  });
+
+  it('rejects undefined in a required canonical field', () => {
+    const malformed = structuredClone(data) as unknown as BackupData;
+    delete malformed.body_measurements[0]!.weight_kg;
+    expect(() =>
+      validateBackup(
+        archive({
+          data: malformed,
+          summary: createBackupSummary(malformed),
+        })
       )
-    ).toThrow('missing_schedule');
+    ).toThrow('missing_field');
+  });
+
+  it('canonicalizes absent nullable fields without coercing required values', () => {
+    const persisted = {
+      ...data.body_measurements[0],
+      note: undefined,
+      waist_cm: undefined,
+    };
+    const normalized = normalizePersistedBackupRow(
+      'body_measurements',
+      persisted
+    );
+    expect(normalized.note).toBeNull();
+    expect(normalized.waist_cm).toBeNull();
+    expect(normalized.weight_kg).toBe(120);
+
+    const invalidNumber = {
+      ...normalized,
+      weight_kg: '120',
+    };
+    const malformed = structuredClone(data);
+    malformed.body_measurements = [invalidNumber];
+    expect(() =>
+      validateBackup(
+        archive({
+          data: malformed,
+          summary: createBackupSummary(malformed),
+        })
+      )
+    ).toThrow('invalid_value');
+  });
+
+  it('rejects non-finite numeric fields and incorrect summaries', () => {
+    const invalidNumber = structuredClone(data);
+    invalidNumber.workout_sets[0]!.weight_kg = Number.NaN;
+    expect(() =>
+      validateBackup(
+        archive({
+          data: invalidNumber,
+          summary: createBackupSummary(invalidNumber),
+        })
+      )
+    ).toThrow('invalid_value');
+    expect(() =>
+      validateBackup(
+        archive({
+          summary: { ...createBackupSummary(data), workouts: 999 },
+        })
+      )
+    ).toThrow('invalid_summary');
   });
 
   it('exports every table inside one consistent transaction', async () => {

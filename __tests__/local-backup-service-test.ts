@@ -93,12 +93,19 @@ jest.mock('expo-file-system', () => ({
 }));
 jest.mock('@/features/data-safety/backup-repository', () => {
   class BackupArchiveError extends Error {
-    constructor(readonly mockStage: string) {
+    constructor(
+      readonly mockStage: string,
+      readonly mockValidationIssue?: Record<string, unknown>
+    ) {
       super(mockStage);
     }
 
     get stage() {
       return this.mockStage;
+    }
+
+    get validationIssue() {
+      return this.mockValidationIssue;
     }
   }
   return {
@@ -362,6 +369,40 @@ describe('local backup file lifecycle', () => {
         })
       )
     ).toContain('Geçici yedek dosyası oluşturulamadı');
+    expect(
+      localBackupErrorMessage(
+        new LocalBackupExportError('archive_validation', {
+          platform: 'android',
+          stage: 'archive_validation',
+        })
+      )
+    ).toBe('Yedek verileri doğrulanamadı. Yerel verileriniz değiştirilmedi.');
+  });
+
+  it('stops before filesystem and sharing when archive validation fails', async () => {
+    mockCreateBackup.mockRejectedValue(
+      new BackupArchiveError('archive_validation', {
+        actual: 'undefined',
+        code: 'missing_field',
+        expected: 'string|null',
+        path: 'data.body_measurements[0].note',
+        recordIndex: 0,
+        section: 'data',
+        table: 'body_measurements',
+      })
+    );
+    await expect(shareLocalBackup(database)).rejects.toMatchObject({
+      diagnostic: {
+        validationIssue: {
+          code: 'missing_field',
+          path: 'data.body_measurements[0].note',
+        },
+      },
+      stage: 'archive_validation',
+    });
+    expect(constructedWith).toEqual([]);
+    expect(mockShare).not.toHaveBeenCalled();
+    expect(runAsync).not.toHaveBeenCalled();
   });
 
   it('treats picker cancellation as a no-op', async () => {

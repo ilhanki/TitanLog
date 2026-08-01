@@ -1,4 +1,10 @@
 import {
+  BACKUP_TABLE_SCHEMAS,
+  expectedBackupType,
+  isValidBackupValue,
+  structuralType,
+} from '@/features/data-safety/backup-contract';
+import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
   BACKUP_SCHEMA_VERSION,
@@ -11,109 +17,28 @@ import {
   type TitanLogBackup,
 } from '@/features/data-safety/backup-types';
 
-type ColumnKind = 'number' | 'nullable-number' | 'string' | 'nullable-string';
-type TableSchema = Record<string, ColumnKind>;
-
-const TABLE_SCHEMAS: Record<BackupTableName, TableSchema> = {
-  workout_plans: {
-    id: 'number',
-    name: 'string',
-    description: 'string',
-    is_active: 'number',
-    created_at: 'string',
-    updated_at: 'string',
-  },
-  workout_days: {
-    id: 'number',
-    plan_id: 'number',
-    name: 'string',
-    subtitle: 'string',
-    sort_order: 'number',
-    created_at: 'string',
-    updated_at: 'string',
-  },
-  workout_day_schedules: {
-    id: 'number',
-    workout_day_id: 'number',
-    iso_weekday: 'number',
-  },
-  exercises: {
-    id: 'number',
-    name: 'string',
-    muscle_group: 'string',
-    equipment: 'string',
-    created_at: 'string',
-    updated_at: 'string',
-  },
-  workout_day_exercises: {
-    id: 'number',
-    workout_day_id: 'number',
-    exercise_id: 'number',
-    sort_order: 'number',
-    default_set_count: 'number',
-    default_target_reps: 'number',
-    default_weight_kg: 'number',
-    weight_mode: 'string',
-  },
-  workout_sessions: {
-    id: 'number',
-    workout_day_id: 'number',
-    workout_name_snapshot: 'string',
-    status: 'string',
-    started_at: 'string',
-    completed_at: 'nullable-string',
-    cancelled_at: 'nullable-string',
-    created_at: 'string',
-    updated_at: 'string',
-  },
-  workout_session_exercises: {
-    id: 'number',
-    session_id: 'number',
-    exercise_id: 'number',
-    exercise_name_snapshot: 'string',
-    muscle_group_snapshot: 'string',
-    weight_mode_snapshot: 'string',
-    sort_order: 'number',
-    created_at: 'string',
-  },
-  workout_sets: {
-    id: 'number',
-    session_exercise_id: 'number',
-    set_number: 'number',
-    target_reps: 'number',
-    actual_reps: 'nullable-number',
-    weight_kg: 'number',
-    is_completed: 'number',
-    completed_at: 'nullable-string',
-    created_at: 'string',
-    updated_at: 'string',
-  },
-  body_profiles: {
-    id: 'number',
-    starting_weight_kg: 'number',
-    target_weight_kg: 'number',
-    created_at: 'string',
-    updated_at: 'string',
-  },
-  body_measurements: {
-    id: 'number',
-    measured_at: 'string',
-    weight_kg: 'number',
-    waist_cm: 'nullable-number',
-    chest_cm: 'nullable-number',
-    upper_arm_cm: 'nullable-number',
-    hip_cm: 'nullable-number',
-    thigh_cm: 'nullable-number',
-    note: 'nullable-string',
-    created_at: 'string',
-    updated_at: 'string',
-  },
+export type BackupValidationIssue = {
+  actual?: string;
+  code: string;
+  expected?: string;
+  path?: string;
+  recordIndex?: number;
+  relationshipCategory?: string;
+  section?: string;
+  summaryCategory?: string;
+  table?: BackupTableName;
 };
 
 export class BackupValidationError extends Error {
-  constructor(readonly code: string) {
-    super(code);
+  readonly code: string;
+  readonly issue: BackupValidationIssue;
+
+  constructor(issue: BackupValidationIssue | string) {
+    const normalized = typeof issue === 'string' ? { code: issue } : issue;
+    super(normalized.code);
     this.name = 'BackupValidationError';
+    this.code = normalized.code;
+    this.issue = normalized;
   }
 }
 
@@ -130,24 +55,61 @@ function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
   );
 }
 
-function isValidValue(value: unknown, kind: ColumnKind): value is BackupValue {
-  if (kind.startsWith('nullable-') && value === null) return true;
-  if (kind.endsWith('number'))
-    return typeof value === 'number' && Number.isFinite(value);
-  return typeof value === 'string';
-}
-
 function validateRows(table: BackupTableName, value: unknown): BackupRow[] {
-  if (!Array.isArray(value)) throw new BackupValidationError('invalid_table');
-  const schema = TABLE_SCHEMAS[table];
+  if (!Array.isArray(value)) {
+    throw new BackupValidationError({
+      actual: structuralType(value),
+      code: 'invalid_table',
+      expected: 'array',
+      path: `data.${table}`,
+      section: 'data',
+      table,
+    });
+  }
+  const schema = BACKUP_TABLE_SCHEMAS[table];
   const ids = new Set<number>();
-  return value.map((candidate) => {
-    if (!isRecord(candidate) || !hasExactKeys(candidate, Object.keys(schema))) {
-      throw new BackupValidationError('invalid_row');
+  return value.map((candidate, recordIndex) => {
+    if (!isRecord(candidate)) {
+      throw new BackupValidationError({
+        actual: structuralType(candidate),
+        code: 'invalid_row',
+        expected: 'object',
+        path: `data.${table}[${recordIndex}]`,
+        recordIndex,
+        section: 'data',
+        table,
+      });
+    }
+    const expectedColumns = Object.keys(schema);
+    if (!hasExactKeys(candidate, expectedColumns)) {
+      const missing = expectedColumns.find(
+        (column) => !Object.hasOwn(candidate, column)
+      );
+      const unexpected = Object.keys(candidate).find(
+        (column) => !Object.hasOwn(schema, column)
+      );
+      const column = missing ?? unexpected;
+      throw new BackupValidationError({
+        actual: missing ? 'undefined' : 'unexpected_field',
+        code: missing ? 'missing_field' : 'unexpected_field',
+        expected: missing ? expectedBackupType(schema[missing]!) : 'absent',
+        path: `data.${table}[${recordIndex}]${column ? `.${column}` : ''}`,
+        recordIndex,
+        section: 'data',
+        table,
+      });
     }
     for (const [column, kind] of Object.entries(schema)) {
-      if (!isValidValue(candidate[column], kind)) {
-        throw new BackupValidationError('invalid_value');
+      if (!isValidBackupValue(candidate[column], kind)) {
+        throw new BackupValidationError({
+          actual: structuralType(candidate[column]),
+          code: 'invalid_value',
+          expected: expectedBackupType(kind),
+          path: `data.${table}[${recordIndex}].${column}`,
+          recordIndex,
+          section: 'data',
+          table,
+        });
       }
     }
     const id = candidate.id;
@@ -157,7 +119,15 @@ function validateRows(table: BackupTableName, value: unknown): BackupRow[] {
       id <= 0 ||
       ids.has(id)
     ) {
-      throw new BackupValidationError('invalid_id');
+      throw new BackupValidationError({
+        actual: structuralType(id),
+        code: 'invalid_id',
+        expected: 'unique positive safe integer',
+        path: `data.${table}[${recordIndex}].id`,
+        recordIndex,
+        section: 'data',
+        table,
+      });
     }
     ids.add(id);
     return candidate as BackupRow;
@@ -177,27 +147,67 @@ function assertReferences(data: BackupData): void {
   const sessionIds = ids('workout_sessions');
   const sessionExerciseIds = ids('workout_session_exercises');
   const requireReference = (
+    table: BackupTableName,
     rows: BackupRow[],
     column: string,
     parents: Set<BackupValue>
   ) => {
-    if (
-      rows.some(
-        (row) =>
-          row[column] === undefined || !parents.has(row[column] as BackupValue)
-      )
-    ) {
-      throw new BackupValidationError('missing_relationship');
+    const recordIndex = rows.findIndex(
+      (row) =>
+        row[column] === undefined || !parents.has(row[column] as BackupValue)
+    );
+    if (recordIndex >= 0) {
+      throw new BackupValidationError({
+        actual: 'relationship_missing',
+        code: 'missing_relationship',
+        expected: 'existing parent record',
+        path: `data.${table}[${recordIndex}].${column}`,
+        recordIndex,
+        relationshipCategory: 'missing_parent',
+        section: 'data',
+        table,
+      });
     }
   };
-  requireReference(data.workout_days, 'plan_id', planIds);
-  requireReference(data.workout_day_schedules, 'workout_day_id', dayIds);
-  requireReference(data.workout_day_exercises, 'workout_day_id', dayIds);
-  requireReference(data.workout_day_exercises, 'exercise_id', exerciseIds);
-  requireReference(data.workout_sessions, 'workout_day_id', dayIds);
-  requireReference(data.workout_session_exercises, 'session_id', sessionIds);
-  requireReference(data.workout_session_exercises, 'exercise_id', exerciseIds);
+  requireReference('workout_days', data.workout_days, 'plan_id', planIds);
   requireReference(
+    'workout_day_schedules',
+    data.workout_day_schedules,
+    'workout_day_id',
+    dayIds
+  );
+  requireReference(
+    'workout_day_exercises',
+    data.workout_day_exercises,
+    'workout_day_id',
+    dayIds
+  );
+  requireReference(
+    'workout_day_exercises',
+    data.workout_day_exercises,
+    'exercise_id',
+    exerciseIds
+  );
+  requireReference(
+    'workout_sessions',
+    data.workout_sessions,
+    'workout_day_id',
+    dayIds
+  );
+  requireReference(
+    'workout_session_exercises',
+    data.workout_session_exercises,
+    'session_id',
+    sessionIds
+  );
+  requireReference(
+    'workout_session_exercises',
+    data.workout_session_exercises,
+    'exercise_id',
+    exerciseIds
+  );
+  requireReference(
+    'workout_sets',
     data.workout_sets,
     'session_exercise_id',
     sessionExerciseIds
@@ -223,21 +233,37 @@ function assertDomainRules(data: BackupData): void {
     'is_completed',
   ]);
   for (const table of BACKUP_TABLES) {
-    for (const row of data[table]) {
+    for (const [recordIndex, row] of data[table].entries()) {
       for (const [column, value] of Object.entries(row)) {
         if (
           value !== null &&
           integerColumns.has(column) &&
           !Number.isSafeInteger(value)
         ) {
-          throw new BackupValidationError('invalid_integer');
+          throw new BackupValidationError({
+            actual: structuralType(value),
+            code: 'invalid_integer',
+            expected: 'safe integer',
+            path: `data.${table}[${recordIndex}].${column}`,
+            recordIndex,
+            section: 'data',
+            table,
+          });
         }
         if (
           column.endsWith('_at') &&
           value !== null &&
           (typeof value !== 'string' || Number.isNaN(Date.parse(value)))
         ) {
-          throw new BackupValidationError('invalid_date');
+          throw new BackupValidationError({
+            actual: structuralType(value),
+            code: 'invalid_date',
+            expected: 'parseable date string|null',
+            path: `data.${table}[${recordIndex}].${column}`,
+            recordIndex,
+            section: 'data',
+            table,
+          });
         }
       }
     }
@@ -261,12 +287,8 @@ function assertDomainRules(data: BackupData): void {
     }
     weekdays.add(weekday);
   }
-  const scheduledDayIds = new Set(
-    data.workout_day_schedules.map((row) => row.workout_day_id)
-  );
-  if (data.workout_days.some((row) => !scheduledDayIds.has(row.id))) {
-    throw new BackupValidationError('missing_schedule');
-  }
+  // Schema 4 permits legacy workout days without schedule rows. New writes
+  // prevent this state, while backups must preserve existing valid datasets.
   if (
     data.workout_day_exercises.some(
       (row) =>
@@ -361,33 +383,80 @@ export function validateBackup(value: unknown): TitanLogBackup {
       'summary',
       'data',
     ])
-  )
-    throw new BackupValidationError('invalid_envelope');
-  if (value.format !== BACKUP_FORMAT)
-    throw new BackupValidationError('unknown_format');
-  if (value.formatVersion !== BACKUP_FORMAT_VERSION) {
-    throw new BackupValidationError(
-      typeof value.formatVersion === 'number' &&
-        value.formatVersion > BACKUP_FORMAT_VERSION
-        ? 'newer_format'
-        : 'unsupported_format'
-    );
+  ) {
+    throw new BackupValidationError({
+      actual: structuralType(value),
+      code: 'invalid_envelope',
+      expected: 'canonical archive object',
+      path: 'archive',
+      section: 'envelope',
+    });
   }
-  if (value.schemaVersion !== BACKUP_SCHEMA_VERSION)
-    throw new BackupValidationError('unsupported_schema');
+  if (value.format !== BACKUP_FORMAT) {
+    throw new BackupValidationError({
+      actual: structuralType(value.format),
+      code: 'unknown_format',
+      expected: 'supported format string',
+      path: 'format',
+      section: 'envelope',
+    });
+  }
+  if (value.formatVersion !== BACKUP_FORMAT_VERSION) {
+    throw new BackupValidationError({
+      actual: structuralType(value.formatVersion),
+      code:
+        typeof value.formatVersion === 'number' &&
+        value.formatVersion > BACKUP_FORMAT_VERSION
+          ? 'newer_format'
+          : 'unsupported_format',
+      expected: 'supported format version number',
+      path: 'formatVersion',
+      section: 'envelope',
+    });
+  }
+  if (value.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+    throw new BackupValidationError({
+      actual: structuralType(value.schemaVersion),
+      code: 'unsupported_schema',
+      expected: 'supported schema version number',
+      path: 'schemaVersion',
+      section: 'envelope',
+    });
+  }
   if (
     typeof value.createdAt !== 'string' ||
     Number.isNaN(Date.parse(value.createdAt))
-  )
-    throw new BackupValidationError('invalid_date');
+  ) {
+    throw new BackupValidationError({
+      actual: structuralType(value.createdAt),
+      code: 'invalid_date',
+      expected: 'parseable date string',
+      path: 'createdAt',
+      section: 'envelope',
+    });
+  }
   if (
     typeof value.appVersion !== 'string' ||
     typeof value.deviceId !== 'string' ||
     value.deviceId.length < 8
-  )
-    throw new BackupValidationError('invalid_metadata');
-  if (!isRecord(value.data) || !hasExactKeys(value.data, [...BACKUP_TABLES]))
-    throw new BackupValidationError('invalid_data');
+  ) {
+    throw new BackupValidationError({
+      actual: 'invalid_structural_type',
+      code: 'invalid_metadata',
+      expected: 'non-empty app version and opaque device identifier strings',
+      path: 'metadata',
+      section: 'envelope',
+    });
+  }
+  if (!isRecord(value.data) || !hasExactKeys(value.data, [...BACKUP_TABLES])) {
+    throw new BackupValidationError({
+      actual: structuralType(value.data),
+      code: 'invalid_data',
+      expected: 'canonical backup table object',
+      path: 'data',
+      section: 'data',
+    });
+  }
   const rawData = value.data;
   const data = Object.fromEntries(
     BACKUP_TABLES.map((table) => [table, validateRows(table, rawData[table])])
@@ -398,8 +467,16 @@ export function validateBackup(value: unknown): TitanLogBackup {
   if (
     !isRecord(value.summary) ||
     JSON.stringify(value.summary) !== JSON.stringify(summary)
-  )
-    throw new BackupValidationError('invalid_summary');
+  ) {
+    throw new BackupValidationError({
+      actual: structuralType(value.summary),
+      code: 'invalid_summary',
+      expected: 'counts derived from canonical archive rows',
+      path: 'summary',
+      section: 'summary',
+      summaryCategory: 'row_count_mismatch',
+    });
+  }
   return { ...value, data, summary } as TitanLogBackup;
 }
 

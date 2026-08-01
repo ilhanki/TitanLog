@@ -8,6 +8,7 @@ import {
   BackupArchiveError,
   createBackupArchive,
 } from '@/features/data-safety/backup-repository';
+import type { BackupValidationIssue } from '@/features/data-safety/backup-validator';
 import {
   deserializeBackup,
   serializeBackup,
@@ -38,6 +39,7 @@ type SafeExportDiagnostic = {
   platform: string;
   stage: LocalBackupExportStage;
   uriScheme?: string;
+  validationIssue?: BackupValidationIssue;
 };
 
 export class LocalBackupExportError extends Error {
@@ -114,6 +116,9 @@ export function localBackupErrorMessage(error: unknown): string {
   if (error.stage === 'sharing') {
     return 'Android paylaşım ekranı açılamadı. Yerel verilerin değişmeden korundu.';
   }
+  if (error.stage === 'archive_validation') {
+    return 'Yedek verileri doğrulanamadı. Yerel verileriniz değiştirilmedi.';
+  }
   if (error.stage.startsWith('temporary_file_')) {
     return 'Geçici yedek dosyası oluşturulamadı. Yerel verilerin değişmeden korundu.';
   }
@@ -131,7 +136,10 @@ async function performLocalBackupExport(
   } catch (error) {
     const stage =
       error instanceof BackupArchiveError ? error.stage : 'archive_build';
-    const wrapped = exportError(stage, error);
+    const wrapped = exportError(stage, error, {
+      validationIssue:
+        error instanceof BackupArchiveError ? error.validationIssue : undefined,
+    });
     reportDiagnostic(wrapped);
     throw wrapped;
   }

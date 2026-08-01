@@ -2,6 +2,10 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 
 import packageJson from '../../../package.json';
 import {
+  backupTableColumns,
+  normalizePersistedBackupRow,
+} from '@/features/data-safety/backup-contract';
+import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
   BACKUP_SCHEMA_VERSION,
@@ -12,6 +16,8 @@ import {
   type TitanLogBackup,
 } from '@/features/data-safety/backup-types';
 import {
+  BackupValidationError,
+  type BackupValidationIssue,
   createBackupSummary,
   validateBackup,
 } from '@/features/data-safety/backup-validator';
@@ -36,6 +42,7 @@ export type BackupArchiveStage =
 export class BackupArchiveError extends Error {
   constructor(
     readonly stage: BackupArchiveStage,
+    readonly validationIssue?: BackupValidationIssue,
     options?: ErrorOptions
   ) {
     super(stage, options);
@@ -57,11 +64,13 @@ export async function createBackupArchive(
       }
       const entries: [BackupTableName, BackupRow[]][] = [];
       for (const table of BACKUP_TABLES) {
+        const columns = backupTableColumns(table);
+        const rows = await transaction.getAllAsync<Record<string, unknown>>(
+          `SELECT ${columns.join(', ')} FROM ${table} ORDER BY id`
+        );
         entries.push([
           table,
-          await transaction.getAllAsync<BackupRow>(
-            `SELECT * FROM ${table} ORDER BY id`
-          ),
+          rows.map((row) => normalizePersistedBackupRow(table, row)),
         ]);
       }
       snapshot = {
@@ -71,7 +80,7 @@ export async function createBackupArchive(
     });
   } catch (error) {
     if (error instanceof BackupArchiveError) throw error;
-    throw new BackupArchiveError('snapshot_read', { cause: error });
+    throw new BackupArchiveError('snapshot_read', undefined, { cause: error });
   }
   if (!snapshot) throw new BackupArchiveError('archive_build');
   const { data, installationId } = snapshot as {
@@ -90,7 +99,11 @@ export async function createBackupArchive(
       summary: createBackupSummary(data),
     });
   } catch (error) {
-    throw new BackupArchiveError('archive_validation', { cause: error });
+    throw new BackupArchiveError(
+      'archive_validation',
+      error instanceof BackupValidationError ? error.issue : undefined,
+      { cause: error }
+    );
   }
 }
 
