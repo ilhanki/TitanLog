@@ -3,7 +3,7 @@ import {
   expectedBackupType,
   isValidBackupValue,
   structuralType,
-} from './backup-contract';
+} from './backup-contract.ts';
 import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
@@ -15,7 +15,7 @@ import {
   type BackupTableName,
   type BackupValue,
   type TitanLogBackup,
-} from './backup-types';
+} from './backup-types.ts';
 
 export type BackupValidationIssue = {
   actual?: string;

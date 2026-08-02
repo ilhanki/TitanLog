@@ -1,8 +1,48 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 
 function source(path: string): string {
   return readFileSync(join(process.cwd(), path), 'utf8');
+}
+
+function moduleSpecifiers(contents: string): string[] {
+  return Array.from(
+    contents.matchAll(
+      /\b(?:import|export)\s+[\s\S]*?\sfrom\s+['"](\.[^'"]+)['"]/g
+    )
+  ).flatMap((match) => (match[1] ? [match[1]] : []));
+}
+
+function inspectLocalModuleGraph(entry: string): string[] {
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function visit(modulePath: string): void {
+    const normalized = relative(process.cwd(), modulePath).replaceAll(
+      '\\',
+      '/'
+    );
+    expect(visiting.has(normalized)).toBe(false);
+    if (visited.has(normalized)) return;
+    expect(existsSync(modulePath)).toBe(true);
+    expect(readdirSync(dirname(modulePath))).toContain(basename(modulePath));
+    visiting.add(normalized);
+    const contents = readFileSync(modulePath, 'utf8');
+    expect(contents).not.toMatch(/\bimport\s*\(/);
+    for (const specifier of moduleSpecifiers(contents)) {
+      if (!specifier.startsWith('.')) {
+        expect(specifier).toBe('npm:@supabase/supabase-js@2');
+        continue;
+      }
+      expect(specifier).toMatch(/\.ts$/);
+      visit(resolve(dirname(modulePath), specifier));
+    }
+    visiting.delete(normalized);
+    visited.add(normalized);
+  }
+
+  visit(resolve(process.cwd(), entry));
+  return [...visited].sort();
 }
 
 describe('static sync backend security contract', () => {
@@ -73,6 +113,23 @@ describe('static sync backend security contract', () => {
     );
     expect(shared).toContain('containsSecretShapedKey');
     expect(shared).toContain("throw new Error('non_canonical')");
+  });
+
+  it('keeps the complete sync-push local module graph Deno-resolvable', () => {
+    expect(
+      inspectLocalModuleGraph('supabase/functions/sync-push/index.ts')
+    ).toEqual([
+      'src/features/data-safety/backup-contract.ts',
+      'src/features/data-safety/backup-serialization.ts',
+      'src/features/data-safety/backup-types.ts',
+      'src/features/data-safety/backup-validator.ts',
+      'supabase/functions/_shared/sync-contract.ts',
+      'supabase/functions/_shared/sync-server.ts',
+      'supabase/functions/sync-push/index.ts',
+    ]);
+    expect(
+      source('src/features/data-safety/backup-serialization.ts')
+    ).toContain("from './backup-validator.ts'");
   });
 
   it('returns empty cloud or a short-lived private URL without public access', () => {
