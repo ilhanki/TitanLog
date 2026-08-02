@@ -95,13 +95,14 @@ export async function completeAuthCallback(callbackUrl: string): Promise<void> {
   await establishSessionFromCallback(callbackUrl, '/callback');
 }
 
-export async function completePasswordReset(
-  callbackUrl: string,
-  password: string
+export async function preparePasswordResetCallback(
+  callbackUrl: string
 ): Promise<void> {
-  const client = requireClient();
   await establishSessionFromCallback(callbackUrl, '/reset-password');
-  const { error } = await client.auth.updateUser({ password });
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await requireClient().auth.updateUser({ password });
   if (error) throw new AccountError('remote_failure');
 }
 

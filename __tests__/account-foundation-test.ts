@@ -1,11 +1,12 @@
 import {
   completeAuthCallback,
-  completePasswordReset,
+  preparePasswordResetCallback,
   requestAccountDeletion,
   requestPasswordReset,
   signIn,
   signOut,
   signUp,
+  updatePassword,
 } from '@/features/auth/auth-service';
 
 const mockSignInWithPassword = jest.fn();
@@ -83,10 +84,10 @@ describe('optional account foundation', () => {
   });
 
   it('exchanges only the password-reset callback code before updating', async () => {
-    await completePasswordReset(
-      'titanlog://auth/reset-password?code=verified-code',
-      'new-password'
+    await preparePasswordResetCallback(
+      'titanlog://auth/reset-password?code=verified-code'
     );
+    await updatePassword('new-password');
     expect(mockExchangeCodeForSession).toHaveBeenCalledWith('verified-code');
     expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'new-password' });
   });
@@ -97,6 +98,20 @@ describe('optional account foundation', () => {
     await expect(
       completeAuthCallback('titanlog://profile?code=callback-code')
     ).rejects.toMatchObject({ code: 'remote_failure' });
+  });
+
+  it('rejects expired, foreign-scheme, and incomplete callbacks before session exchange', async () => {
+    await expect(
+      completeAuthCallback('titanlog://auth/callback?error=access_denied')
+    ).rejects.toMatchObject({ code: 'remote_failure' });
+    await expect(
+      completeAuthCallback('https://example.com/auth/callback?code=foreign')
+    ).rejects.toMatchObject({ code: 'remote_failure' });
+    await expect(
+      preparePasswordResetCallback('titanlog://auth/reset-password')
+    ).rejects.toMatchObject({ code: 'remote_failure' });
+    expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+    expect(mockSetSession).not.toHaveBeenCalled();
   });
 
   it('clears only the local session on sign-out', async () => {

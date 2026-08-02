@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -8,17 +8,58 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { AppTextInput } from '@/components/app-text-input';
 import { Screen } from '@/components/screen';
-import { completePasswordReset } from '@/features/auth/auth-service';
+import {
+  completeAuthCallbackOnce,
+  processAuthCallbackOnce,
+  type AuthCallbackResult,
+} from '@/features/auth/auth-callback-coordinator';
+import { useAuth } from '@/features/auth/auth-provider';
+import {
+  preparePasswordResetCallback,
+  updatePassword,
+} from '@/features/auth/auth-service';
+import { useAuthCallbackNavigation } from '@/features/auth/use-auth-callback-navigation';
 import { theme } from '@/theme/tokens';
 
 export function ResetPasswordScreen() {
   const router = useRouter();
   const callbackUrl = Linking.useLinkingURL();
+  const { initializing, session } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [callbackFailed, setCallbackFailed] = useState(false);
+  const [callbackResult, setCallbackResult] =
+    useState<AuthCallbackResult | null>(null);
+  const [completed, setCompleted] = useState(false);
   const pendingRef = useRef(false);
+
+  useEffect(() => {
+    if (!callbackUrl) return;
+    let active = true;
+    setCallbackFailed(false);
+    setCallbackResult(null);
+    void processAuthCallbackOnce('password_recovery', callbackUrl, () =>
+      preparePasswordResetCallback(callbackUrl)
+    )
+      .then((result) => {
+        if (active) setCallbackResult(result);
+      })
+      .catch(() => {
+        if (active) setCallbackFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [callbackUrl]);
+
+  const sessionReady = !initializing && Boolean(session);
+  const callbackReady = Boolean(callbackResult) && sessionReady;
+  useAuthCallbackNavigation(
+    callbackResult?.callbackId ?? null,
+    completed && sessionReady
+  );
 
   const submit = async () => {
     if (pendingRef.current) return;
@@ -34,9 +75,17 @@ export function ResetPasswordScreen() {
     setPending(true);
     setNotice(null);
     try {
-      if (!callbackUrl) throw new Error('callback_missing');
-      await completePasswordReset(callbackUrl, password);
-      router.replace('/(tabs)/profile');
+      if (!callbackResult || !callbackReady)
+        throw new Error('callback_not_ready');
+      const completedNow = await completeAuthCallbackOnce(
+        callbackResult.callbackId,
+        () => updatePassword(password)
+      );
+      if (!completedNow) {
+        setNotice('Bu şifre yenileme bağlantısı daha önce işlendi.');
+        return;
+      }
+      setCompleted(true);
     } catch {
       setNotice(
         'Şifre yenileme bağlantısı geçersiz veya süresi dolmuş olabilir.'
@@ -53,13 +102,19 @@ export function ResetPasswordScreen() {
         Yeni Şifre
       </AppText>
       <AppText selectable tone="muted">
-        E-posta bağlantısından gelen doğrulanmış oturum için yeni şifreni
-        belirle.
+        {callbackFailed
+          ? 'Şifre yenileme bağlantısı geçersiz veya süresi dolmuş olabilir.'
+          : !callbackUrl
+            ? 'Şifre yenileme bağlantısı bulunamadı.'
+            : !callbackReady
+              ? 'Güvenli şifre yenileme oturumu hazırlanıyor…'
+              : 'E-posta bağlantısından gelen doğrulanmış oturum için yeni şifreni belirle.'}
       </AppText>
       <AppCard style={styles.form} tone="raised">
         <AppTextInput
           autoCapitalize="none"
           autoComplete="new-password"
+          editable={!pending && callbackReady}
           label="Yeni Şifre"
           onChangeText={setPassword}
           secureTextEntry
@@ -68,6 +123,7 @@ export function ResetPasswordScreen() {
         <AppTextInput
           autoCapitalize="none"
           autoComplete="new-password"
+          editable={!pending && callbackReady}
           label="Yeni Şifre Tekrarı"
           onChangeText={setConfirmation}
           secureTextEntry
@@ -79,14 +135,20 @@ export function ResetPasswordScreen() {
           </AppText>
         ) : null}
         <AppButton
-          disabled={pending}
-          label={pending ? 'Güncelleniyor…' : 'Şifreyi Güncelle'}
+          disabled={pending || !callbackReady || completed}
+          label={
+            pending
+              ? 'Güncelleniyor…'
+              : completed
+                ? 'Şifre Güncellendi'
+                : 'Şifreyi Güncelle'
+          }
           onPress={() => void submit()}
         />
         <AppButton
           disabled={pending}
           label="Vazgeç"
-          onPress={() => router.back()}
+          onPress={() => router.replace('/auth/sign-in')}
           variant="ghost"
         />
       </AppCard>
