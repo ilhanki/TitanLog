@@ -13,6 +13,10 @@ import {
   downloadCloudBackup,
   uploadCloudBackup,
 } from '@/features/data-safety/cloud-backup-service';
+import {
+  createCloudBackupDownloadError,
+  logCloudBackupDownloadFailure,
+} from '@/features/data-safety/cloud-backup-diagnostics';
 import { restoreBackupArchive } from '@/features/data-safety/backup-repository';
 import type { TitanLogBackup } from '@/features/data-safety/backup-types';
 import {
@@ -502,7 +506,19 @@ export function AccountDataScreen() {
             label="Buluttan Geri Yükle"
             onPress={() =>
               void run('cloud-download', async () => {
-                confirmRestore(await downloadCloudBackup(database));
+                const archive = await downloadCloudBackup(database);
+                try {
+                  confirmRestore(archive);
+                } catch {
+                  const error = createCloudBackupDownloadError({
+                    archiveFitnessSchemaVersion: archive.schemaVersion,
+                    archiveFormatVersion: archive.formatVersion,
+                    code: 'preview_generation_failed',
+                    stage: 'preview_generation',
+                  });
+                  logCloudBackupDownloadFailure(error);
+                  throw error;
+                }
               })
             }
             style={styles.action}

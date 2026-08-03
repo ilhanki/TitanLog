@@ -67,11 +67,14 @@ jest.mock('@/features/sync/sync-state-repository', () => ({
 }));
 
 import * as BackupRepository from '@/features/data-safety/backup-repository';
+import * as CloudBackupService from '@/features/data-safety/cloud-backup-service';
 import * as LocalBackupService from '@/features/data-safety/local-backup-service';
 
 const mockPickLocalBackup = LocalBackupService.pickLocalBackup as jest.Mock;
 const mockShareLocalBackup = LocalBackupService.shareLocalBackup as jest.Mock;
 const mockRestoreBackup = BackupRepository.restoreBackupArchive as jest.Mock;
+const mockDownloadCloudBackup =
+  CloudBackupService.downloadCloudBackup as jest.Mock;
 jest.mock('@/features/data-safety/cloud-backup-service', () => ({
   downloadCloudBackup: jest.fn(),
   uploadCloudBackup: jest.fn(),
@@ -89,6 +92,25 @@ jest.mock('@/features/auth/auth-service', () => ({
 }));
 
 describe('account and data screen restore safety', () => {
+  const configureOwnedAccount = () => {
+    const userId = '123e4567-e89b-12d3-a456-426614174000';
+    mockAuth = {
+      configured: true,
+      initializing: false,
+      user: {
+        email: 'user@example.com',
+        email_confirmed_at: '2026-08-01T08:00:00.000Z',
+        id: userId,
+      },
+    };
+    mockGetOwnership.mockResolvedValue({
+      installationId: 'installation-123',
+      lastCloudBackupAt: null,
+      lastLocalBackupAt: null,
+      ownerAccountId: userId,
+    });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth = { configured: false, initializing: false, user: null };
@@ -179,23 +201,75 @@ describe('account and data screen restore safety', () => {
     expect(queryByText('native private detail')).toBeNull();
   });
 
-  it('shows exactly three safe choices for a simultaneous sync conflict', async () => {
-    const userId = '123e4567-e89b-12d3-a456-426614174000';
-    mockAuth = {
-      configured: true,
-      initializing: false,
-      user: {
-        email: 'user@example.com',
-        email_confirmed_at: '2026-08-01T08:00:00.000Z',
-        id: userId,
-      },
-    };
-    mockGetOwnership.mockResolvedValue({
-      installationId: 'installation-123',
-      lastCloudBackupAt: null,
-      lastLocalBackupAt: null,
-      ownerAccountId: userId,
+  it('shows the generic safe Turkish message when cloud retrieval fails', async () => {
+    configureOwnedAccount();
+    mockDownloadCloudBackup.mockRejectedValueOnce(
+      new Error('private runtime detail')
+    );
+    const { getByRole, getByText, queryByText } = await render(
+      <AccountDataScreen />
+    );
+    await act(async () => {
+      fireEvent.press(getByRole('button', { name: 'Buluttan Geri Yükle' }));
     });
+    await waitFor(() =>
+      expect(
+        getByText('İşlem tamamlanamadı. Yerel verilerin değişmeden korundu.')
+      ).toBeTruthy()
+    );
+    expect(queryByText('private runtime detail')).toBeNull();
+    expect(mockRestoreBackup).not.toHaveBeenCalled();
+  });
+
+  it('opens the restore preview after a successful cloud retrieval', async () => {
+    configureOwnedAccount();
+    mockDownloadCloudBackup.mockResolvedValueOnce(backup);
+    const { getByRole } = await render(<AccountDataScreen />);
+    await act(async () => {
+      fireEvent.press(getByRole('button', { name: 'Buluttan Geri Yükle' }));
+    });
+    await waitFor(() =>
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Yedekten Geri Yükle',
+        expect.stringMatching(/82 antrenman[\s\S]*18 ölçüm/),
+        expect.any(Array)
+      )
+    );
+    expect(mockRestoreBackup).not.toHaveBeenCalled();
+  });
+
+  it('reports preview generation failure safely without restoring data', async () => {
+    configureOwnedAccount();
+    mockDownloadCloudBackup.mockResolvedValueOnce(backup);
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (Alert.alert as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('private preview detail');
+    });
+    const { getByRole, getByText } = await render(<AccountDataScreen />);
+    await act(async () => {
+      fireEvent.press(getByRole('button', { name: 'Buluttan Geri Yükle' }));
+    });
+    await waitFor(() =>
+      expect(
+        getByText('İşlem tamamlanamadı. Yerel verilerin değişmeden korundu.')
+      ).toBeTruthy()
+    );
+    expect(warn).toHaveBeenCalledWith(
+      'TitanLog manual cloud backup download failed',
+      expect.objectContaining({
+        code: 'preview_generation_failed',
+        stage: 'preview_generation',
+      })
+    );
+    expect(JSON.stringify(warn.mock.calls[0])).not.toContain(
+      'private preview detail'
+    );
+    expect(mockRestoreBackup).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('shows exactly three safe choices for a simultaneous sync conflict', async () => {
+    configureOwnedAccount();
     mockInspectManualSync.mockResolvedValue({
       hasLocalChanges: true,
       hasRemoteChanges: true,
