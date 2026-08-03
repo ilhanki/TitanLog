@@ -1,4 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
   downloadCloudBackup,
@@ -32,6 +34,10 @@ const mockUpload = jest.fn();
 const mockDownload = jest.fn();
 const mockGetUser = jest.fn();
 const mockMetadataUpsert = jest.fn();
+const mockMetadataSingle = jest.fn();
+const mockMetadataEq = jest.fn(() => ({ single: mockMetadataSingle }));
+const mockMetadataSelect = jest.fn(() => ({ eq: mockMetadataEq }));
+const mockHashCanonicalArchive = jest.fn();
 const mockFrom = jest.fn(() => ({
   upload: mockUpload,
   download: mockDownload,
@@ -40,9 +46,16 @@ const mockFrom = jest.fn(() => ({
 jest.mock('@/features/auth/supabase-client', () => ({
   getSupabaseClient: () => ({
     auth: { getUser: mockGetUser },
-    from: jest.fn(() => ({ upsert: mockMetadataUpsert })),
+    from: jest.fn(() => ({
+      select: mockMetadataSelect,
+      upsert: mockMetadataUpsert,
+    })),
     storage: { from: mockFrom },
   }),
+}));
+jest.mock('@/features/sync/canonical-sync-archive', () => ({
+  hashCanonicalArchive: (...args: unknown[]) =>
+    mockHashCanonicalArchive(...args),
 }));
 jest.mock('@/features/data-safety/backup-repository', () => ({
   createBackupArchive: jest.fn().mockResolvedValue(backup),
@@ -63,14 +76,25 @@ function database(owner = userId) {
 describe('manual private cloud backup', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockHashCanonicalArchive.mockReset();
+    mockMetadataSingle.mockReset();
     mockGetUser.mockResolvedValue({
       data: { user: { id: userId } },
       error: null,
     });
     mockUpload.mockResolvedValue({ error: null });
     mockMetadataUpsert.mockResolvedValue({ error: null });
+    const serialized = JSON.stringify(backup);
+    mockHashCanonicalArchive.mockResolvedValue('a'.repeat(64));
+    mockMetadataSingle.mockResolvedValue({
+      data: {
+        byte_size: new TextEncoder().encode(serialized).byteLength,
+        content_hash: 'a'.repeat(64),
+      },
+      error: null,
+    });
     mockDownload.mockResolvedValue({
-      data: { text: jest.fn().mockResolvedValue(JSON.stringify(backup)) },
+      data: { text: jest.fn().mockResolvedValue(serialized) },
       error: null,
     });
   });
@@ -84,7 +108,11 @@ describe('manual private cloud backup', () => {
       expect.objectContaining({ upsert: true })
     );
     expect(mockMetadataUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({ user_id: userId }),
+      expect.objectContaining({
+        byte_size: expect.any(Number),
+        content_hash: 'a'.repeat(64),
+        user_id: userId,
+      }),
       { onConflict: 'user_id' }
     );
   });
@@ -94,7 +122,33 @@ describe('manual private cloud backup', () => {
       format: 'titanlog-backup',
     });
     expect(mockDownload).toHaveBeenCalledWith(`${userId}/latest.titanlog`);
+    expect(mockMetadataSelect).toHaveBeenCalledWith('byte_size, content_hash');
+    expect(mockMetadataEq).toHaveBeenCalledWith('user_id', userId);
+    expect(mockHashCanonicalArchive).toHaveBeenCalledWith(
+      JSON.stringify(backup)
+    );
   });
+
+  it.each([
+    ['size', { byte_size: 1, content_hash: 'a'.repeat(64) }, 'a'.repeat(64)],
+    [
+      'hash',
+      {
+        byte_size: new TextEncoder().encode(JSON.stringify(backup)).byteLength,
+        content_hash: 'a'.repeat(64),
+      },
+      'b'.repeat(64),
+    ],
+  ])(
+    'rejects a cloud backup %s mismatch before preview',
+    async (_, metadata, hash) => {
+      mockMetadataSingle.mockResolvedValueOnce({ data: metadata, error: null });
+      mockHashCanonicalArchive.mockResolvedValueOnce(hash);
+      await expect(downloadCloudBackup(database())).rejects.toMatchObject({
+        code: 'validation_failure',
+      });
+    }
+  );
 
   it('blocks unauthenticated and foreign-owner cloud access before storage', async () => {
     mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null });
@@ -114,5 +168,19 @@ describe('manual private cloud backup', () => {
       code: 'remote_failure',
     });
     expect(db.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('defines constrained owner-scoped integrity metadata', () => {
+    const sql = readFileSync(
+      join(
+        process.cwd(),
+        'supabase/migrations/202608030001_backup_integrity_metadata.sql'
+      ),
+      'utf8'
+    );
+    expect(sql).toContain('add column if not exists byte_size bigint');
+    expect(sql).toContain('add column if not exists content_hash text');
+    expect(sql).toContain("content_hash ~ '^[0-9a-f]{64}$'");
+    expect(sql).not.toMatch(/disable row level security|create policy/i);
   });
 });

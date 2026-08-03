@@ -8,12 +8,17 @@ import {
 } from '@/features/data-safety/backup-serialization';
 import type { TitanLogBackup } from '@/features/data-safety/backup-types';
 import { createDatasetOwnershipRepository } from '@/features/data-safety/dataset-ownership-repository';
+import { hashCanonicalArchive } from '@/features/sync/canonical-sync-archive';
 
 export const CLOUD_BACKUP_BUCKET = 'titanlog-backups';
 
 export class CloudBackupError extends Error {
   constructor(
-    readonly code: 'not_authenticated' | 'not_configured' | 'remote_failure'
+    readonly code:
+      | 'not_authenticated'
+      | 'not_configured'
+      | 'remote_failure'
+      | 'validation_failure'
   ) {
     super(code);
   }
@@ -44,7 +49,9 @@ export async function uploadCloudBackup(
   const ownership = createDatasetOwnershipRepository(database);
   await ownership.assertCloudAccess(user.id);
   const archive = await createBackupArchive(database);
-  const bytes = new TextEncoder().encode(serializeBackup(archive));
+  const serialized = serializeBackup(archive);
+  const bytes = new TextEncoder().encode(serialized);
+  const contentHash = await hashCanonicalArchive(serialized);
   const { error } = await client.storage
     .from(CLOUD_BACKUP_BUCKET)
     .upload(userBackupPath(user.id), bytes.buffer, {
@@ -55,6 +62,8 @@ export async function uploadCloudBackup(
   const { error: metadataError } = await client.from('backup_metadata').upsert(
     {
       app_version: archive.appVersion,
+      byte_size: bytes.byteLength,
+      content_hash: contentHash,
       created_at: archive.createdAt,
       format_version: archive.formatVersion,
       summary: archive.summary,
@@ -77,5 +86,24 @@ export async function downloadCloudBackup(
     .from(CLOUD_BACKUP_BUCKET)
     .download(userBackupPath(user.id));
   if (error || !data) throw new CloudBackupError('remote_failure');
-  return deserializeBackup(await data.text());
+  const { data: metadata, error: metadataError } = await client
+    .from('backup_metadata')
+    .select('byte_size, content_hash')
+    .eq('user_id', user.id)
+    .single();
+  if (metadataError || !metadata) throw new CloudBackupError('remote_failure');
+  if (
+    !Number.isSafeInteger(metadata.byte_size) ||
+    metadata.byte_size <= 0 ||
+    typeof metadata.content_hash !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(metadata.content_hash)
+  )
+    throw new CloudBackupError('validation_failure');
+  const serialized = await data.text();
+  if (
+    new TextEncoder().encode(serialized).byteLength !== metadata.byte_size ||
+    (await hashCanonicalArchive(serialized)) !== metadata.content_hash
+  )
+    throw new CloudBackupError('validation_failure');
+  return deserializeBackup(serialized);
 }
