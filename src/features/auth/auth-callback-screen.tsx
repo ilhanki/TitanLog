@@ -10,17 +10,15 @@ import {
   processAuthCallbackOnce,
   type AuthCallbackResult,
 } from '@/features/auth/auth-callback-coordinator';
-import { useAuth } from '@/features/auth/auth-provider';
-import { completeAuthCallback } from '@/features/auth/auth-service';
 import {
-  AUTH_PROFILE_ROUTE,
-  useAuthCallbackNavigation,
-} from '@/features/auth/use-auth-callback-navigation';
+  clearPostAuthDestination,
+  requestPostAuthDestination,
+} from '@/features/auth/auth-navigation-state';
+import { completeAuthCallback } from '@/features/auth/auth-service';
 
 export function AuthCallbackScreen() {
   const router = useRouter();
   const callbackUrl = Linking.useLinkingURL();
-  const { initializing, session } = useAuth();
   const [result, setResult] = useState<AuthCallbackResult | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -29,25 +27,25 @@ export function AuthCallbackScreen() {
     let active = true;
     setResult(null);
     setFailed(false);
+    requestPostAuthDestination('profile');
     void processAuthCallbackOnce('email_verification', callbackUrl, () =>
       completeAuthCallback(callbackUrl)
     )
       .then((nextResult) => {
-        if (active) setResult(nextResult);
+        if (!active) return;
+        if (nextResult.duplicate) clearPostAuthDestination();
+        setResult(nextResult);
       })
       .catch(() => {
-        if (active) setFailed(true);
+        if (active) {
+          clearPostAuthDestination();
+          setFailed(true);
+        }
       });
     return () => {
       active = false;
     };
   }, [callbackUrl]);
-
-  const sessionReady = !initializing && Boolean(session);
-  const navigationReady = useAuthCallbackNavigation(
-    result?.callbackId ?? null,
-    Boolean(result) && sessionReady
-  );
 
   const message = failed
     ? 'Doğrulama bağlantısı geçersiz veya süresi dolmuş olabilir.'
@@ -57,11 +55,7 @@ export function AuthCallbackScreen() {
         ? 'Hesabın güvenli biçimde doğrulanıyor…'
         : result.duplicate
           ? 'Bu doğrulama bağlantısı daha önce işlendi.'
-          : !sessionReady
-            ? 'Doğrulama tamamlandı. Oturum hazırlanıyor…'
-            : !navigationReady
-              ? 'Doğrulama tamamlandı. Uygulama hazırlanıyor…'
-              : 'E-posta adresin doğrulandı. Profiline yönlendiriliyorsun…';
+          : 'Doğrulama tamamlandı. Güvenli oturum hazırlanıyor…';
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -74,8 +68,8 @@ export function AuthCallbackScreen() {
         </AppText>
         {result?.duplicate ? (
           <AppButton
-            label="Profil Ekranına Dön"
-            onPress={() => router.replace(AUTH_PROFILE_ROUTE)}
+            label="Giriş Ekranına Dön"
+            onPress={() => router.replace('/auth/sign-in')}
             variant="secondary"
           />
         ) : failed || !callbackUrl ? (

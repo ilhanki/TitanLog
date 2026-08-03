@@ -13,6 +13,7 @@ import {
   getSupabaseClient,
   isSupabaseConfigured,
 } from '@/features/auth/supabase-client';
+import { clearAuthNavigationState } from '@/features/auth/auth-navigation-state';
 
 type AuthContextValue = {
   configured: boolean;
@@ -40,14 +41,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
     let active = true;
+    let authEventObserved = false;
     void client.auth.getSession().then(({ data }) => {
       if (active) {
-        setSession(data.session);
+        if (!authEventObserved) setSession(data.session);
         setInitializing(false);
       }
     });
-    const { data } = client.auth.onAuthStateChange((_event, nextSession) => {
-      if (active) setSession(nextSession);
+    const { data } = client.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+      authEventObserved = true;
+      if (event === 'SIGNED_OUT') clearAuthNavigationState();
+      setSession(nextSession);
     });
     const updateAutoRefresh = (state: string) => {
       if (state === 'active') client.auth.startAutoRefresh();

@@ -1,7 +1,24 @@
 import { getSupabaseClient } from '@/features/auth/supabase-client';
+import { clearAuthNavigationState } from '@/features/auth/auth-navigation-state';
 
 export const AUTH_CALLBACK_URL = 'titanlog://auth/callback';
 export const PASSWORD_RESET_CALLBACK_URL = 'titanlog://auth/reset-password';
+
+export function isPasswordResetCallbackUrl(
+  callbackUrl: string | null
+): boolean {
+  if (!callbackUrl) return false;
+  try {
+    const parsedUrl = new URL(callbackUrl);
+    return (
+      parsedUrl.protocol === 'titanlog:' &&
+      parsedUrl.hostname === 'auth' &&
+      parsedUrl.pathname === '/reset-password'
+    );
+  } catch {
+    return false;
+  }
+}
 
 export class AccountError extends Error {
   constructor(
@@ -109,6 +126,7 @@ export async function updatePassword(password: string): Promise<void> {
 export async function signOut(): Promise<void> {
   const { error } = await requireClient().auth.signOut({ scope: 'local' });
   if (error) throw new AccountError('remote_failure');
+  clearAuthNavigationState();
 }
 
 export async function requestAccountDeletion(): Promise<void> {
@@ -120,4 +138,5 @@ export async function requestAccountDeletion(): Promise<void> {
   });
   if (error) throw new AccountError('remote_failure');
   await client.auth.signOut({ scope: 'local' });
+  clearAuthNavigationState();
 }

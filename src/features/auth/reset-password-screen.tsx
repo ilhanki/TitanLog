@@ -13,12 +13,18 @@ import {
   processAuthCallbackOnce,
   type AuthCallbackResult,
 } from '@/features/auth/auth-callback-coordinator';
+import {
+  beginPasswordRecovery,
+  clearAuthNavigationState,
+  finishPasswordRecovery,
+  requestPostAuthDestination,
+} from '@/features/auth/auth-navigation-state';
 import { useAuth } from '@/features/auth/auth-provider';
 import {
   preparePasswordResetCallback,
+  signOut,
   updatePassword,
 } from '@/features/auth/auth-service';
-import { useAuthCallbackNavigation } from '@/features/auth/use-auth-callback-navigation';
 import { theme } from '@/theme/tokens';
 
 export function ResetPasswordScreen() {
@@ -38,6 +44,7 @@ export function ResetPasswordScreen() {
   useEffect(() => {
     if (!callbackUrl) return;
     let active = true;
+    beginPasswordRecovery();
     setCallbackFailed(false);
     setCallbackResult(null);
     void processAuthCallbackOnce('password_recovery', callbackUrl, () =>
@@ -56,10 +63,6 @@ export function ResetPasswordScreen() {
 
   const sessionReady = !initializing && Boolean(session);
   const callbackReady = Boolean(callbackResult) && sessionReady;
-  useAuthCallbackNavigation(
-    callbackResult?.callbackId ?? null,
-    completed && sessionReady
-  );
 
   const submit = async () => {
     if (pendingRef.current) return;
@@ -85,11 +88,34 @@ export function ResetPasswordScreen() {
         setNotice('Bu şifre yenileme bağlantısı daha önce işlendi.');
         return;
       }
+      requestPostAuthDestination('password_update_complete');
       setCompleted(true);
+      finishPasswordRecovery();
     } catch {
       setNotice(
         'Şifre yenileme bağlantısı geçersiz veya süresi dolmuş olabilir.'
       );
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  };
+
+  const cancel = async () => {
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    setPending(true);
+    setNotice(null);
+    try {
+      if (session) {
+        await signOut();
+      } else {
+        clearAuthNavigationState();
+        router.replace('/auth/sign-in');
+      }
+    } catch {
+      beginPasswordRecovery();
+      setNotice('Şifre yenileme oturumu kapatılamadı. Yeniden deneyebilirsin.');
     } finally {
       pendingRef.current = false;
       setPending(false);
@@ -148,7 +174,7 @@ export function ResetPasswordScreen() {
         <AppButton
           disabled={pending}
           label="Vazgeç"
-          onPress={() => router.replace('/auth/sign-in')}
+          onPress={() => void cancel()}
           variant="ghost"
         />
       </AppCard>

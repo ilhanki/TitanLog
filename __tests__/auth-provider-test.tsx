@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
 const mockGetSession = jest.fn();
@@ -7,6 +7,8 @@ const mockOnAuthStateChange = jest.fn();
 const mockStartAutoRefresh = jest.fn();
 const mockStopAutoRefresh = jest.fn();
 const mockUnsubscribe = jest.fn();
+let authStateListener:
+  ((event: string, session: Session | null) => void) | null;
 
 jest.mock('@/features/auth/supabase-client', () => ({
   getSupabaseClient: () => ({
@@ -32,8 +34,10 @@ function AuthProbe() {
 describe('authentication session restoration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockOnAuthStateChange.mockReturnValue({
-      data: { subscription: { unsubscribe: mockUnsubscribe } },
+    authStateListener = null;
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authStateListener = listener;
+      return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
     });
   });
 
@@ -50,5 +54,31 @@ describe('authentication session restoration', () => {
 
     await waitFor(() => expect(view.getByText('restored-user')).toBeTruthy());
     expect(mockOnAuthStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not overwrite a fresh auth event with a stale restoration result', async () => {
+    let resolveRestoration!: (value: {
+      data: { session: Session | null };
+    }) => void;
+    mockGetSession.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRestoration = resolve;
+      })
+    );
+    const view = await render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>
+    );
+    const freshSession = {
+      user: { id: 'fresh-user' },
+    } as unknown as Session;
+
+    await act(async () => {
+      authStateListener?.('SIGNED_IN', freshSession);
+      resolveRestoration({ data: { session: null } });
+    });
+
+    await waitFor(() => expect(view.getByText('fresh-user')).toBeTruthy());
   });
 });

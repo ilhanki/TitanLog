@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
@@ -10,6 +9,10 @@ import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
 import { AuthLink } from '@/features/auth/auth-link';
 import { AuthScreenHeader } from '@/features/auth/auth-screen-header';
+import {
+  clearPostAuthDestination,
+  requestPostAuthDestination,
+} from '@/features/auth/auth-navigation-state';
 import { requestPasswordReset, signIn } from '@/features/auth/auth-service';
 import {
   hasFieldErrors,
@@ -22,7 +25,6 @@ import { theme } from '@/theme/tokens';
 const initialFields: SignInFields = { email: '', password: '' };
 
 export function SignInScreen() {
-  const router = useRouter();
   const [fields, setFields] = useState(initialFields);
   const [errors, setErrors] = useState<FieldErrors<SignInFields>>({});
   const [notice, setNotice] = useState<string>();
@@ -41,10 +43,11 @@ export function SignInScreen() {
     if (pendingRef.current) return;
     pendingRef.current = true;
     setPending(true);
+    requestPostAuthDestination('profile');
     try {
       await signIn(fields.email, fields.password);
-      router.replace('/(tabs)/profile');
     } catch {
+      clearPostAuthDestination();
       setNotice(appStrings.auth.safeError);
     } finally {
       pendingRef.current = false;

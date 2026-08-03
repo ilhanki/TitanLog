@@ -1,5 +1,12 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState, type PropsWithChildren } from 'react';
+import {
+  createContext,
+  use,
+  useEffect,
+  useMemo,
+  useState,
+  type PropsWithChildren,
+} from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -13,35 +20,44 @@ import {
 } from '@/features/data-safety/dataset-ownership-repository';
 import { theme } from '@/theme/tokens';
 
-type AccessState = 'checking' | 'granted' | 'mismatch' | 'unavailable';
+export type DatasetAccessState =
+  'checking' | 'granted' | 'mismatch' | 'unavailable';
 
-export function DatasetAccessGuard({ children }: PropsWithChildren) {
+type DatasetAccessContextValue = {
+  state: DatasetAccessState;
+};
+
+const DatasetAccessContext = createContext<DatasetAccessContextValue>({
+  state: 'checking',
+});
+
+export function DatasetAccessProvider({ children }: PropsWithChildren) {
   const database = useSQLiteContext();
   const { initializing, user } = useAuth();
   const [checkedUserId, setCheckedUserId] = useState<string | null>(null);
-  const [access, setAccess] = useState<AccessState>('checking');
-  const [signOutFailed, setSignOutFailed] = useState(false);
+  const [checkedState, setCheckedState] =
+    useState<DatasetAccessState>('checking');
 
   useEffect(() => {
     if (!user) {
       setCheckedUserId(null);
-      setAccess('granted');
+      setCheckedState('granted');
       return;
     }
     let active = true;
-    setAccess('checking');
+    setCheckedState('checking');
     void createDatasetOwnershipRepository(database)
       .assertAccountAccess(user.id)
       .then(() => {
         if (active) {
           setCheckedUserId(user.id);
-          setAccess('granted');
+          setCheckedState('granted');
         }
       })
       .catch((error: unknown) => {
         if (!active) return;
         setCheckedUserId(user.id);
-        setAccess(
+        setCheckedState(
           error instanceof DatasetOwnershipError &&
             error.code === 'owner_mismatch'
             ? 'mismatch'
@@ -53,16 +69,43 @@ export function DatasetAccessGuard({ children }: PropsWithChildren) {
     };
   }, [database, user]);
 
-  if (!initializing && !user) return children;
-  if (
-    initializing ||
-    !user ||
-    checkedUserId !== user.id ||
-    access === 'checking'
-  ) {
+  const state: DatasetAccessState = initializing
+    ? 'checking'
+    : !user
+      ? 'granted'
+      : checkedUserId !== user.id
+        ? 'checking'
+        : checkedState;
+  const value = useMemo(() => ({ state }), [state]);
+
+  return <DatasetAccessContext value={value}>{children}</DatasetAccessContext>;
+}
+
+export function useDatasetAccess(): DatasetAccessContextValue {
+  return use(DatasetAccessContext);
+}
+
+export function DatasetAccessGuard({ children }: PropsWithChildren) {
+  return (
+    <DatasetAccessProvider>
+      <DatasetAccessBoundary>{children}</DatasetAccessBoundary>
+    </DatasetAccessProvider>
+  );
+}
+
+function DatasetAccessBoundary({ children }: PropsWithChildren) {
+  const { state } = useDatasetAccess();
+  if (state === 'granted') return children;
+  return <DatasetAccessScreen />;
+}
+
+export function DatasetAccessScreen() {
+  const { state } = useDatasetAccess();
+  const [signOutFailed, setSignOutFailed] = useState(false);
+
+  if (state === 'checking') {
     return <AccessStatus title="Veri sahipliği doğrulanıyor…" />;
   }
-  if (access === 'granted') return children;
 
   return (
     <View style={styles.container}>
@@ -78,7 +121,7 @@ export function DatasetAccessGuard({ children }: PropsWithChildren) {
         style={styles.centered}
         variant="title"
       >
-        {access === 'mismatch'
+        {state === 'mismatch'
           ? 'Bu veri kümesi başka bir hesaba ait'
           : 'Veri sahipliği doğrulanamadı'}
       </AppText>

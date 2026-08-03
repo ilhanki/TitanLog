@@ -6,7 +6,6 @@ jest.mock('expo-crypto', () => ({
 }));
 
 import {
-  claimAuthCallbackNavigation,
   completeAuthCallbackOnce,
   processAuthCallbackOnce,
   resetAuthCallbackCoordinatorForTests,
@@ -29,7 +28,7 @@ describe('auth callback coordinator', () => {
     expect(first.callbackId).toBe(second.callbackId);
   });
 
-  it('allows only one completion and one automatic history replacement', async () => {
+  it('allows only one callback completion', async () => {
     const complete = jest.fn().mockResolvedValue(undefined);
     const callbackId = 'safe-callback-fingerprint';
 
@@ -40,7 +39,5 @@ describe('auth callback coordinator', () => {
       ])
     ).resolves.toEqual([true, false]);
     expect(complete).toHaveBeenCalledTimes(1);
-    expect(claimAuthCallbackNavigation(callbackId)).toBe(true);
-    expect(claimAuthCallbackNavigation(callbackId)).toBe(false);
   });
 });

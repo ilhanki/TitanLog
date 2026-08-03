@@ -9,7 +9,6 @@ export type AuthCallbackResult = {
 
 const callbackProcesses = new Map<string, Promise<void>>();
 const callbackCompletions = new Map<string, Promise<void>>();
-const navigationClaims = new Set<string>();
 
 async function fingerprintCallback(
   type: AuthCallbackType,
@@ -59,14 +58,7 @@ export async function completeAuthCallbackOnce(
   }
 }
 
-export function claimAuthCallbackNavigation(callbackId: string): boolean {
-  if (navigationClaims.has(callbackId)) return false;
-  navigationClaims.add(callbackId);
-  return true;
-}
-
 export function resetAuthCallbackCoordinatorForTests(): void {
   callbackProcesses.clear();
   callbackCompletions.clear();
-  navigationClaims.clear();
 }

@@ -23,7 +23,10 @@ jest.mock('expo-router', () => {
     </MockText>
   );
 
-  return { Tabs: Object.assign(MockTabs, { Screen: MockScreen }) };
+  return {
+    Tabs: Object.assign(MockTabs, { Screen: MockScreen }),
+    useRouter: () => ({ replace: jest.fn() }),
+  };
 });
 
 jest.mock('react-native-safe-area-context', () => ({

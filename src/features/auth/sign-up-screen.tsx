@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -10,6 +9,10 @@ import { Screen } from '@/components/screen';
 import { appStrings } from '@/constants/strings';
 import { AuthLink } from '@/features/auth/auth-link';
 import { AuthScreenHeader } from '@/features/auth/auth-screen-header';
+import {
+  clearPostAuthDestination,
+  requestPostAuthDestination,
+} from '@/features/auth/auth-navigation-state';
 import { signUp } from '@/features/auth/auth-service';
 import {
   hasFieldErrors,
@@ -27,7 +30,6 @@ const initialFields: SignUpFields = {
 };
 
 export function SignUpScreen() {
-  const router = useRouter();
   const [fields, setFields] = useState(initialFields);
   const [errors, setErrors] = useState<FieldErrors<SignUpFields>>({});
   const [notice, setNotice] = useState<string>();
@@ -46,14 +48,15 @@ export function SignUpScreen() {
     if (pendingRef.current) return;
     pendingRef.current = true;
     setPending(true);
+    requestPostAuthDestination('profile');
     try {
       const result = await signUp(fields.name, fields.email, fields.password);
       if (result === 'verification_required') {
+        clearPostAuthDestination();
         setNotice(appStrings.auth.verificationSent);
-      } else {
-        router.replace('/(tabs)/profile');
       }
     } catch {
+      clearPostAuthDestination();
       setNotice(appStrings.auth.safeError);
     } finally {
       pendingRef.current = false;
