@@ -185,6 +185,23 @@ describe('account and data screen restore safety', () => {
     expect(mockRestoreBackup).not.toHaveBeenCalled();
   });
 
+  it('does not turn a successful backup into a failure when local history cannot be written', async () => {
+    mockDatabase.withExclusiveTransactionAsync.mockRejectedValueOnce(
+      new Error('supplementary history unavailable')
+    );
+    const { getByRole, getByText, queryByText } = await render(
+      <AccountDataScreen />
+    );
+    await act(async () => {
+      fireEvent.press(getByRole('button', { name: 'Yerel Yedek Oluştur' }));
+    });
+    await waitFor(() =>
+      expect(getByText(/tarihli yerel yedek hazırlandı/)).toBeTruthy()
+    );
+    expect(mockShareLocalBackup).toHaveBeenCalled();
+    expect(queryByText(/İşlem tamamlanamadı/)).toBeNull();
+  });
+
   it('shows a safe Turkish message when the Android share sheet cannot open', async () => {
     mockShareLocalBackup.mockRejectedValue(new Error('native private detail'));
     const { getByRole, getByText, queryByText } = await render(

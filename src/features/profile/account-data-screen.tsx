@@ -155,7 +155,9 @@ export function AccountDataScreen() {
     const [nextOwnership, nextSyncState, nextHistory] = await Promise.all([
       createDatasetOwnershipRepository(database).getOwnership(),
       createSyncStateRepository(database).getState(),
-      createOperationHistoryRepository(database).list(),
+      createOperationHistoryRepository(database)
+        .list()
+        .catch(() => []),
     ]);
     setOwnership(nextOwnership);
     setSyncState(nextSyncState);
@@ -175,6 +177,26 @@ export function AccountDataScreen() {
     'sync-download': 'device_sync',
     'recovery-export': 'recovery_created',
   };
+  const recordOperation = async (
+    operationType: DataOperationType,
+    result: 'completed' | 'cancelled' | 'failed'
+  ) => {
+    try {
+      await createOperationHistoryRepository(database).add(
+        operationType,
+        result
+      );
+    } catch {
+      // Local history is supplementary and must never change a primary result.
+    }
+  };
+  const refreshHistory = async () => {
+    try {
+      setHistory(await createOperationHistoryRepository(database).list());
+    } catch {
+      // Keep the last successfully loaded history.
+    }
+  };
   const run = async (name: string, operation: () => Promise<void>) => {
     if (pendingRef.current) return;
     pendingRef.current = true;
@@ -183,18 +205,10 @@ export function AccountDataScreen() {
     try {
       await operation();
       const operationType = operationTypes[name];
-      if (operationType)
-        await createOperationHistoryRepository(database).add(
-          operationType,
-          'completed'
-        );
+      if (operationType) await recordOperation(operationType, 'completed');
     } catch (error) {
       const operationType = operationTypes[name];
-      if (operationType)
-        await createOperationHistoryRepository(database).add(
-          operationType,
-          'failed'
-        );
+      if (operationType) await recordOperation(operationType, 'failed');
       setNotice(
         name === 'local-export'
           ? localBackupErrorMessage(error)
@@ -207,7 +221,7 @@ export function AccountDataScreen() {
               : 'İşlem tamamlanamadı. Yerel verilerin değişmeden korundu.'
       );
     } finally {
-      setHistory(await createOperationHistoryRepository(database).list());
+      await refreshHistory();
       pendingRef.current = false;
       setPending(null);
     }
@@ -286,9 +300,9 @@ export function AccountDataScreen() {
 
   const cancelSyncChoice = () => {
     void cancelManualSync(database);
-    void createOperationHistoryRepository(database)
-      .add('conflict_cancelled', 'cancelled')
-      .then(() => loadOwnership());
+    void recordOperation('conflict_cancelled', 'cancelled').then(() =>
+      loadOwnership()
+    );
     setNotice('Eşitleme iptal edildi. Yerel ve bulut verileri değiştirilmedi.');
   };
 
