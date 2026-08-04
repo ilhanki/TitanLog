@@ -87,6 +87,11 @@ Deno.serve(async (request) => {
     .from('titanlog-backups')
     .remove([`${data.user.id}/latest.titanlog`]);
   if (backupError) return json({ error: 'backup_deletion_failed' }, 500);
+  const { error: profileMediaError } = await admin.storage
+    .from('titanlog-profile-media')
+    .remove([`${data.user.id}/avatar.jpg`]);
+  if (profileMediaError)
+    return json({ error: 'profile_media_deletion_failed' }, 500);
   const { error: metadataError } = await admin
     .from('backup_metadata')
     .delete()

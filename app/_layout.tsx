@@ -49,6 +49,9 @@ function RootNavigator() {
         <Stack.Protected guard={activation.localRoutesAvailable}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="profile/data" />
+          <Stack.Screen name="profile/edit" />
+          <Stack.Screen name="profile/settings" />
+          <Stack.Screen name="profile/danger" />
           <Stack.Screen
             name="progress/add"
             options={{

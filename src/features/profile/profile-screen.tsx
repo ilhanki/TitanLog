@@ -7,71 +7,119 @@ import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
+import { ProfileAvatar } from '@/components/profile-avatar';
 import { Screen } from '@/components/screen';
 import { useAuth } from '@/features/auth/auth-provider';
+import { ProfileInsights } from '@/features/insights/profile-insights';
+import { downloadPrivateProfilePhoto } from '@/features/profile/profile-media-service';
 import {
-  createDatasetOwnershipRepository,
-  type DatasetOwnership,
-} from '@/features/data-safety/dataset-ownership-repository';
+  createProfilePreferencesRepository,
+  PROFILE_FALLBACK_NAME,
+  type ProfilePreferences,
+} from '@/features/profile/profile-preferences';
 import { theme } from '@/theme/tokens';
+
+const defaults: ProfilePreferences = {
+  avatarUri: null,
+  displayName: null,
+  weeklyActiveDayTarget: null,
+  weeklyWorkoutTarget: null,
+  weightUnit: 'kg',
+};
 
 export function ProfileScreen() {
   const router = useRouter();
   const database = useSQLiteContext();
   const { configured, initializing, user } = useAuth();
-  const [ownership, setOwnership] = useState<DatasetOwnership | null>(null);
+  const [preferences, setPreferences] = useState(defaults);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      void createDatasetOwnershipRepository(database)
-        .getOwnership()
-        .then((value) => {
-          if (active) setOwnership(value);
-        });
+      const repository = createProfilePreferencesRepository(database);
+      void repository.get().then(async (value) => {
+        if (!active) return;
+        setPreferences(value);
+        const remotePath =
+          typeof user?.user_metadata.avatar_path === 'string'
+            ? user.user_metadata.avatar_path
+            : null;
+        if (user && remotePath && !value.avatarUri) {
+          try {
+            const uri = await downloadPrivateProfilePhoto(user.id, remotePath);
+            await repository.saveAvatarUri(uri);
+            if (active) setPreferences({ ...value, avatarUri: uri });
+          } catch {
+            // A missing remote avatar must not block the local profile.
+          }
+        }
+      });
       return () => {
         active = false;
       };
-    }, [database])
+    }, [database, user])
   );
 
+  const remoteName =
+    typeof user?.user_metadata.display_name === 'string'
+      ? user.user_metadata.display_name
+      : null;
+  const name = preferences.displayName ?? remoteName ?? PROFILE_FALLBACK_NAME;
   const accountStatus = initializing
     ? 'Hesap durumu yükleniyor…'
     : user
       ? (user.email ?? 'TitanLog hesabı')
-      : 'Misafir olarak kullanılıyor';
+      : 'Misafir profili · yalnızca bu cihazda';
 
   return (
     <Screen>
       <AppText accessibilityRole="header" variant="title">
         Profil
       </AppText>
-      <AppCard style={styles.card} tone="raised">
-        <View style={styles.headingRow}>
-          <View style={styles.iconContainer}>
+      <AppCard style={styles.identity} tone="raised">
+        <ProfileAvatar name={name} size={84} uri={preferences.avatarUri} />
+        <View style={styles.identityCopy}>
+          <AppText variant="heading">{name}</AppText>
+          <AppText selectable tone="muted">
+            {accountStatus}
+          </AppText>
+          {user ? (
+            <AppText
+              tone={user.email_confirmed_at ? 'success' : 'warning'}
+              variant="caption"
+            >
+              {user.email_confirmed_at
+                ? 'E-posta doğrulandı'
+                : 'E-posta doğrulaması bekleniyor'}
+            </AppText>
+          ) : null}
+        </View>
+        <AppButton
+          icon="pencil-outline"
+          label="Profili Düzenle"
+          onPress={() => router.push('/profile/edit' as Href)}
+          style={styles.fullButton}
+          variant="secondary"
+        />
+      </AppCard>
+
+      {!user ? (
+        <AppCard style={styles.card}>
+          <View style={styles.headingRow}>
             <AppIcon
               color={theme.colors.primary}
-              name="account-outline"
-              size={theme.iconSizes.lg}
+              name="shield-account-outline"
             />
+            <View style={styles.copy}>
+              <AppText variant="bodyStrong">
+                Hesabın olmadan da devam edebilirsin
+              </AppText>
+              <AppText tone="muted">
+                Profil fotoğrafın ve görünen adın bu cihazda özel kalır. Hesap
+                açmak bulut yedeği ve cihaz eşitlemeyi etkinleştirir.
+              </AppText>
+            </View>
           </View>
-          <View style={styles.copy}>
-            <AppText variant="heading">Hesap</AppText>
-            <AppText selectable tone="muted">
-              {accountStatus}
-            </AppText>
-          </View>
-        </View>
-        {user ? (
-          <AppText
-            selectable
-            tone={user.email_confirmed_at ? 'success' : 'muted'}
-          >
-            {user.email_confirmed_at
-              ? 'E-posta doğrulandı'
-              : 'E-posta doğrulaması bekleniyor'}
-          </AppText>
-        ) : (
           <View style={styles.actions}>
             <AppButton
               label="Hesap Oluştur"
@@ -85,37 +133,52 @@ export function ProfileScreen() {
               variant="secondary"
             />
           </View>
-        )}
-        {!configured ? (
-          <AppText selectable tone="muted" variant="caption">
-            Uzak hesap hizmeti yapılandırılmadı. Misafir kullanımı ve yerel
-            yedekleme kullanılabilir.
-          </AppText>
-        ) : null}
-      </AppCard>
-
-      <AppCard style={styles.card}>
-        <View style={styles.headingRow}>
-          <AppIcon color={theme.colors.primary} name="database-lock-outline" />
-          <View style={styles.copy}>
-            <AppText variant="heading">Hesap ve Veriler</AppText>
-            <AppText selectable tone="muted">
-              Yerel yedeklerini, veri sahipliğini ve isteğe bağlı özel bulut
-              yedeğini yönet.
+          {!configured ? (
+            <AppText tone="muted" variant="caption">
+              Uzak hesap hizmeti yapılandırılmadı; yerel kullanım etkilenmez.
             </AppText>
+          ) : null}
+        </AppCard>
+      ) : null}
+
+      <ProfileInsights preferences={preferences} />
+
+      <View style={styles.links}>
+        <AppCard style={styles.card}>
+          <View style={styles.headingRow}>
+            <AppIcon
+              color={theme.colors.primary}
+              name="database-lock-outline"
+            />
+            <View style={styles.copy}>
+              <AppText variant="heading">Veri ve Yedekleme</AppText>
+              <AppText tone="muted">
+                Yerel yedek, özel bulut yedeği, cihaz eşitleme ve işlem geçmişi.
+              </AppText>
+            </View>
           </View>
-        </View>
-        <AppText selectable tone="subtle" variant="caption">
-          Veri sahibi:{' '}
-          {ownership?.ownerAccountId
-            ? 'Bir hesaba bağlı'
-            : 'Misafir veri kümesi'}
-        </AppText>
-        <AppButton
-          label="Hesap ve Verileri Yönet"
-          onPress={() => router.push('/profile/data' as Href)}
-        />
-      </AppCard>
+          <AppButton
+            label="Veri Merkezini Aç"
+            onPress={() => router.push('/profile/data' as Href)}
+          />
+        </AppCard>
+        <AppCard style={styles.card}>
+          <View style={styles.headingRow}>
+            <AppIcon color={theme.colors.primary} name="cog-outline" />
+            <View style={styles.copy}>
+              <AppText variant="heading">Ayarlar</AppText>
+              <AppText tone="muted">
+                Birim, haftalık hedefler, gizlilik ve hesap işlemleri.
+              </AppText>
+            </View>
+          </View>
+          <AppButton
+            label="Ayarları Aç"
+            onPress={() => router.push('/profile/settings' as Href)}
+            variant="secondary"
+          />
+        </AppCard>
+      </View>
     </Screen>
   );
 }
@@ -125,17 +188,18 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md },
   card: { gap: theme.spacing.lg },
   copy: { flex: 1, gap: theme.spacing.xs },
+  fullButton: { alignSelf: 'stretch' },
   headingRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: theme.spacing.md,
   },
-  iconContainer: {
+  identity: {
     alignItems: 'center',
-    backgroundColor: theme.colors.primarySoft,
-    borderRadius: theme.radii.md,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.lg,
   },
+  identityCopy: { flex: 1, gap: theme.spacing.xs, minWidth: 180 },
+  links: { gap: theme.spacing.lg },
 });
