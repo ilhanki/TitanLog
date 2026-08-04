@@ -15,6 +15,7 @@ import type {
 } from '@/features/workouts/domain/exercise-performance';
 import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
 import { workoutTheme } from '@/features/workouts/workout-theme';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 const PAGE_SIZE = 20;
@@ -121,7 +122,7 @@ export function ExerciseHistoryScreen() {
     <View style={styles.header}>
       <AppButton
         label={appStrings.common.goBack}
-        onPress={() => router.back()}
+        onPress={() => navigateBackOrReplace(router, '/(tabs)/history')}
         variant="ghost"
       />
       <AppText accessibilityRole="header" variant="title">

@@ -12,6 +12,7 @@ import { CompletedWorkoutRow } from '@/features/workouts/components/completed-wo
 import { createWorkoutSessionRepository } from '@/features/workouts/data/workout-session-repository';
 import type { CompletedWorkoutHistoryItem } from '@/features/workouts/domain/models';
 import { workoutTheme } from '@/features/workouts/workout-theme';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 const HISTORY_PAGE_SIZE = 20;
@@ -84,7 +85,7 @@ export function WorkoutHistoryScreen({
         <AppButton
           icon="arrow-left"
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/history')}
           style={styles.backButton}
           variant="ghost"
         />

@@ -13,6 +13,7 @@ import { createWorkoutPlanRepository } from '@/features/workouts/data/workout-pl
 import type { WorkoutPlan } from '@/features/workouts/domain/models';
 import { formatWorkoutWeekdays } from '@/features/workouts/utils/workout-formatters';
 import { workoutTheme } from '@/features/workouts/workout-theme';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 export function WorkoutProgramScreen() {
@@ -93,7 +94,7 @@ export function WorkoutProgramScreen() {
         />
         <AppButton
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
         />
       </Screen>
     );
@@ -103,7 +104,7 @@ export function WorkoutProgramScreen() {
     <Screen backgroundColor={workoutTheme.background} edges={['top', 'bottom']}>
       <AppButton
         label={appStrings.common.goBack}
-        onPress={() => router.back()}
+        onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
         style={styles.backButton}
         variant="ghost"
       />

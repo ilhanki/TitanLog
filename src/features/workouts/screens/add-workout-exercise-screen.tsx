@@ -23,6 +23,7 @@ import {
   createWorkoutProgramRepository,
   WorkoutProgramError,
 } from '@/features/workouts/data/workout-program-repository';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import type { AvailableExercise } from '@/features/workouts/domain/models';
 import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
 import {
@@ -134,7 +135,7 @@ export function AddWorkoutExerciseScreen() {
         appStrings.workout.exerciseAdded
       );
       allowNavigation();
-      router.back();
+      navigateBackOrReplace(router, '/(tabs)/workout');
     } catch (error) {
       setSaveError(
         error instanceof WorkoutProgramError &&
@@ -213,7 +214,7 @@ export function AddWorkoutExerciseScreen() {
         />
         <AppButton
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
         />
       </Screen>
     );
@@ -227,7 +228,7 @@ export function AddWorkoutExerciseScreen() {
     >
       <AppButton
         label={appStrings.common.goBack}
-        onPress={() => router.back()}
+        onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
         style={styles.backButton}
         variant="ghost"
       />

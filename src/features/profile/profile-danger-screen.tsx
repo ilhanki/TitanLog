@@ -14,6 +14,7 @@ import {
   removeLocalProfilePhoto,
   removePrivateProfilePhoto,
 } from '@/features/profile/profile-media-service';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 export function ProfileDangerScreen() {
@@ -43,7 +44,7 @@ export function ProfileDangerScreen() {
         <AppButton
           icon="arrow-left"
           label="Geri dön"
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/profile/settings')}
           variant="ghost"
         />
         <AppText accessibilityRole="header" variant="title">

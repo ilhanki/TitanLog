@@ -3,7 +3,11 @@ import { appStrings } from '@/constants/strings';
 import type { ExerciseHistory } from '@/features/workouts/domain/exercise-performance';
 import { ExerciseHistoryScreen } from '@/features/workouts/screens/exercise-history-screen';
 
-const mockRouter = { back: jest.fn() };
+const mockRouter = {
+  back: jest.fn(),
+  canGoBack: jest.fn(() => true),
+  replace: jest.fn(),
+};
 const mockDatabase = {};
 const mockGetExerciseHistory = jest.fn();
 let mockParams = { exerciseId: '11' };

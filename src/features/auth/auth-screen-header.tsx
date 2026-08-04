@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppIcon } from '@/components/app-icon';
 import { AppText } from '@/components/app-text';
 import { appStrings } from '@/constants/strings';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 type AuthScreenHeaderProps = {
@@ -23,7 +24,7 @@ export function AuthScreenHeader({
         accessibilityLabel={appStrings.common.goBack}
         accessibilityRole="button"
         hitSlop={theme.spacing.sm}
-        onPress={() => router.back()}
+        onPress={() => navigateBackOrReplace(router, '/(tabs)/profile')}
         style={({ pressed }) => [
           styles.backButton,
           pressed && styles.backButtonPressed,

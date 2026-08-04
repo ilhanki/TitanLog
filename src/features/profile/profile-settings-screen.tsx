@@ -12,6 +12,7 @@ import {
   createProfilePreferencesRepository,
   type WeightUnit,
 } from '@/features/profile/profile-preferences';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 const unitOptions = [
@@ -41,7 +42,7 @@ export function ProfileSettingsScreen() {
         <AppButton
           icon="arrow-left"
           label="Geri dön"
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/profile')}
           variant="ghost"
         />
         <AppText accessibilityRole="header" variant="title">

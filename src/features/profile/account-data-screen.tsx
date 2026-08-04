@@ -52,6 +52,7 @@ import type {
   SyncIdentityState,
   SyncState,
 } from '@/features/sync/sync-types';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 function formatDate(value: string | null | undefined): string {
@@ -416,7 +417,7 @@ export function AccountDataScreen() {
       <View style={styles.header}>
         <AppButton
           label="Geri dön"
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/profile')}
           variant="ghost"
         />
         <AppText

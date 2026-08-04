@@ -23,6 +23,7 @@ import {
   formatWorkoutDifference,
   formatWorkoutDuration,
 } from '@/features/workouts/utils/workout-formatters';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
 import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
@@ -162,7 +163,7 @@ export function CompletedWorkoutDetailScreen() {
       <AppButton
         icon="arrow-left"
         label={appStrings.common.goBack}
-        onPress={() => router.back()}
+        onPress={() => navigateBackOrReplace(router, '/(tabs)/history')}
         style={styles.backButton}
         variant="ghost"
       />

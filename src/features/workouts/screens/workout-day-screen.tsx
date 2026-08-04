@@ -23,6 +23,7 @@ import type {
   WorkoutSession,
 } from '@/features/workouts/domain/models';
 import { formatWorkoutWeekdays } from '@/features/workouts/utils/workout-formatters';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
 import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
@@ -150,7 +151,7 @@ export function WorkoutDayScreen() {
         />
         <AppButton
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
         />
       </Screen>
     );
@@ -160,7 +161,7 @@ export function WorkoutDayScreen() {
     <Screen backgroundColor={workoutTheme.background} edges={['top', 'bottom']}>
       <AppButton
         label={appStrings.common.goBack}
-        onPress={() => router.back()}
+        onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
         style={styles.backButton}
         variant="ghost"
       />

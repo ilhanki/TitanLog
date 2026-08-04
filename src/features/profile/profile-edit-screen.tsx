@@ -24,6 +24,7 @@ import {
   PROFILE_FALLBACK_NAME,
   validateDisplayName,
 } from '@/features/profile/profile-preferences';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 function mediaError(error: unknown): string {
@@ -131,7 +132,7 @@ export function ProfileEditScreen() {
           await repository.saveAvatarUri(committedUri);
         }
       }
-      router.back();
+      navigateBackOrReplace(router, '/(tabs)/profile');
     } catch (nextError) {
       setError(mediaError(nextError));
     } finally {
@@ -149,7 +150,7 @@ export function ProfileEditScreen() {
         <AppButton
           icon="arrow-left"
           label="Geri dön"
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/profile')}
           variant="ghost"
         />
         <AppText accessibilityRole="header" variant="title">

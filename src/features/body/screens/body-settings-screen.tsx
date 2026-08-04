@@ -21,6 +21,7 @@ import {
   parseBodyWeight,
 } from '@/features/body/utils/body-values';
 import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
+import { dismissOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 export function BodySettingsScreen() {
@@ -122,7 +123,10 @@ export function BodySettingsScreen() {
           icon="alert-circle-outline"
           title="Hedef bilgisi bulunamadı"
         />
-        <AppButton label="Kapat" onPress={() => router.back()} />
+        <AppButton
+          label="Kapat"
+          onPress={() => dismissOrReplace(router, '/(tabs)/progress')}
+        />
       </Screen>
     );
   }
@@ -266,7 +270,7 @@ export function BodySettingsScreen() {
         <AppButton
           disabled={pending}
           label="Kapat"
-          onPress={() => router.back()}
+          onPress={() => dismissOrReplace(router, '/(tabs)/progress')}
           style={styles.action}
           variant="ghost"
         />

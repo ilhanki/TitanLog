@@ -19,6 +19,7 @@ import type {
 } from '@/features/body/domain/models';
 import { formatBodyDate } from '@/features/body/utils/body-formatters';
 import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 
 export function EditMeasurementScreen() {
   const { measurementId: rawId } = useLocalSearchParams<{
@@ -146,7 +147,7 @@ export function EditMeasurementScreen() {
         />
         <AppButton
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/progress')}
         />
       </Screen>
     );
@@ -165,7 +166,7 @@ export function EditMeasurementScreen() {
       <BodyMeasurementForm
         initial={measurement}
         measurementDate={formatBodyDate(measurement.measuredAt)}
-        onCancel={() => router.back()}
+        onCancel={() => navigateBackOrReplace(router, '/(tabs)/progress')}
         onDirtyChange={setDirty}
         onSubmit={submit}
         pending={pending}

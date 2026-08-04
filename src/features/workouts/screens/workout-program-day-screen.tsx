@@ -55,6 +55,7 @@ import {
   parseDefaultWeight,
 } from '@/features/workouts/utils/workout-program-validation';
 import { workoutTheme } from '@/features/workouts/workout-theme';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 type DefaultsEditor = {
@@ -502,7 +503,7 @@ export function WorkoutProgramDayScreen() {
         />
         <AppButton
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/workout/program')}
         />
       </Screen>
     );
@@ -525,7 +526,7 @@ export function WorkoutProgramDayScreen() {
     >
       <AppButton
         label={appStrings.common.goBack}
-        onPress={() => router.back()}
+        onPress={() => navigateBackOrReplace(router, '/workout/program')}
         style={styles.backButton}
         variant="ghost"
       />

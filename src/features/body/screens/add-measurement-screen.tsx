@@ -14,6 +14,7 @@ import { createBodyMeasurementRepository } from '@/features/body/data/body-measu
 import { createBodyProfileRepository } from '@/features/body/data/body-profile-repository';
 import type { BodyMeasurementInput } from '@/features/body/domain/models';
 import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-changes-guard';
+import { dismissOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
 const todayLabel = () =>
@@ -102,7 +103,7 @@ export function AddMeasurementScreen() {
         />
         <AppButton
           label="Kapat"
-          onPress={() => router.back()}
+          onPress={() => dismissOrReplace(router, '/(tabs)/progress')}
           variant="secondary"
         />
       </Screen>
@@ -150,7 +151,7 @@ export function AddMeasurementScreen() {
       <BodyMeasurementForm
         initialWeightKg={initialWeightKg}
         measurementDate={todayLabel()}
-        onCancel={() => router.back()}
+        onCancel={() => dismissOrReplace(router, '/(tabs)/progress')}
         onDirtyChange={setDirty}
         onSubmit={submit}
         pending={pending}

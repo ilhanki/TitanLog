@@ -23,6 +23,7 @@ import {
   createWorkoutSessionRepository,
   WorkoutSessionError,
 } from '@/features/workouts/data/workout-session-repository';
+import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { createExercisePerformanceRepository } from '@/features/workouts/data/exercise-performance-repository';
 import type {
   ExerciseAppearance,
@@ -269,7 +270,7 @@ export function ActiveWorkoutScreen() {
         />
         <AppButton
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
         />
       </Screen>
     );
@@ -296,7 +297,7 @@ export function ActiveWorkoutScreen() {
       <View style={styles.topBar}>
         <AppButton
           label={appStrings.common.goBack}
-          onPress={() => router.back()}
+          onPress={() => navigateBackOrReplace(router, '/(tabs)/workout')}
           style={styles.compactAction}
           variant="ghost"
         />

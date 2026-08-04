@@ -10,7 +10,9 @@ import { WorkoutProgramScreen } from '@/features/workouts/screens/workout-progra
 
 const mockRouter = {
   back: jest.fn(),
+  canGoBack: jest.fn(() => true),
   push: jest.fn(),
+  replace: jest.fn(),
 };
 const mockDatabase = {};
 const mockGetActivePlan = jest.fn();
