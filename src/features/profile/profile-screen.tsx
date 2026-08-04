@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
@@ -10,6 +10,10 @@ import { AppText } from '@/components/app-text';
 import { ProfileAvatar } from '@/components/profile-avatar';
 import { Screen } from '@/components/screen';
 import { useAuth } from '@/features/auth/auth-provider';
+import {
+  createDatasetOwnershipRepository,
+  type DatasetOwnership,
+} from '@/features/data-safety/dataset-ownership-repository';
 import { ProfileInsights } from '@/features/insights/profile-insights';
 import { downloadPrivateProfilePhoto } from '@/features/profile/profile-media-service';
 import {
@@ -32,11 +36,15 @@ export function ProfileScreen() {
   const database = useSQLiteContext();
   const { configured, initializing, user } = useAuth();
   const [preferences, setPreferences] = useState(defaults);
+  const [ownership, setOwnership] = useState<DatasetOwnership | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       const repository = createProfilePreferencesRepository(database);
+      void createDatasetOwnershipRepository(database)
+        .getOwnership()
+        .then((value) => active && setOwnership(value));
       void repository.get().then(async (value) => {
         if (!active) return;
         setPreferences(value);
@@ -70,6 +78,19 @@ export function ProfileScreen() {
     : user
       ? (user.email ?? 'TitanLog hesabı')
       : 'Misafir profili · yalnızca bu cihazda';
+  const ownershipStatus = !user
+    ? 'Sahipsiz yerel veri'
+    : !ownership?.ownerAccountId
+      ? 'Sahiplik onayı bekleniyor'
+      : ownership.ownerAccountId === user.id
+        ? 'Yerel veri bu hesaba ait'
+        : 'Hesap uyuşmazlığı';
+  const memberSince = user?.created_at
+    ? new Intl.DateTimeFormat('tr-TR', {
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date(user.created_at))
+    : null;
 
   return (
     <Screen>
@@ -77,7 +98,13 @@ export function ProfileScreen() {
         Profil
       </AppText>
       <AppCard style={styles.identity} tone="raised">
-        <ProfileAvatar name={name} size={84} uri={preferences.avatarUri} />
+        <Pressable
+          accessibilityLabel="Profil fotoğrafını düzenle"
+          accessibilityRole="button"
+          onPress={() => router.push('/profile/edit' as Href)}
+        >
+          <ProfileAvatar name={name} size={84} uri={preferences.avatarUri} />
+        </Pressable>
         <View style={styles.identityCopy}>
           <AppText variant="heading">{name}</AppText>
           <AppText selectable tone="muted">
@@ -91,6 +118,23 @@ export function ProfileScreen() {
               {user.email_confirmed_at
                 ? 'E-posta doğrulandı'
                 : 'E-posta doğrulaması bekleniyor'}
+            </AppText>
+          ) : null}
+          <AppText
+            tone={
+              ownership?.ownerAccountId &&
+              user &&
+              ownership.ownerAccountId !== user.id
+                ? 'danger'
+                : 'information'
+            }
+            variant="caption"
+          >
+            {ownershipStatus}
+          </AppText>
+          {memberSince ? (
+            <AppText tone="subtle" variant="caption">
+              Üyelik başlangıcı: {memberSince}
             </AppText>
           ) : null}
         </View>

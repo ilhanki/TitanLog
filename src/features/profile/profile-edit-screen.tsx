@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
@@ -157,7 +157,14 @@ export function ProfileEditScreen() {
         </AppText>
       </View>
       <AppCard style={styles.photo} tone="raised">
-        <ProfileAvatar name={displayName} size={96} uri={avatarUri} />
+        <Pressable
+          accessibilityHint="Galeriden yeni bir fotoğraf seçer"
+          accessibilityLabel="Profil fotoğrafı seç"
+          accessibilityRole="button"
+          onPress={() => void selectPhoto()}
+        >
+          <ProfileAvatar name={displayName} size={96} uri={avatarUri} />
+        </Pressable>
         <View style={styles.photoActions}>
           <AppButton
             label="Fotoğraf Seç"

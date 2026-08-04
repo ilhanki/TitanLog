@@ -47,7 +47,7 @@ export function ProfileDangerScreen() {
           variant="ghost"
         />
         <AppText accessibilityRole="header" variant="title">
-          Hesap İşlemleri
+          Tehlikeli İşlemler
         </AppText>
       </View>
       <AppCard style={styles.section}>

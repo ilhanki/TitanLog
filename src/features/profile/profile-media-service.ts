@@ -8,6 +8,7 @@ const SOURCE_LIMIT = 8 * 1024 * 1024;
 const OUTPUT_LIMIT = 2 * 1024 * 1024;
 const AVATAR_SIZE = 512;
 const BUCKET = 'titanlog-profile-media';
+const SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export function profileMediaPath(userId: string): string {
   if (!/^[0-9a-f-]{36}$/i.test(userId)) throw new ProfileMediaError('upload');
@@ -20,6 +21,24 @@ export class ProfileMediaError extends Error {
   ) {
     super(code);
   }
+}
+
+export function validateSelectedPhoto(asset: {
+  fileSize?: number;
+  mimeType?: string;
+  uri: string;
+}): void {
+  const extension = asset.uri.split('?')[0]?.split('.').at(-1)?.toLowerCase();
+  const supportedExtension = ['jpg', 'jpeg', 'png', 'webp'].includes(
+    extension ?? ''
+  );
+  if (
+    (asset.mimeType && !SUPPORTED_TYPES.has(asset.mimeType)) ||
+    (!asset.mimeType && !supportedExtension)
+  )
+    throw new ProfileMediaError('processing');
+  if ((asset.fileSize ?? 0) > SOURCE_LIMIT)
+    throw new ProfileMediaError('too_large');
 }
 
 function profileDirectory(): Directory {
@@ -40,8 +59,8 @@ export async function pickAndStoreProfilePhoto(): Promise<string | null> {
   });
   if (result.canceled) return null;
   const asset = result.assets[0];
-  if (!asset || (asset.fileSize ?? 0) > SOURCE_LIMIT)
-    throw new ProfileMediaError('too_large');
+  if (!asset) throw new ProfileMediaError('processing');
+  validateSelectedPhoto(asset);
   try {
     const image = await ImageManipulator.manipulate(asset.uri)
       .resize({ height: AVATAR_SIZE, width: AVATAR_SIZE })

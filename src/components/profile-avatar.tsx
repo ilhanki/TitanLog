@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppIcon } from '@/components/app-icon';
@@ -14,6 +15,8 @@ export function ProfileAvatar({
   size?: number;
   uri: string | null;
 }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [uri]);
   const initials = name
     .split(' ')
     .filter(Boolean)
@@ -21,10 +24,11 @@ export function ProfileAvatar({
     .map((part) => part[0]?.toLocaleUpperCase('tr-TR'))
     .join('');
   const frame = { borderRadius: size / 2, height: size, width: size };
-  return uri ? (
+  return uri && !failed ? (
     <Image
       accessibilityLabel={`${name} profil fotoğrafı`}
       contentFit="cover"
+      onError={() => setFailed(true)}
       source={{ uri }}
       style={[styles.image, frame]}
       transition={160}
