@@ -1,6 +1,5 @@
 import { render, waitFor } from '@testing-library/react-native';
 
-import { appStrings } from '@/constants/strings';
 import { ProfileScreen } from '@/features/profile/profile-screen';
 
 jest.mock('@/features/auth/auth-provider', () => ({
@@ -15,12 +14,30 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 jest.mock('expo-sqlite', () => ({
-  useSQLiteContext: () => ({
-    getFirstAsync: jest.fn().mockResolvedValue({
-      installation_id: 'device',
-      last_cloud_backup_at: null,
-      last_local_backup_at: null,
-      owner_account_id: null,
+  useSQLiteContext: () => ({}),
+}));
+jest.mock('@/features/profile/profile-preferences', () => ({
+  PROFILE_FALLBACK_NAME: 'Titan Sporcusu',
+  createProfilePreferencesRepository: () => ({
+    get: jest.fn().mockResolvedValue({
+      avatarUri: null,
+      displayName: null,
+      weeklyActiveDayTarget: null,
+      weeklyWorkoutTarget: null,
+      weightUnit: 'kg',
+    }),
+  }),
+}));
+jest.mock('@/features/insights/profile-insights', () => ({
+  ProfileInsights: () => null,
+}));
+jest.mock('@/features/data-safety/dataset-ownership-repository', () => ({
+  createDatasetOwnershipRepository: () => ({
+    getOwnership: jest.fn().mockResolvedValue({
+      installationId: 'device',
+      lastCloudBackupAt: null,
+      lastLocalBackupAt: null,
+      ownerAccountId: null,
     }),
   }),
 }));
@@ -30,8 +47,8 @@ describe('product-facing placeholder screens', () => {
     [
       'profile',
       <ProfileScreen key="profile" />,
-      'Hesap',
-      'Misafir olarak kullanılıyor',
+      'Titan Sporcusu',
+      'Misafir profili · yalnızca bu cihazda',
     ],
   ])(
     'renders polished %s copy without implementation language',

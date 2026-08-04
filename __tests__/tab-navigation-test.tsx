@@ -34,7 +34,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 describe('TabLayout', () => {
-  it('contains the four Turkish navigation tabs', async () => {
+  it('contains the five Turkish navigation tabs', async () => {
     const { getAllByTestId, getByLabelText, queryByTestId } = await render(
       <TabLayout />
     );
@@ -49,9 +49,12 @@ describe('TabLayout', () => {
       getByLabelText(appStrings.navigation.progressAccessibilityLabel)
     ).toBeTruthy();
     expect(
+      getByLabelText(appStrings.navigation.historyAccessibilityLabel)
+    ).toBeTruthy();
+    expect(
       getByLabelText(appStrings.navigation.profileAccessibilityLabel)
     ).toBeTruthy();
-    expect(getAllByTestId(/^tab-route-/)).toHaveLength(4);
+    expect(getAllByTestId(/^tab-route-/)).toHaveLength(5);
     expect(queryByTestId('tab-route-auth/sign-in')).toBeNull();
     expect(queryByTestId('tab-route-auth/sign-up')).toBeNull();
   });

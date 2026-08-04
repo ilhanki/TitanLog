@@ -4,7 +4,15 @@ import { Alert } from 'react-native';
 import { AccountDataScreen } from '@/features/profile/account-data-screen';
 
 const mockRouter = { back: jest.fn(), replace: jest.fn() };
-const mockDatabase = {};
+const mockDatabase = {
+  getAllAsync: jest.fn().mockResolvedValue([]),
+  runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
+  withExclusiveTransactionAsync: jest.fn(
+    async (task: (database: typeof mockDatabase) => Promise<void>) => {
+      await task(mockDatabase);
+    }
+  ),
+};
 const mockGetOwnership = jest.fn();
 const mockGetSyncState = jest.fn();
 const mockInspectManualSync = jest.fn();

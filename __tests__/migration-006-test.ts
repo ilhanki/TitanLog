@@ -47,7 +47,9 @@ describe('migration 5 to 6', () => {
     database.exec(migration006.sql);
     database.exec(migration006.sql);
     expect(
-      database.prepare('SELECT COUNT(*) AS count FROM profile_preferences').get()
+      database
+        .prepare('SELECT COUNT(*) AS count FROM profile_preferences')
+        .get()
     ).toMatchObject({ count: 1 });
     database.close();
   });
