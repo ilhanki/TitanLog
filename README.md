@@ -14,6 +14,14 @@ Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1
 
 Titan Iron; grafit yüzeyler, bakır odak rengi, kontrollü kontrast ve sıkı yerleşimlerle uzun kullanımda gözü yormayan bir mobil deneyim hedefler. Ortak tasarım token'ları ve yeniden kullanılabilir bileşenler, ekranlar arasındaki durum, boşluk ve erişilebilirlik davranışını tutarlı tutar.
 
+## Sprint 13 geliştirme deneyimi
+
+Güncel yerel geliştirme, kişisel profil başlığı, özel profil fotoğrafı, haftalık/aylık/yıllık içgörüler ve ayrı `Veri ve Yedekleme` merkezi sunar. Ana sekmeler `Ana Sayfa · Antrenman · Geçmiş · İlerleme · Hesabım` düzenindedir. Misafir kullanım zorunlu hesaba dönüştürülmemiştir.
+
+Profil medyası fitness arşivlerine girmez; hesaplı kullanımda public olmayan, kullanıcıya özel Storage yolu kullanılır. Yedekleme ve cihaz eşitleme yalnız kullanıcının açık eylemiyle başlar. Hesap ve veri sahipliği birbirinden ayrı kalır.
+
+Hesaplama kuralları, profil fotoğrafı gizliliği, Veri Merkezi farkları ve bilinen sınırlar için [`docs/profile-insights-data-center.md`](docs/profile-insights-data-center.md) belgesine bakın.
+
 ## Temel özellikler
 
 ### Antrenman takibi
