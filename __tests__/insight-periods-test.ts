@@ -5,6 +5,7 @@ import {
   weightChangeMessage,
 } from '@/features/insights/insight-formatters';
 import { getInsightDateRange } from '@/features/insights/insight-periods';
+import { calculateStreaks } from '@/features/insights/insights-repository';
 
 describe('insight period boundaries', () => {
   it('starts the Turkish week on Monday and excludes the next Monday', () => {
@@ -30,6 +31,24 @@ describe('insight period boundaries', () => {
     expect(comparisonMessage(2, 0, 'antrenman')).toBe(
       'Önceki döneme göre 2 antrenman fazla.'
     );
+  });
+});
+
+describe('training streaks', () => {
+  it('calculates current and longest calendar-day streaks', () => {
+    expect(
+      calculateStreaks(
+        ['2026-07-28', '2026-07-29', '2026-08-01', '2026-08-02', '2026-08-03'],
+        new Date(2026, 7, 4, 12)
+      )
+    ).toEqual({ current: 3, longest: 3 });
+  });
+
+  it('returns no current streak when the latest workout is stale', () => {
+    expect(calculateStreaks(['2026-07-01'], new Date(2026, 7, 4, 12))).toEqual({
+      current: 0,
+      longest: 1,
+    });
   });
 });
 

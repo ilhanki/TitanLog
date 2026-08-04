@@ -8,19 +8,63 @@ import {
 export type InsightSummary = {
   activeDays: number;
   completedSets: number;
+  currentStreak: number;
   durationMinutes: number;
   firstWeightKg: number | null;
   highestVolumeExercise: string | null;
   latestWeightKg: number | null;
+  longestStreak: number;
   measurementCount: number;
   mostActiveWeekday: string | null;
   mostFrequentExercise: string | null;
   personalRecords: number;
-  points: { label: string; value: number }[];
+  volumePoints: { label: string; value: number }[];
+  weightPoints: { label: string; value: number }[];
+  workoutPoints: { label: string; value: number }[];
   totalRepetitions: number;
   totalVolumeKg: number;
   workouts: number;
 };
+
+export function calculateStreaks(
+  dateValues: string[],
+  now = new Date()
+): { current: number; longest: number } {
+  const unique = [...new Set(dateValues)].sort();
+  let longest = 0;
+  let run = 0;
+  let previous: Date | null = null;
+  for (const value of unique) {
+    const date = new Date(`${value}T00:00:00`);
+    const difference = previous
+      ? Math.round((date.getTime() - previous.getTime()) / 86_400_000)
+      : 0;
+    run = previous && difference === 1 ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    previous = date;
+  }
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const latest = unique.at(-1);
+  if (!latest) return { current: 0, longest: 0 };
+  const latestDate = new Date(`${latest}T00:00:00`);
+  if (
+    latestDate.getTime() !== today.getTime() &&
+    latestDate.getTime() !== yesterday.getTime()
+  )
+    return { current: 0, longest };
+  let current = 1;
+  for (let index = unique.length - 1; index > 0; index -= 1) {
+    const later = new Date(`${unique[index]}T00:00:00`);
+    const earlier = new Date(`${unique[index - 1]}T00:00:00`);
+    if (Math.round((later.getTime() - earlier.getTime()) / 86_400_000) !== 1)
+      break;
+    current += 1;
+  }
+  return { current, longest };
+}
 
 export type InsightComparison = {
   activeDays: number;
@@ -62,10 +106,19 @@ export function createInsightsRepository(database: SQLiteDatabase) {
         period === 'year'
           ? "strftime('%Y-%m', completed_at, 'localtime')"
           : "date(completed_at, 'localtime')";
-      const [aggregate, weights, exercise, volumeExercise, weekday, points] =
-        await Promise.all([
-          database.getFirstAsync<AggregateRow>(
-            `SELECT
+      const [
+        aggregate,
+        weights,
+        exercise,
+        volumeExercise,
+        weekday,
+        workoutPoints,
+        volumePoints,
+        weightPoints,
+        activeDates,
+      ] = await Promise.all([
+        database.getFirstAsync<AggregateRow>(
+          `SELECT
             COUNT(DISTINCT ws.id) AS workouts,
             COUNT(DISTINCT date(ws.completed_at, 'localtime')) AS active_days,
             COALESCE(SUM(CASE WHEN wset.is_completed = 1 THEN 1 ELSE 0 END), 0) AS completed_sets,
@@ -87,30 +140,30 @@ export function createInsightsRepository(database: SQLiteDatabase) {
           LEFT JOIN workout_session_exercises wse ON wse.session_id = ws.id
           LEFT JOIN workout_sets wset ON wset.session_exercise_id = wse.id
           WHERE ws.status = 'completed' AND ws.completed_at >= ? AND ws.completed_at < ?`,
-            startIso,
-            endIso,
-            startIso,
-            endIso
-          ),
-          database.getAllAsync<{ weight_kg: number }>(
-            `SELECT weight_kg FROM body_measurements
+          startIso,
+          endIso,
+          startIso,
+          endIso
+        ),
+        database.getAllAsync<{ measured_at: string; weight_kg: number }>(
+          `SELECT measured_at, weight_kg FROM body_measurements
            WHERE measured_at >= ? AND measured_at < ?
            ORDER BY measured_at ASC, id ASC`,
-            startIso,
-            endIso
-          ),
-          database.getFirstAsync<{ exercise_name_snapshot: string }>(
-            `SELECT wse.exercise_name_snapshot
+          startIso,
+          endIso
+        ),
+        database.getFirstAsync<{ exercise_name_snapshot: string }>(
+          `SELECT wse.exercise_name_snapshot
            FROM workout_session_exercises wse
            JOIN workout_sessions ws ON ws.id = wse.session_id
            WHERE ws.status = 'completed' AND ws.completed_at >= ? AND ws.completed_at < ?
            GROUP BY wse.exercise_name_snapshot
            ORDER BY COUNT(*) DESC, wse.exercise_name_snapshot ASC LIMIT 1`,
-            startIso,
-            endIso
-          ),
-          database.getFirstAsync<{ exercise_name_snapshot: string }>(
-            `SELECT wse.exercise_name_snapshot
+          startIso,
+          endIso
+        ),
+        database.getFirstAsync<{ exercise_name_snapshot: string }>(
+          `SELECT wse.exercise_name_snapshot
            FROM workout_session_exercises wse
            JOIN workout_sessions ws ON ws.id = wse.session_id
            JOIN workout_sets wset ON wset.session_exercise_id = wse.id
@@ -119,26 +172,57 @@ export function createInsightsRepository(database: SQLiteDatabase) {
            GROUP BY wse.exercise_name_snapshot
            ORDER BY SUM(wset.weight_kg * wset.actual_reps) DESC,
                     wse.exercise_name_snapshot ASC LIMIT 1`,
-            startIso,
-            endIso
-          ),
-          database.getFirstAsync<{ weekday: string }>(
-            `SELECT strftime('%w', completed_at, 'localtime') AS weekday
+          startIso,
+          endIso
+        ),
+        database.getFirstAsync<{ weekday: string }>(
+          `SELECT strftime('%w', completed_at, 'localtime') AS weekday
            FROM workout_sessions
            WHERE status = 'completed' AND completed_at >= ? AND completed_at < ?
            GROUP BY weekday ORDER BY COUNT(*) DESC, weekday ASC LIMIT 1`,
-            startIso,
-            endIso
-          ),
-          database.getAllAsync<{ bucket: string; workouts: number }>(
-            `SELECT ${bucketExpression} AS bucket, COUNT(*) AS workouts
+          startIso,
+          endIso
+        ),
+        database.getAllAsync<{ bucket: string; workouts: number }>(
+          `SELECT ${bucketExpression} AS bucket, COUNT(*) AS workouts
            FROM workout_sessions
            WHERE status = 'completed' AND completed_at >= ? AND completed_at < ?
            GROUP BY bucket ORDER BY bucket ASC`,
-            startIso,
-            endIso
-          ),
-        ]);
+          startIso,
+          endIso
+        ),
+        database.getAllAsync<{ bucket: string; volume: number }>(
+          `SELECT ${bucketExpression.replaceAll('completed_at', 'ws.completed_at')} AS bucket,
+                    SUM(wset.weight_kg * wset.actual_reps) AS volume
+             FROM workout_sessions ws
+             JOIN workout_session_exercises wse ON wse.session_id = ws.id
+             JOIN workout_sets wset ON wset.session_exercise_id = wse.id
+             WHERE ws.status = 'completed' AND wset.is_completed = 1
+               AND ws.completed_at >= ? AND ws.completed_at < ?
+             GROUP BY bucket ORDER BY bucket ASC`,
+          startIso,
+          endIso
+        ),
+        database.getAllAsync<{ bucket: string; value: number }>(
+          `SELECT bucket, weight_kg AS value FROM (
+               SELECT ${bucketExpression.replaceAll('completed_at', 'measured_at')} AS bucket,
+                      weight_kg,
+                      ROW_NUMBER() OVER (
+                        PARTITION BY ${bucketExpression.replaceAll('completed_at', 'measured_at')}
+                        ORDER BY measured_at DESC, id DESC
+                      ) AS row_number
+               FROM body_measurements
+               WHERE measured_at >= ? AND measured_at < ?
+             ) WHERE row_number = 1 ORDER BY bucket ASC`,
+          startIso,
+          endIso
+        ),
+        database.getAllAsync<{ date: string }>(
+          `SELECT DISTINCT date(completed_at, 'localtime') AS date
+             FROM workout_sessions WHERE status = 'completed'
+             ORDER BY date ASC`
+        ),
+      ]);
       const safe = aggregate ?? {
         active_days: 0,
         completed_sets: 0,
@@ -148,22 +232,36 @@ export function createInsightsRepository(database: SQLiteDatabase) {
         total_volume_kg: 0,
         workouts: 0,
       };
+      const streaks = calculateStreaks(
+        activeDates.map((row) => row.date),
+        now
+      );
       return {
         activeDays: safe.active_days,
         completedSets: safe.completed_sets,
+        currentStreak: streaks.current,
         durationMinutes: Math.max(0, Math.round(safe.duration_minutes)),
         firstWeightKg: weights.at(0)?.weight_kg ?? null,
         highestVolumeExercise: volumeExercise?.exercise_name_snapshot ?? null,
         latestWeightKg: weights.at(-1)?.weight_kg ?? null,
+        longestStreak: streaks.longest,
         measurementCount: weights.length,
         mostActiveWeekday: weekday
           ? (WEEKDAYS[Number(weekday.weekday)] ?? null)
           : null,
         mostFrequentExercise: exercise?.exercise_name_snapshot ?? null,
         personalRecords: safe.personal_records,
-        points: points.map((point) => ({
+        workoutPoints: workoutPoints.map((point) => ({
           label: point.bucket.slice(5),
           value: point.workouts,
+        })),
+        volumePoints: volumePoints.map((point) => ({
+          label: point.bucket.slice(5),
+          value: point.volume,
+        })),
+        weightPoints: weightPoints.map((point) => ({
+          label: point.bucket.slice(5),
+          value: point.value,
         })),
         totalRepetitions: safe.total_repetitions,
         totalVolumeKg: safe.total_volume_kg,

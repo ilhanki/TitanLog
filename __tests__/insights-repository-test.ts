@@ -23,13 +23,16 @@ describe('fitness insights repository', () => {
       INSERT INTO workout_plans VALUES (1, 'Plan', '', 1, '2026-08-01', '2026-08-01');
       INSERT INTO workout_days VALUES (1, 1, 'Gün', '', 1, '2026-08-01', '2026-08-01');
       INSERT INTO exercises VALUES (1, 'Dumbbell Press', 'Göğüs', 'Dumbbell', '2026-08-01', '2026-08-01');
+      INSERT INTO exercises VALUES (2, 'Şınav', 'Göğüs', 'Vücut ağırlığı', '2026-08-01', '2026-08-01');
       INSERT INTO workout_sessions VALUES (1, 1, 'Gün', 'completed', '2026-08-03T10:00:00.000Z', '2026-08-03T11:00:00.000Z', NULL, '2026-08-03', '2026-08-03');
       INSERT INTO workout_sessions VALUES (2, 1, 'Gün', 'cancelled', '2026-08-04T10:00:00.000Z', NULL, '2026-08-04T10:05:00.000Z', '2026-08-04', '2026-08-04');
       INSERT INTO workout_session_exercises VALUES (1, 1, 1, 'Dumbbell Press', 'Göğüs', 'per_hand', 1, '2026-08-03');
       INSERT INTO workout_session_exercises VALUES (2, 2, 1, 'Dumbbell Press', 'Göğüs', 'per_hand', 1, '2026-08-04');
+      INSERT INTO workout_session_exercises VALUES (3, 1, 2, 'Şınav', 'Göğüs', 'total', 2, '2026-08-03');
       INSERT INTO workout_sets VALUES (1, 1, 1, 10, 10, 20, 1, '2026-08-03T10:20:00.000Z', '2026-08-03', '2026-08-03');
       INSERT INTO workout_sets VALUES (2, 1, 2, 10, 10, 30, 0, NULL, '2026-08-03', '2026-08-03');
       INSERT INTO workout_sets VALUES (3, 2, 1, 10, 10, 50, 1, '2026-08-04T10:02:00.000Z', '2026-08-04', '2026-08-04');
+      INSERT INTO workout_sets VALUES (4, 3, 1, 10, 10, 0, 1, '2026-08-03T10:25:00.000Z', '2026-08-03', '2026-08-03');
       INSERT INTO body_profiles VALUES (1, 100, 90, '2026-08-01', '2026-08-01');
       INSERT INTO body_measurements (measured_at, weight_kg, created_at, updated_at) VALUES ('2026-08-03T08:00:00.000Z', 100, '2026-08-03', '2026-08-03');
       INSERT INTO body_measurements (measured_at, weight_kg, created_at, updated_at) VALUES ('2026-08-05T08:00:00.000Z', 99, '2026-08-05', '2026-08-05');
@@ -39,12 +42,12 @@ describe('fitness insights repository', () => {
     ).getSummary('week', new Date('2026-08-05T12:00:00.000Z'));
     expect(summary).toMatchObject({
       activeDays: 1,
-      completedSets: 1,
+      completedSets: 2,
       durationMinutes: 60,
       firstWeightKg: 100,
       latestWeightKg: 99,
       measurementCount: 2,
-      totalRepetitions: 10,
+      totalRepetitions: 20,
       totalVolumeKg: 200,
       workouts: 1,
     });
@@ -60,7 +63,9 @@ describe('fitness insights repository', () => {
     ).getSummary('year', new Date('2026-08-05T12:00:00.000Z'));
     expect(summary.workouts).toBe(0);
     expect(summary.firstWeightKg).toBeNull();
-    expect(summary.points).toEqual([]);
+    expect(summary.workoutPoints).toEqual([]);
+    expect(summary.volumePoints).toEqual([]);
+    expect(summary.weightPoints).toEqual([]);
     database.close();
   });
 });

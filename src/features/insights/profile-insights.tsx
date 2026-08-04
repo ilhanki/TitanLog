@@ -1,6 +1,6 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
@@ -157,29 +157,27 @@ export function ProfileInsights({
                   value={String(summary.measurementCount)}
                 />
               </View>
-              <AppCard style={styles.chart}>
-                <AppText variant="bodyStrong">Antrenman dağılımı</AppText>
-                <View
-                  accessibilityLabel={summary.points
-                    .map((point) => `${point.label}: ${point.value}`)
-                    .join(', ')}
-                  style={styles.bars}
-                >
-                  {summary.points.map((point) => (
-                    <View key={point.label} style={styles.barColumn}>
-                      <View
-                        style={[
-                          styles.bar,
-                          { height: Math.max(10, point.value * 18) },
-                        ]}
-                      />
-                      <AppText tone="subtle" variant="caption">
-                        {point.label}
-                      </AppText>
-                    </View>
-                  ))}
-                </View>
-              </AppCard>
+              <InsightBars
+                points={summary.workoutPoints}
+                title="Antrenman sıklığı"
+                valueLabel={(value) => `${value} antrenman`}
+              />
+              <InsightBars
+                points={summary.volumePoints}
+                title="Antrenman hacmi"
+                valueLabel={(value) =>
+                  formatVolume(value, preferences.weightUnit)
+                }
+              />
+              {summary.weightPoints.length > 0 ? (
+                <InsightBars
+                  points={summary.weightPoints}
+                  title="Kilo eğilimi"
+                  valueLabel={(value) =>
+                    formatWeight(value, preferences.weightUnit)
+                  }
+                />
+              ) : null}
               <AppCard style={styles.insights}>
                 <AppText variant="bodyStrong">Dönem özeti</AppText>
                 <AppText tone="muted">
@@ -194,6 +192,10 @@ export function ProfileInsights({
                 </AppText>
                 <AppText tone="muted">
                   Yeni kişisel rekor: {summary.personalRecords}
+                </AppText>
+                <AppText tone="muted">
+                  Güncel / en uzun seri: {summary.currentStreak} /{' '}
+                  {summary.longestStreak} gün
                 </AppText>
                 <AppText tone="muted">
                   Kilo:{' '}
@@ -282,6 +284,57 @@ function Metric({ label, value }: { label: string; value: string }) {
         {label}
       </AppText>
       <AppText variant="metric">{value}</AppText>
+    </AppCard>
+  );
+}
+
+export function InsightBars({
+  points,
+  title,
+  valueLabel,
+}: {
+  points: { label: string; value: number }[];
+  title: string;
+  valueLabel: (value: number) => string;
+}) {
+  const [selected, setSelected] = useState(points.at(-1) ?? null);
+  useEffect(() => setSelected(points.at(-1) ?? null), [points]);
+  const values = points.map((point) => point.value);
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const range = maximum - minimum || 1;
+  return (
+    <AppCard style={styles.chart}>
+      <AppText variant="bodyStrong">{title}</AppText>
+      <AppText accessibilityLiveRegion="polite" tone="muted" variant="caption">
+        {selected
+          ? `${selected.label}: ${valueLabel(selected.value)}`
+          : 'Bu dönem için veri yok.'}
+      </AppText>
+      <View
+        accessibilityLabel={`${title}. ${points.map((point) => `${point.label}: ${valueLabel(point.value)}`).join(', ')}`}
+        style={styles.bars}
+      >
+        {points.map((point) => (
+          <Pressable
+            accessibilityLabel={`${point.label}, ${valueLabel(point.value)}`}
+            accessibilityRole="button"
+            key={point.label}
+            onPress={() => setSelected(point)}
+            style={styles.barColumn}
+          >
+            <View
+              style={[
+                styles.bar,
+                { height: 18 + ((point.value - minimum) / range) * 64 },
+              ]}
+            />
+            <AppText tone="subtle" variant="caption">
+              {point.label}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
     </AppCard>
   );
 }
