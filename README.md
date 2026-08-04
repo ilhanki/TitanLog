@@ -2,7 +2,7 @@
 
 TitanLog; antrenman programını, aktif set takibini, vücut ölçümlerini ve geçmiş karşılaştırmalarını cihaz üzerinde saklayan Android öncelikli, çevrimdışı çalışan bir fitness takip uygulamasıdır.
 
-Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1.0-alpha.9`, güncel yerel geliştirme sürümü ise birleşik Sprint 10–11 için hazırlanan `0.1.0-alpha.11`'dir. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
+Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1.0-alpha.9`, güncel yerel geliştirme sürümü ise Sprint 13 için hazırlanan `0.1.0-alpha.12`'dir. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
 
 [![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
 [![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-20232A?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
@@ -296,14 +296,14 @@ TitanLog/
 
 TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelini kullanır. Yayımlanan kilometre taşları mevcut HEAD üzerinde açıklamalı Git tag'leriyle işaretlenir ve fiziksel cihaz doğrulamasından sonra yayımlanır.
 
-- Yerel paket hazırlığı: `0.1.0-alpha.11`
+- Yerel paket hazırlığı: `0.1.0-alpha.12`
 - Son yayımlanan tag: `v0.1.0-alpha.9`
-- Planlanan sonraki tag: `v0.1.0-alpha.11`
+- Planlanan sonraki tag: `v0.1.0-alpha.12`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
 
-`v0.1.0-alpha.10` hiç oluşturulmamış veya origin'e gönderilmemiştir; birleşik aday onu aşar. `v0.1.0-alpha.11` de henüz oluşturulmamıştır. Hesap, özel Storage, RLS, Edge Function ve iki cihaz davranışları yapılandırılmış gerçek Supabase ortamı ile Samsung Galaxy A55 kabul testini beklemektedir.
+`v0.1.0-alpha.10` ve `v0.1.0-alpha.11` oluşturulmamıştır. `v0.1.0-alpha.12` de bu yerel hazırlık sırasında oluşturulmamıştır. Yeni profil medyası migration'ı deploy edilmemiştir; yeni native medya modüllerini içeren development build ve Samsung Galaxy A55 kabul testi beklemektedir.
 
 ## Yol haritası
 
