@@ -86,10 +86,12 @@ export const appStrings = {
     home: 'Ana Sayfa',
     workout: 'Antrenman',
     progress: 'Gelişim',
+    history: 'Geçmiş',
     profile: 'Profil',
     homeAccessibilityLabel: 'Ana Sayfa sekmesi',
     workoutAccessibilityLabel: 'Antrenman sekmesi',
     progressAccessibilityLabel: 'Gelişim sekmesi',
+    historyAccessibilityLabel: 'Geçmiş sekmesi',
     profileAccessibilityLabel: 'Profil sekmesi',
   },
   workout: {

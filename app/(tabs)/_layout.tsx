@@ -69,6 +69,22 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="history"
+          options={{
+            tabBarAccessibilityLabel:
+              appStrings.navigation.historyAccessibilityLabel,
+            tabBarIcon: ({ color, focused, size }) => (
+              <TabBarIcon
+                color={color}
+                focused={focused}
+                name="history"
+                size={size}
+              />
+            ),
+            title: appStrings.navigation.history,
+          }}
+        />
+        <Tabs.Screen
           name="progress"
           options={{
             tabBarAccessibilityLabel:

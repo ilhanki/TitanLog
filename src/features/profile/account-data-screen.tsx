@@ -7,7 +7,6 @@ import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { Screen } from '@/components/screen';
-import { requestAccountDeletion, signOut } from '@/features/auth/auth-service';
 import { useAuth } from '@/features/auth/auth-provider';
 import {
   downloadCloudBackup,
@@ -29,6 +28,11 @@ import {
   pickLocalBackup,
   shareLocalBackup,
 } from '@/features/data-safety/local-backup-service';
+import {
+  createOperationHistoryRepository,
+  type DataOperationHistoryItem,
+  type DataOperationType,
+} from '@/features/data-safety/operation-history-repository';
 import { DeviceSyncCard } from '@/features/sync/device-sync-card';
 import {
   cancelManualSync,
@@ -56,6 +60,28 @@ function formatDate(value: string | null | undefined): string {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function operationLabel(type: DataOperationType): string {
+  return (
+    {
+      cloud_restore: 'Buluttan geri yükleme',
+      cloud_upload: 'Özel bulut yedeği',
+      conflict_cancelled: 'Eşitleme çakışması',
+      device_sync: 'Cihaz eşitleme',
+      local_export: 'Yerel yedek oluşturma',
+      local_restore: 'Yerel yedekten geri yükleme',
+      recovery_created: 'Kurtarma kopyası',
+    } satisfies Record<DataOperationType, string>
+  )[type];
+}
+
+function resultLabel(result: DataOperationHistoryItem['result']): string {
+  return result === 'completed'
+    ? 'Tamamlandı'
+    : result === 'failed'
+      ? 'Başarısız'
+      : 'İptal edildi';
 }
 
 function previewText(archive: TitanLogBackup): string {
@@ -122,21 +148,33 @@ export function AccountDataScreen() {
   const [recoveryAvailable, setRecoveryAvailable] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [history, setHistory] = useState<DataOperationHistoryItem[]>([]);
   const pendingRef = useRef(false);
 
   const loadOwnership = useCallback(async () => {
-    const [nextOwnership, nextSyncState] = await Promise.all([
+    const [nextOwnership, nextSyncState, nextHistory] = await Promise.all([
       createDatasetOwnershipRepository(database).getOwnership(),
       createSyncStateRepository(database).getState(),
+      createOperationHistoryRepository(database).list(),
     ]);
     setOwnership(nextOwnership);
     setSyncState(nextSyncState);
+    setHistory(nextHistory);
     setRecoveryAvailable(hasRecoveryArchive());
   }, [database]);
   useEffect(() => {
     void loadOwnership();
   }, [loadOwnership]);
 
+  const operationTypes: Partial<Record<string, DataOperationType>> = {
+    'local-export': 'local_export',
+    restore: 'local_restore',
+    'cloud-upload': 'cloud_upload',
+    'cloud-download': 'cloud_restore',
+    'sync-upload': 'device_sync',
+    'sync-download': 'device_sync',
+    'recovery-export': 'recovery_created',
+  };
   const run = async (name: string, operation: () => Promise<void>) => {
     if (pendingRef.current) return;
     pendingRef.current = true;
@@ -144,7 +182,19 @@ export function AccountDataScreen() {
     setNotice(null);
     try {
       await operation();
+      const operationType = operationTypes[name];
+      if (operationType)
+        await createOperationHistoryRepository(database).add(
+          operationType,
+          'completed'
+        );
     } catch (error) {
+      const operationType = operationTypes[name];
+      if (operationType)
+        await createOperationHistoryRepository(database).add(
+          operationType,
+          'failed'
+        );
       setNotice(
         name === 'local-export'
           ? localBackupErrorMessage(error)
@@ -157,6 +207,7 @@ export function AccountDataScreen() {
               : 'İşlem tamamlanamadı. Yerel verilerin değişmeden korundu.'
       );
     } finally {
+      setHistory(await createOperationHistoryRepository(database).list());
       pendingRef.current = false;
       setPending(null);
     }
@@ -235,6 +286,9 @@ export function AccountDataScreen() {
 
   const cancelSyncChoice = () => {
     void cancelManualSync(database);
+    void createOperationHistoryRepository(database)
+      .add('conflict_cancelled', 'cancelled')
+      .then(() => loadOwnership());
     setNotice('Eşitleme iptal edildi. Yerel ve bulut verileri değiştirilmedi.');
   };
 
@@ -356,7 +410,7 @@ export function AccountDataScreen() {
           style={styles.title}
           variant="title"
         >
-          Hesap ve Veriler
+          Veri ve Yedekleme
         </AppText>
       </View>
 
@@ -365,6 +419,20 @@ export function AccountDataScreen() {
           {notice}
         </AppText>
       ) : null}
+
+      <AppCard style={styles.section} tone="raised">
+        <AppText variant="heading">Veri Merkezi</AppText>
+        <AppText selectable tone="muted">
+          Fitness verilerin önce bu cihazda tutulur. Yerel yedek hesabından
+          bağımsızdır; özel bulut yedeği ve cihaz eşitleme yalnızca sen
+          başlattığında çalışır.
+        </AppText>
+        <AppText tone={user ? 'success' : 'information'} variant="caption">
+          {user
+            ? `Oturum açık · ${ownershipLabel}`
+            : 'Misafir modu · uzak işlem kapalı'}
+        </AppText>
+      </AppCard>
 
       <AppCard style={styles.section} tone="raised">
         <AppText variant="heading">Yerel Yedekleme</AppText>
@@ -527,58 +595,47 @@ export function AccountDataScreen() {
         </View>
       </AppCard>
 
-      {user ? (
-        <AppCard style={styles.section}>
-          <AppText variant="heading">Hesap Güvenliği</AppText>
-          <AppText selectable>{user.email}</AppText>
-          <AppText
-            selectable
-            tone={user.email_confirmed_at ? 'success' : 'muted'}
-          >
-            {user.email_confirmed_at
-              ? 'E-posta doğrulandı'
-              : 'E-posta doğrulaması bekleniyor'}
-          </AppText>
+      <AppCard style={styles.section}>
+        <AppText variant="heading">İşlem Geçmişi</AppText>
+        <AppText selectable tone="muted">
+          Yalnızca bu cihazdaki son 20 veri işlemi gösterilir. Fitness yedeğine
+          veya eşitleme arşivine dahil edilmez.
+        </AppText>
+        {history.length === 0 ? (
+          <AppText tone="subtle">Henüz kaydedilmiş veri işlemi yok.</AppText>
+        ) : (
+          history.map((item) => (
+            <View key={item.id} style={styles.historyRow}>
+              <AppText variant="bodyStrong">
+                {operationLabel(item.operationType)}
+              </AppText>
+              <AppText
+                tone={
+                  item.result === 'completed'
+                    ? 'success'
+                    : item.result === 'failed'
+                      ? 'danger'
+                      : 'muted'
+                }
+                variant="caption"
+              >
+                {resultLabel(item.result)} · {formatDate(item.occurredAt)}
+              </AppText>
+            </View>
+          ))
+        )}
+        {history.length > 0 ? (
           <AppButton
-            disabled={pending !== null}
-            label="Çıkış Yap"
+            label="İşlem Geçmişini Temizle"
             onPress={() =>
-              void run('sign-out', async () => {
-                await signOut();
-                setNotice(
-                  'Çıkış yapıldı. Bu cihazdaki antrenman ve vücut verileri korunuyor.'
-                );
-              })
+              void createOperationHistoryRepository(database)
+                .clear()
+                .then(() => setHistory([]))
             }
-            variant="secondary"
+            variant="ghost"
           />
-          <AppButton
-            disabled={pending !== null}
-            label="Hesap Silme İsteği"
-            onPress={() =>
-              Alert.alert(
-                'Hesap kalıcı olarak silinsin mi?',
-                'Özel bulut yedeğin ve uzak hesap kayıtların silinir. Bu cihazdaki yerel veriler ayrıca onay vermediğin sürece korunur. Yakın tarihli oturum doğrulaması gerekebilir.',
-                [
-                  { style: 'cancel', text: 'Vazgeç' },
-                  {
-                    style: 'destructive',
-                    text: 'Hesabımı Sil',
-                    onPress: () =>
-                      void run('delete-account', async () => {
-                        await requestAccountDeletion();
-                        setNotice(
-                          'Uzak hesap silme isteği tamamlandı. Yerel verilerin korundu.'
-                        );
-                      }),
-                  },
-                ]
-              )
-            }
-            variant="danger"
-          />
-        </AppCard>
-      ) : null}
+        ) : null}
+      </AppCard>
     </Screen>
   );
 }
@@ -588,5 +645,11 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md },
   header: { alignItems: 'center', flexDirection: 'row', gap: theme.spacing.md },
   section: { gap: theme.spacing.lg },
+  historyRow: {
+    borderBottomColor: theme.colors.border,
+    borderBottomWidth: theme.borders.hairline,
+    gap: theme.spacing.xs,
+    paddingBottom: theme.spacing.md,
+  },
   title: { flex: 1 },
 });

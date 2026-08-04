@@ -16,7 +16,11 @@ import { theme } from '@/theme/tokens';
 
 const HISTORY_PAGE_SIZE = 20;
 
-export function WorkoutHistoryScreen() {
+export function WorkoutHistoryScreen({
+  showBack = true,
+}: {
+  showBack?: boolean;
+}) {
   const database = useSQLiteContext();
   const router = useRouter();
   const [history, setHistory] = useState<CompletedWorkoutHistoryItem[]>([]);
@@ -76,13 +80,15 @@ export function WorkoutHistoryScreen() {
 
   const header = (
     <View style={styles.header}>
-      <AppButton
-        icon="arrow-left"
-        label={appStrings.common.goBack}
-        onPress={() => router.back()}
-        style={styles.backButton}
-        variant="ghost"
-      />
+      {showBack ? (
+        <AppButton
+          icon="arrow-left"
+          label={appStrings.common.goBack}
+          onPress={() => router.back()}
+          style={styles.backButton}
+          variant="ghost"
+        />
+      ) : null}
       <View style={styles.headerCopy}>
         <AppText accessibilityRole="header" variant="title">
           {appStrings.workout.historyTitle}
