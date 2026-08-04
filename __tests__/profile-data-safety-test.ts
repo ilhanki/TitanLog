@@ -15,7 +15,9 @@ describe('profile data safety', () => {
       ),
       'utf8'
     );
-    expect(sql).toMatch(/values\s*\([\s\S]*?'titanlog-profile-media'[\s\S]*?false/i);
+    expect(sql).toMatch(
+      /values\s*\([\s\S]*?'titanlog-profile-media'[\s\S]*?false/i
+    );
     expect(sql).toMatch(/storage\.foldername\(name\).*auth\.uid\(\)/s);
     expect(sql).toMatch(/for select to authenticated/i);
     expect(sql).toMatch(/for insert to authenticated/i);
