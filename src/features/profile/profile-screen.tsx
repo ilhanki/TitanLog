@@ -29,6 +29,10 @@ const defaults: ProfilePreferences = {
   weeklyActiveDayTarget: null,
   weeklyWorkoutTarget: null,
   weightUnit: 'kg',
+  workoutEffortMode: 'off',
+  workoutHapticsEnabled: true,
+  workoutKeepAwakeEnabled: true,
+  globalRestSeconds: 90,
 };
 
 export function ProfileScreen() {

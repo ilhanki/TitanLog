@@ -18,6 +18,7 @@ import type {
   CompletedWorkoutComparison,
   CompletedWorkoutDetail,
 } from '@/features/workouts/domain/models';
+import { SET_TYPE_LABELS } from '@/features/workouts/domain/set-policy';
 import {
   formatWorkoutDate,
   formatWorkoutDifference,
@@ -292,6 +293,14 @@ export function CompletedWorkoutDetailScreen() {
           {formatWorkoutDate(detail.completedAt)}
         </AppText>
       </View>
+      {detail.notes ? (
+        <View style={styles.section}>
+          <AppText variant="bodyStrong">Antrenman notu</AppText>
+          <AppText selectable tone="muted">
+            {detail.notes}
+          </AppText>
+        </View>
+      ) : null}
       <View style={styles.metricGrid}>
         {metrics.map((metric) => (
           <View key={metric.label} style={styles.metricCell}>
@@ -360,7 +369,7 @@ export function CompletedWorkoutDetailScreen() {
               <View
                 accessibilityLabel={`${exercise.name}, Set ${workoutSet.setNumber}, ${
                   workoutSet.isCompleted
-                    ? `${workoutSet.actualReps} ${appStrings.workout.repetitions}, ${formatWorkoutWeight(workoutSet.weightKg)} kg, ${appStrings.workout.completedSetStatus}`
+                    ? `${workoutSet.actualReps} ${appStrings.workout.repetitions}, ${formatWorkoutWeight(workoutSet.weightKg)} kg, ${appStrings.workout.completedSetStatus}, ${SET_TYPE_LABELS[workoutSet.setType ?? 'working']}${workoutSet.effortMode && workoutSet.effortValue !== null && workoutSet.effortValue !== undefined ? `, ${workoutSet.effortMode.toUpperCase()} ${workoutSet.effortValue}` : ''}`
                     : appStrings.workout.incompleteSetStatus
                 }`}
                 accessible
@@ -385,7 +394,13 @@ export function CompletedWorkoutDetailScreen() {
                   variant="caption"
                 >
                   {workoutSet.isCompleted
-                    ? appStrings.workout.completedSetStatus
+                    ? `${SET_TYPE_LABELS[workoutSet.setType ?? 'working']}${
+                        workoutSet.effortMode &&
+                        workoutSet.effortValue !== null &&
+                        workoutSet.effortValue !== undefined
+                          ? ` · ${workoutSet.effortMode.toUpperCase()} ${String(workoutSet.effortValue).replace('.', ',')}`
+                          : ''
+                      }`
                     : appStrings.workout.incompleteSetStatus}
                 </AppText>
               </View>

@@ -6,9 +6,13 @@ import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
 import { appStrings } from '@/constants/strings';
 import { InlineNumericWheelField } from '@/features/workouts/components/inline-numeric-wheel-field';
+import { EffortInput } from '@/features/workouts/components/effort-input';
+import { SetTypeSelector } from '@/features/workouts/components/set-type-selector';
 import type {
+  WorkoutEffortMode,
   WorkoutSessionExercise,
   WorkoutSet,
+  WorkoutSetType,
 } from '@/features/workouts/domain/models';
 import {
   formatWorkoutWeight,
@@ -26,8 +30,14 @@ type CompletedSetEditorProps = {
   onSaveSet: (
     setId: number,
     weightKg: number,
-    actualReps: number
+    actualReps: number,
+    metadata: {
+      effortMode: WorkoutEffortMode;
+      effortValue: number | null;
+      setType: WorkoutSetType;
+    }
   ) => Promise<void>;
+  onUndoSet?: (setId: number) => Promise<void>;
   visible: boolean;
 };
 
@@ -35,7 +45,16 @@ type CompletedSetRowProps = {
   disabled: boolean;
   exerciseName: string;
   onGestureActiveChange: (active: boolean) => void;
-  onSave: (weightKg: number, actualReps: number) => Promise<void>;
+  onSave: (
+    weightKg: number,
+    actualReps: number,
+    metadata: {
+      effortMode: WorkoutEffortMode;
+      effortValue: number | null;
+      setType: WorkoutSetType;
+    }
+  ) => Promise<void>;
+  onUndo?: () => Promise<void>;
   workoutSet: WorkoutSet;
 };
 
@@ -44,6 +63,7 @@ function CompletedSetRow({
   exerciseName,
   onGestureActiveChange,
   onSave,
+  onUndo,
   workoutSet,
 }: CompletedSetRowProps) {
   const [weight, setWeight] = useState(
@@ -53,16 +73,37 @@ function CompletedSetRow({
     String(workoutSet.actualReps ?? workoutSet.targetReps)
   );
   const [error, setError] = useState<string | null>(null);
+  const [setType, setSetType] = useState<WorkoutSetType>(
+    workoutSet.setType ?? 'working'
+  );
+  const [effortMode, setEffortMode] = useState<WorkoutEffortMode>(
+    workoutSet.effortMode ?? 'off'
+  );
+  const [effort, setEffort] = useState(
+    workoutSet.effortValue === null || workoutSet.effortValue === undefined
+      ? ''
+      : String(workoutSet.effortValue)
+  );
 
   useEffect(() => {
     setWeight(formatWorkoutWeight(workoutSet.weightKg));
     setRepetitions(String(workoutSet.actualReps ?? workoutSet.targetReps));
     setError(null);
+    setSetType(workoutSet.setType ?? 'working');
+    setEffortMode(workoutSet.effortMode ?? 'off');
+    setEffort(
+      workoutSet.effortValue === null || workoutSet.effortValue === undefined
+        ? ''
+        : String(workoutSet.effortValue)
+    );
   }, [
     workoutSet.actualReps,
     workoutSet.id,
     workoutSet.targetReps,
     workoutSet.weightKg,
+    workoutSet.setType,
+    workoutSet.effortMode,
+    workoutSet.effortValue,
   ]);
 
   const save = async () => {
@@ -72,8 +113,29 @@ function CompletedSetRow({
       setError(appStrings.workout.invalidSet);
       return;
     }
+    const effortValue =
+      effortMode === 'off' ? null : Number(effort.replace(',', '.'));
+    const effortValid =
+      effortMode === 'off'
+        ? true
+        : effortMode === 'rpe'
+          ? Number.isFinite(effortValue) &&
+            effortValue! >= 1 &&
+            effortValue! <= 10 &&
+            (effortValue! * 2) % 1 === 0
+          : Number.isSafeInteger(effortValue) &&
+            effortValue! >= 0 &&
+            effortValue! <= 10;
+    if (!effortValid) {
+      setError('Efor değeri seçilen moda uygun değil.');
+      return;
+    }
     setError(null);
-    await onSave(parsedWeight, parsedRepetitions);
+    await onSave(parsedWeight, parsedRepetitions, {
+      effortMode,
+      effortValue,
+      setType,
+    });
   };
 
   return (
@@ -88,7 +150,7 @@ function CompletedSetRow({
         inputMode="decimal"
         keyboardType="decimal-pad"
         max={2000}
-        min={2.5}
+        min={0}
         onChangeText={setWeight}
         onGestureActiveChange={onGestureActiveChange}
         parseValue={parseWeightInput}
@@ -120,6 +182,29 @@ function CompletedSetRow({
         style={styles.saveButton}
         variant="secondary"
       />
+      <View style={styles.metadataEditor}>
+        <SetTypeSelector
+          disabled={disabled}
+          onChange={setSetType}
+          value={setType}
+        />
+        <EffortInput
+          disabled={disabled}
+          mode={effortMode}
+          onModeChange={setEffortMode}
+          onValueChange={setEffort}
+          value={effort}
+        />
+      </View>
+      {onUndo ? (
+        <AppButton
+          disabled={disabled}
+          label="Geri al"
+          onPress={() => void onUndo()}
+          style={styles.saveButton}
+          variant="ghost"
+        />
+      ) : null}
       {error ? (
         <AppText
           accessibilityRole="alert"
@@ -140,6 +225,7 @@ export function CompletedSetEditor({
   onClose,
   onRemoveSet,
   onSaveSet,
+  onUndoSet,
   visible,
 }: CompletedSetEditorProps) {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -207,10 +293,18 @@ export function CompletedSetEditor({
                 exerciseName={exercise?.name ?? ''}
                 key={workoutSet.id}
                 onGestureActiveChange={setNumericGestureActive}
-                onSave={(weightKg, actualReps) =>
+                onSave={(weightKg, actualReps, metadata) =>
                   runAction(`save-${workoutSet.id}`, () =>
-                    onSaveSet(workoutSet.id, weightKg, actualReps)
+                    onSaveSet(workoutSet.id, weightKg, actualReps, metadata)
                   )
+                }
+                onUndo={
+                  onUndoSet
+                    ? () =>
+                        runAction(`undo-${workoutSet.id}`, () =>
+                          onUndoSet(workoutSet.id)
+                        )
+                    : undefined
                 }
                 workoutSet={workoutSet}
               />
@@ -279,6 +373,7 @@ const styles = StyleSheet.create({
   input: {
     width: 64,
   },
+  metadataEditor: { gap: theme.spacing.sm, width: '100%' },
   modal: {
     backgroundColor: workoutTheme.surface,
     borderColor: workoutTheme.separator,

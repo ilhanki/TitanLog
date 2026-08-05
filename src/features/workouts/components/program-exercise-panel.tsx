@@ -9,7 +9,7 @@ import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
 import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
-export const PROGRAM_EXERCISE_PANEL_HEIGHT = 154;
+export const PROGRAM_EXERCISE_PANEL_HEIGHT = 176;
 export const PROGRAM_EXERCISE_PANEL_GAP = theme.spacing.sm;
 export const PROGRAM_REORDER_LONG_PRESS_DELAY = 260;
 
@@ -37,8 +37,12 @@ type ProgramExercisePanelProps = {
   onDragMove: (distanceY: number) => void;
   onDragStart: () => void;
   onEditDefaults: () => void;
+  onDissolveSuperset?: () => void;
   onOpenHistory: () => void;
   onRemove: () => void;
+  onRemoveFromSuperset?: () => void;
+  onSupersetToggle?: () => void;
+  supersetSelected?: boolean;
   placeholder?: boolean;
   totalCount: number;
 };
@@ -92,10 +96,14 @@ export function ProgramExercisePanel({
   onDragMove,
   onDragStart,
   onEditDefaults,
+  onDissolveSuperset,
   onOpenHistory,
   onRemove,
+  onRemoveFromSuperset,
+  onSupersetToggle,
   placeholder = false,
   totalCount,
+  supersetSelected = false,
 }: ProgramExercisePanelProps) {
   const disabledRef = useRef(disabled);
   const dragActiveRef = useRef(false);
@@ -205,6 +213,15 @@ export function ProgramExercisePanel({
               {metadata}
             </AppText>
           ) : null}
+          {exercise.supersetGroupId ? (
+            <AppText
+              accessibilityLabel="Superset grubu"
+              tone="primary"
+              variant="caption"
+            >
+              Superset · sıra {(exercise.supersetOrder ?? 0) + 1}
+            </AppText>
+          ) : null}
         </View>
         <View
           {...panResponderRef.current.panHandlers}
@@ -237,6 +254,30 @@ export function ProgramExercisePanel({
       />
 
       <View style={styles.footerActions}>
+        {exercise.supersetGroupId && onRemoveFromSuperset ? (
+          <CompactAction
+            accessibilityLabel={`${exercise.name} hareketini superset grubundan çıkar`}
+            disabled={disabled}
+            label="Gruptan çıkar"
+            onPress={onRemoveFromSuperset}
+          />
+        ) : null}
+        {exercise.supersetGroupId && onDissolveSuperset ? (
+          <CompactAction
+            accessibilityLabel={`${exercise.name} superset grubunu çöz`}
+            disabled={disabled}
+            label="Grubu çöz"
+            onPress={onDissolveSuperset}
+          />
+        ) : null}
+        {onSupersetToggle ? (
+          <CompactAction
+            accessibilityLabel={`${exercise.name} superset seçimi${supersetSelected ? ' kaldır' : ' ekle'}`}
+            disabled={disabled}
+            label={supersetSelected ? 'Seçildi' : 'Superset'}
+            onPress={onSupersetToggle}
+          />
+        ) : null}
         <CompactAction
           accessibilityLabel={`${exercise.name} varsayılanlarını düzenle`}
           disabled={disabled}

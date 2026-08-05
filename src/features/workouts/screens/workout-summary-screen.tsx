@@ -109,9 +109,33 @@ export function WorkoutSummaryScreen() {
       <View style={styles.metrics}>
         <AppCard style={styles.metricCard} tone="raised">
           <AppText tone="muted" variant="caption">
+            Süre
+          </AppText>
+          <AppText variant="metric">
+            {summary.durationMinutes === null
+              ? '—'
+              : `${summary.durationMinutes} dk`}
+          </AppText>
+        </AppCard>
+        <AppCard style={styles.metricCard} tone="raised">
+          <AppText tone="muted" variant="caption">
+            Egzersiz
+          </AppText>
+          <AppText variant="metric">
+            {summary.exerciseCount ?? summary.exerciseNames.length}
+          </AppText>
+        </AppCard>
+        <AppCard style={styles.metricCard} tone="raised">
+          <AppText tone="muted" variant="caption">
             {appStrings.workout.completedSets}
           </AppText>
           <AppText variant="metric">{summary.completedSetCount}</AppText>
+        </AppCard>
+        <AppCard style={styles.metricCard} tone="raised">
+          <AppText tone="muted" variant="caption">
+            Isınma seti
+          </AppText>
+          <AppText variant="metric">{summary.warmUpSetCount ?? 0}</AppText>
         </AppCard>
         <AppCard style={styles.metricCard} tone="raised">
           <AppText tone="muted" variant="caption">
@@ -127,7 +151,45 @@ export function WorkoutSummaryScreen() {
             {formatWorkoutWeight(summary.totalVolume)} kg
           </AppText>
         </AppCard>
+        {summary.averageEffort !== null &&
+        summary.averageEffort !== undefined ? (
+          <AppCard style={styles.metricCard} tone="raised">
+            <AppText tone="muted" variant="caption">
+              Ortalama {summary.averageEffortMode?.toUpperCase() ?? 'efor'}
+            </AppText>
+            <AppText variant="metric">
+              {summary.averageEffort.toFixed(1)}
+            </AppText>
+          </AppCard>
+        ) : null}
       </View>
+      <AppCard tone="raised">
+        <AppText variant="bodyStrong">Önceki benzer antrenman</AppText>
+        <AppText selectable tone="muted">
+          {summary.previousWorkoutVolume === null ||
+          summary.previousWorkoutVolume === undefined
+            ? 'Karşılaştırılabilir önceki kayıt bulunamadı.'
+            : summary.previousWorkoutVolume === 0
+              ? 'Önceki kayıtta karşılaştırılabilir hacim yok.'
+              : `Önceki hacim ${formatWorkoutWeight(summary.previousWorkoutVolume)} kg.`}
+        </AppText>
+        <AppText tone="primary" variant="bodyStrong">
+          {summary.personalRecordCount ?? 0} yeni rekor
+        </AppText>
+      </AppCard>
+      <AppCard tone="raised">
+        <AppText variant="bodyStrong">Egzersiz özeti</AppText>
+        <AppText selectable tone="muted">
+          {summary.exerciseNames.length > 0
+            ? summary.exerciseNames.join(' · ')
+            : 'Tamamlanan egzersiz bulunmuyor.'}
+        </AppText>
+      </AppCard>
+      <AppButton
+        label="Antrenman detayını incele"
+        onPress={() => router.replace(`/workout/history/${summary.id}`)}
+        variant="secondary"
+      />
       <AppButton
         label={appStrings.workout.returnToWorkouts}
         onPress={() => router.replace('/workout')}

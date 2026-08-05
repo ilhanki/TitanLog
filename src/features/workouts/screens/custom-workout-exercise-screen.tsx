@@ -26,6 +26,7 @@ import {
   normalizeOptionalText,
   normalizeRequiredName,
   parseDefaultRepetitions,
+  parseDefaultRestSeconds,
   parseDefaultSetCount,
   parseDefaultWeight,
 } from '@/features/workouts/utils/workout-program-validation';
@@ -33,6 +34,7 @@ import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
 const initialDefaults: ExerciseDefaultsFormValues = {
+  restSeconds: '90',
   setCount: '3',
   targetReps: '12',
   weight: '1',
@@ -41,7 +43,13 @@ const initialDefaults: ExerciseDefaultsFormValues = {
 
 type FieldErrors = Partial<
   Record<
-    'equipment' | 'muscleGroup' | 'name' | 'setCount' | 'targetReps' | 'weight',
+    | 'equipment'
+    | 'muscleGroup'
+    | 'name'
+    | 'restSeconds'
+    | 'setCount'
+    | 'targetReps'
+    | 'weight',
     string
   >
 >;
@@ -129,6 +137,9 @@ export function CustomWorkoutExerciseScreen() {
       ...(parseDefaultWeight(defaults.weight) === null
         ? { weight: appStrings.workout.invalidDefaultWeight }
         : {}),
+      ...(parseDefaultRestSeconds(defaults.restSeconds) === null
+        ? { restSeconds: 'Dinlenme süresi 15–1800 saniye olmalı.' }
+        : {}),
     };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0 || !normalizedName) return;
@@ -136,7 +147,8 @@ export function CustomWorkoutExerciseScreen() {
       defaults.setCount,
       defaults.targetReps,
       defaults.weight,
-      defaults.weightMode
+      defaults.weightMode,
+      defaults.restSeconds
     );
     if (
       !parsed ||

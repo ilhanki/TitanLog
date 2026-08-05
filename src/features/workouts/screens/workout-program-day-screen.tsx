@@ -51,6 +51,7 @@ import {
   normalizeRequiredName,
   normalizeWeekdays,
   parseDefaultRepetitions,
+  parseDefaultRestSeconds,
   parseDefaultSetCount,
   parseDefaultWeight,
 } from '@/features/workouts/utils/workout-program-validation';
@@ -88,6 +89,7 @@ function toDefaultsValues(
 ): ExerciseDefaultsFormValues {
   return {
     setCount: String(exercise.setCount),
+    restSeconds: String(exercise.defaultRestSeconds ?? 90),
     targetReps: String(exercise.targetReps),
     weight: String(exercise.weightKg).replace('.', ','),
     weightMode: exercise.weightMode,
@@ -127,6 +129,9 @@ export function WorkoutProgramDayScreen() {
     null
   );
   const exerciseDragRef = useRef<ExerciseDragState | null>(null);
+  const [supersetSelection, setSupersetSelection] = useState<readonly number[]>(
+    []
+  );
 
   const metadataDirty = Boolean(
     originalDraft && draft && isWorkoutDayDraftDirty(originalDraft, draft)
@@ -266,6 +271,9 @@ export function WorkoutProgramDayScreen() {
     ...(parseDefaultWeight(values.weight) === null
       ? { weight: appStrings.workout.invalidDefaultWeight }
       : {}),
+    ...(parseDefaultRestSeconds(values.restSeconds) === null
+      ? { restSeconds: 'Dinlenme süresi 15–1800 saniye olmalı.' }
+      : {}),
   });
 
   const saveDefaults = async () => {
@@ -277,7 +285,8 @@ export function WorkoutProgramDayScreen() {
       defaultsEditor.values.setCount,
       defaultsEditor.values.targetReps,
       defaultsEditor.values.weight,
-      defaultsEditor.values.weightMode
+      defaultsEditor.values.weightMode,
+      defaultsEditor.values.restSeconds
     );
     if (!defaults) return;
     savingExerciseRef.current = true;
@@ -456,6 +465,67 @@ export function WorkoutProgramDayScreen() {
     );
   };
 
+  const createSuperset = async () => {
+    if (supersetSelection.length < 2 || operationRef.current) return;
+    operationRef.current = true;
+    setSaveError(null);
+    try {
+      await createWorkoutProgramRepository(database).createSuperset(
+        dayId,
+        supersetSelection
+      );
+      setSupersetSelection([]);
+      await load();
+      AccessibilityInfo.announceForAccessibility('Superset grubu oluşturuldu.');
+    } catch {
+      setSaveError(
+        'Superset grubu oluşturulamadı. En az iki hareket seçmelisin.'
+      );
+    } finally {
+      operationRef.current = false;
+    }
+  };
+
+  const dissolveSuperset = async (groupId: string) => {
+    if (operationRef.current) return;
+    operationRef.current = true;
+    setSaveError(null);
+    try {
+      await createWorkoutProgramRepository(database).dissolveSuperset(
+        dayId,
+        groupId
+      );
+      await load();
+      AccessibilityInfo.announceForAccessibility('Superset grubu çözüldü.');
+    } catch {
+      setSaveError('Superset grubu çözülemedi.');
+    } finally {
+      operationRef.current = false;
+    }
+  };
+
+  const removeFromSuperset = async (exerciseId: number) => {
+    if (operationRef.current) return;
+    operationRef.current = true;
+    setPendingExerciseId(exerciseId);
+    setSaveError(null);
+    try {
+      await createWorkoutProgramRepository(database).removeExerciseFromSuperset(
+        dayId,
+        exerciseId
+      );
+      await load();
+      AccessibilityInfo.announceForAccessibility(
+        'Hareket superset grubundan çıkarıldı.'
+      );
+    } catch {
+      setSaveError('Hareket superset grubundan çıkarılamadı.');
+    } finally {
+      operationRef.current = false;
+      setPendingExerciseId(null);
+    }
+  };
+
   if (loading && !day) {
     return (
       <Screen
@@ -612,6 +682,18 @@ export function WorkoutProgramDayScreen() {
           }
           variant="secondary"
         />
+        <View style={styles.supersetActions}>
+          <AppText selectable tone="muted" variant="caption">
+            Superset için en az iki hareket seç. Seçim programdaki sonraki
+            antrenmanları etkiler.
+          </AppText>
+          <AppButton
+            disabled={supersetSelection.length < 2 || operationRef.current}
+            label={`Superset oluştur (${supersetSelection.length})`}
+            onPress={() => void createSuperset()}
+            variant="secondary"
+          />
+        </View>
         {day.exercises.length === 0 ? (
           <EmptyState
             description={appStrings.workout.noProgramExercisesDescription}
@@ -670,14 +752,32 @@ export function WorkoutProgramDayScreen() {
                       values,
                     });
                   }}
+                  onDissolveSuperset={
+                    exercise.supersetGroupId
+                      ? () => void dissolveSuperset(exercise.supersetGroupId!)
+                      : undefined
+                  }
                   onOpenHistory={() =>
                     router.push(
                       `/workout/exercise/${exercise.id}/history` as Href
                     )
                   }
                   onRemove={() => remove(exercise)}
+                  onRemoveFromSuperset={
+                    exercise.supersetGroupId
+                      ? () => void removeFromSuperset(exercise.id)
+                      : undefined
+                  }
+                  onSupersetToggle={() =>
+                    setSupersetSelection((current) =>
+                      current.includes(exercise.id)
+                        ? current.filter((id) => id !== exercise.id)
+                        : [...current, exercise.id]
+                    )
+                  }
                   placeholder={isDragged}
                   totalCount={day.exercises.length}
+                  supersetSelected={supersetSelection.includes(exercise.id)}
                 />
               </View>
             );
@@ -784,6 +884,7 @@ const styles = StyleSheet.create({
     borderWidth: theme.borders.thin,
     padding: theme.spacing.md,
   },
+  supersetActions: { gap: theme.spacing.sm },
   weekday: {
     alignItems: 'center',
     borderColor: theme.colors.borderStrong,

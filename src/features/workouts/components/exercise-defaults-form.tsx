@@ -14,13 +14,16 @@ import { theme } from '@/theme/tokens';
 
 export type ExerciseDefaultsFormValues = {
   setCount: string;
+  restSeconds: string;
   targetReps: string;
   weight: string;
   weightMode: WeightMode;
 };
 
 type ExerciseDefaultsFormProps = {
-  errors?: Partial<Record<'setCount' | 'targetReps' | 'weight', string>>;
+  errors?: Partial<
+    Record<'restSeconds' | 'setCount' | 'targetReps' | 'weight', string>
+  >;
   exerciseName?: string;
   onChange: (values: ExerciseDefaultsFormValues) => void;
   onGestureActiveChange?: (active: boolean) => void;
@@ -110,6 +113,37 @@ export function ExerciseDefaultsForm({
             </AppText>
           ) : null}
         </View>
+      </View>
+      <View style={styles.numericField}>
+        <AppText style={styles.numericLabel} variant="label">
+          Dinlenme
+        </AppText>
+        <InlineNumericWheelField
+          accessibilityLabel={`${labelPrefix}varsayılan dinlenme süresi`}
+          formatValue={String}
+          inputMode="numeric"
+          keyboardType="number-pad"
+          max={1800}
+          min={15}
+          onChangeText={(restSeconds) => onChange({ ...values, restSeconds })}
+          onGestureActiveChange={onGestureActiveChange}
+          parseValue={(value) => {
+            const parsed = Number(value);
+            return Number.isSafeInteger(parsed) &&
+              parsed >= 15 &&
+              parsed <= 1800
+              ? parsed
+              : null;
+          }}
+          step={15}
+          unit="saniye"
+          value={values.restSeconds}
+        />
+        {errors?.restSeconds ? (
+          <AppText accessibilityRole="alert" tone="danger" variant="caption">
+            {errors.restSeconds}
+          </AppText>
+        ) : null}
       </View>
       <View style={styles.modeGroup}>
         <AppText variant="bodyStrong">{appStrings.workout.weightMode}</AppText>

@@ -1,7 +1,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
@@ -12,6 +12,7 @@ import {
   createProfilePreferencesRepository,
   type WeightUnit,
 } from '@/features/profile/profile-preferences';
+import type { WorkoutEffortMode } from '@/features/workouts/domain/models';
 import { navigateBackOrReplace } from '@/navigation/safe-navigation';
 import { theme } from '@/theme/tokens';
 
@@ -19,22 +20,57 @@ const unitOptions = [
   { label: 'Kilogram', value: 'kg' },
   { label: 'Pound', value: 'lb' },
 ] as const;
+const effortOptions = [
+  { label: 'Kapalı', value: 'off' },
+  { label: 'RPE', value: 'rpe' },
+  { label: 'RIR', value: 'rir' },
+] as const;
 
 export function ProfileSettingsScreen() {
   const router = useRouter();
   const database = useSQLiteContext();
   const [unit, setUnit] = useState<WeightUnit>('kg');
   const [notice, setNotice] = useState<string | null>(null);
+  const [effortMode, setEffortMode] = useState<WorkoutEffortMode>('off');
+  const [globalRestSeconds, setGlobalRestSeconds] = useState(90);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(true);
   useEffect(() => {
     void createProfilePreferencesRepository(database)
       .get()
-      .then((value) => setUnit(value.weightUnit));
+      .then((value) => {
+        setUnit(value.weightUnit);
+        setEffortMode(value.workoutEffortMode);
+        setGlobalRestSeconds(value.globalRestSeconds);
+        setHapticsEnabled(value.workoutHapticsEnabled);
+        setKeepAwakeEnabled(value.workoutKeepAwakeEnabled);
+      });
   }, [database]);
   const changeUnit = (next: WeightUnit) => {
     setUnit(next);
     void createProfilePreferencesRepository(database)
       .saveWeightUnit(next)
       .then(() => setNotice(`Ağırlık birimi ${next} olarak ayarlandı.`));
+  };
+  const saveWorkoutPreferences = (next: {
+    effortMode?: WorkoutEffortMode;
+    globalRestSeconds?: number;
+    hapticsEnabled?: boolean;
+    keepAwakeEnabled?: boolean;
+  }) => {
+    const values = {
+      effortMode: next.effortMode ?? effortMode,
+      globalRestSeconds: next.globalRestSeconds ?? globalRestSeconds,
+      hapticsEnabled: next.hapticsEnabled ?? hapticsEnabled,
+      keepAwakeEnabled: next.keepAwakeEnabled ?? keepAwakeEnabled,
+    };
+    setEffortMode(values.effortMode);
+    setGlobalRestSeconds(values.globalRestSeconds);
+    setHapticsEnabled(values.hapticsEnabled);
+    setKeepAwakeEnabled(values.keepAwakeEnabled);
+    void createProfilePreferencesRepository(database)
+      .saveWorkoutPreferences(values)
+      .then(() => setNotice('Antrenman tercihleri kaydedildi.'));
   };
   return (
     <Screen edges={['top', 'bottom']}>
@@ -68,13 +104,64 @@ export function ProfileSettingsScreen() {
         />
       </AppCard>
       <AppCard style={styles.section}>
-        <AppText variant="heading">Görünüm ve Bildirimler</AppText>
+        <AppText variant="heading">Antrenman Deneyimi</AppText>
         <AppText tone="muted">
-          Titan Iron koyu görünümü tüm uygulamada tutarlı biçimde kullanılır.
+          Dinlenme, efor ve cihaz geri bildirimlerini isteğine göre ayarla.
         </AppText>
-        <AppText tone="muted">
-          Sprint 13 bildirim izni istemez ve arka planda bildirim göndermez.
-        </AppText>
+        <AppText variant="bodyStrong">Efor takibi</AppText>
+        <SegmentedControl
+          accessibilityLabel="Efor takip modu"
+          onChange={(value) =>
+            saveWorkoutPreferences({ effortMode: value as WorkoutEffortMode })
+          }
+          options={effortOptions}
+          value={effortMode}
+        />
+        <AppText variant="bodyStrong">Varsayılan dinlenme</AppText>
+        <View style={styles.restOptions}>
+          {[60, 90, 120, 180].map((seconds) => (
+            <AppButton
+              key={seconds}
+              label={`${seconds} sn`}
+              onPress={() =>
+                saveWorkoutPreferences({ globalRestSeconds: seconds })
+              }
+              style={styles.restOption}
+              variant={globalRestSeconds === seconds ? 'primary' : 'secondary'}
+            />
+          ))}
+        </View>
+        <View style={styles.switchRow}>
+          <View style={styles.switchCopy}>
+            <AppText variant="bodyStrong">Antrenman haptikleri</AppText>
+            <AppText tone="muted" variant="caption">
+              Set, zamanlayıcı ve bitirişlerde kısa cihaz geri bildirimi.
+            </AppText>
+          </View>
+          <Switch
+            accessibilityLabel="Antrenman haptiklerini etkinleştir"
+            onValueChange={(value) =>
+              saveWorkoutPreferences({ hapticsEnabled: value })
+            }
+            value={hapticsEnabled}
+          />
+        </View>
+        <View style={styles.switchRow}>
+          <View style={styles.switchCopy}>
+            <AppText variant="bodyStrong">Ekranı açık tut</AppText>
+            <AppText tone="muted" variant="caption">
+              Yalnızca aktif antrenman ekranındayken çalışır ve pil tüketimini
+              artırabilir.
+            </AppText>
+          </View>
+          <Switch
+            accessibilityLabel="Aktif antrenmanda ekranı açık tut"
+            onValueChange={(value) =>
+              saveWorkoutPreferences({ keepAwakeEnabled: value })
+            }
+            value={keepAwakeEnabled}
+          />
+        </View>
       </AppCard>
       <AppCard style={styles.section}>
         <AppText variant="heading">Gizlilik</AppText>
@@ -106,4 +193,16 @@ export function ProfileSettingsScreen() {
 const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', gap: theme.spacing.md },
   section: { gap: theme.spacing.lg },
+  restOption: { flex: 1 },
+  restOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  switchCopy: { flex: 1, gap: theme.spacing.xs },
+  switchRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
 });

@@ -29,6 +29,7 @@ import { useUnsavedChangesGuard } from '@/features/workouts/hooks/use-unsaved-ch
 import {
   createExerciseDefaultsDraft,
   parseDefaultRepetitions,
+  parseDefaultRestSeconds,
   parseDefaultSetCount,
   parseDefaultWeight,
 } from '@/features/workouts/utils/workout-program-validation';
@@ -36,6 +37,7 @@ import { workoutTheme } from '@/features/workouts/workout-theme';
 import { theme } from '@/theme/tokens';
 
 const initialDefaults: ExerciseDefaultsFormValues = {
+  restSeconds: '90',
   setCount: '3',
   targetReps: '12',
   weight: '1',
@@ -112,6 +114,9 @@ export function AddWorkoutExerciseScreen() {
       ...(parseDefaultWeight(defaults.weight) === null
         ? { weight: appStrings.workout.invalidDefaultWeight }
         : {}),
+      ...(parseDefaultRestSeconds(defaults.restSeconds) === null
+        ? { restSeconds: 'Dinlenme süresi 15–1800 saniye olmalı.' }
+        : {}),
     };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -119,7 +124,8 @@ export function AddWorkoutExerciseScreen() {
       defaults.setCount,
       defaults.targetReps,
       defaults.weight,
-      defaults.weightMode
+      defaults.weightMode,
+      defaults.restSeconds
     );
     if (!parsed) return;
     savingRef.current = true;

@@ -1,7 +1,7 @@
 import { useRouter, type Href } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
@@ -17,6 +17,7 @@ import type { WorkoutDay } from '@/features/workouts/domain/models';
 import { useWorkoutOverview } from '@/features/workouts/hooks/use-workout-overview';
 import { formatWorkoutWeekdays } from '@/features/workouts/utils/workout-formatters';
 import { workoutTheme } from '@/features/workouts/workout-theme';
+import { cancelRestTimerNotification } from '@/features/workouts/services/workout-feedback';
 import { theme } from '@/theme/tokens';
 
 type WorkoutScreenProps = { now?: Date };
@@ -61,6 +62,39 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
       startingRef.current = false;
       setStarting(false);
     }
+  };
+  const discard = (sessionId: number) => {
+    Alert.alert(
+      'Antrenmanı sil',
+      'Aktif antrenmandaki ilerleme silinecek. Bu işlem tamamlanan geçmişini etkilemez.',
+      [
+        { style: 'cancel', text: 'Vazgeç' },
+        {
+          style: 'destructive',
+          text: 'Antrenmanı sil',
+          onPress: () =>
+            void (async () => {
+              if (startingRef.current) return;
+              startingRef.current = true;
+              setStarting(true);
+              try {
+                await cancelRestTimerNotification(
+                  data.activeSession?.restTimer?.notificationIdentifier
+                );
+                await createWorkoutSessionRepository(database).cancelSession(
+                  sessionId
+                );
+                retry();
+              } catch {
+                setWriteError(true);
+              } finally {
+                startingRef.current = false;
+                setStarting(false);
+              }
+            })(),
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -111,10 +145,18 @@ export function WorkoutScreen({ now }: WorkoutScreenProps) {
       ) : null}
 
       {data.activeSession ? (
-        <ActiveSessionCard
-          onResume={() => resume(data.activeSession!.id)}
-          session={data.activeSession}
-        />
+        <>
+          <ActiveSessionCard
+            onResume={() => resume(data.activeSession!.id)}
+            session={data.activeSession}
+          />
+          <AppButton
+            disabled={starting}
+            label="Aktif antrenmanı sil"
+            onPress={() => discard(data.activeSession!.id)}
+            variant="ghost"
+          />
+        </>
       ) : null}
 
       <View style={styles.section}>
