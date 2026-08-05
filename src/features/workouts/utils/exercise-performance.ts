@@ -6,7 +6,11 @@ import type {
   ExerciseRecords,
   PersonalRecordResult,
 } from '@/features/workouts/domain/exercise-performance';
-import { formatWorkoutWeight } from '@/features/workouts/utils/workout-values';
+import type { WeightUnit } from '@/features/profile/profile-preferences';
+import {
+  formatWorkoutWeight,
+  weightForDisplay,
+} from '@/features/workouts/utils/workout-values';
 
 export function normalizeExerciseName(value: string): string {
   return value.trim().normalize('NFKC').toLocaleLowerCase('tr-TR');
@@ -187,7 +191,8 @@ export function comparePersonalRecords(
 }
 
 export function formatPreviousPerformance(
-  appearance: ExerciseAppearance | null
+  appearance: ExerciseAppearance | null,
+  unit: WeightUnit = 'kg'
 ): { accessibility: string; compact: string; wheel: string } {
   if (!appearance || appearance.sets.length === 0) {
     return {
@@ -197,12 +202,19 @@ export function formatPreviousPerformance(
     };
   }
   const pairs = appearance.sets.map(
-    (set) => `${formatWorkoutWeight(set.weightKg)}×${set.actualReps}`
+    (set) =>
+      `${formatWorkoutWeight(weightForDisplay(set.weightKg, unit))}×${set.actualReps}${
+        set.effortMode &&
+        set.effortValue !== null &&
+        set.effortValue !== undefined
+          ? ` · ${set.effortMode.toUpperCase()} ${String(set.effortValue).replace('.', ',')}`
+          : ''
+      }`
   );
   const uniform = pairs.every((pair) => pair === pairs[0]);
   const compact = uniform
     ? `Geçen: ${pairs[0]} · ${appearance.completedSetCount} set`
-    : `Geçen: en yüksek ${formatWorkoutWeight(appearance.highestWeightKg ?? 0)} kg · ${appearance.completedSetCount} set`;
+    : `Geçen: en yüksek ${formatWorkoutWeight(weightForDisplay(appearance.highestWeightKg ?? 0, unit))} ${unit} · ${appearance.completedSetCount} set`;
   const full = `Geçen antrenman: ${pairs.join(' · ')}. Toplam ${appearance.completedSetCount} set.`;
   return {
     accessibility: full,

@@ -121,18 +121,19 @@ export function createInsightsRepository(database: SQLiteDatabase) {
           `SELECT
             COUNT(DISTINCT ws.id) AS workouts,
             COUNT(DISTINCT date(ws.completed_at, 'localtime')) AS active_days,
-            COALESCE(SUM(CASE WHEN wset.is_completed = 1 THEN 1 ELSE 0 END), 0) AS completed_sets,
-            COALESCE(SUM(CASE WHEN wset.is_completed = 1 THEN wset.actual_reps ELSE 0 END), 0) AS total_repetitions,
-            COALESCE(SUM(CASE WHEN wset.is_completed = 1 THEN wset.weight_kg * wset.actual_reps ELSE 0 END), 0) AS total_volume_kg,
+            COALESCE(SUM(CASE WHEN wset.is_completed = 1 AND COALESCE(wset.set_type, 'working') <> 'warm_up' THEN 1 ELSE 0 END), 0) AS completed_sets,
+            COALESCE(SUM(CASE WHEN wset.is_completed = 1 AND COALESCE(wset.set_type, 'working') <> 'warm_up' THEN wset.actual_reps ELSE 0 END), 0) AS total_repetitions,
+            COALESCE(SUM(CASE WHEN wset.is_completed = 1 AND COALESCE(wset.set_type, 'working') <> 'warm_up' THEN wset.weight_kg * wset.actual_reps ELSE 0 END), 0) AS total_volume_kg,
             COALESCE((SELECT SUM((julianday(ds.completed_at) - julianday(ds.started_at)) * 1440)
               FROM workout_sessions ds
               WHERE ds.status = 'completed' AND ds.completed_at >= ? AND ds.completed_at < ?), 0) AS duration_minutes,
-            COUNT(DISTINCT CASE WHEN wset.is_completed = 1 AND wset.weight_kg > 0 AND NOT EXISTS (
+            COUNT(DISTINCT CASE WHEN wset.is_completed = 1 AND COALESCE(wset.set_type, 'working') <> 'warm_up' AND wset.weight_kg > 0 AND NOT EXISTS (
               SELECT 1 FROM workout_sets older_set
               JOIN workout_session_exercises older_exercise ON older_exercise.id = older_set.session_exercise_id
               JOIN workout_sessions older_session ON older_session.id = older_exercise.session_id
               WHERE older_exercise.exercise_id = wse.exercise_id
                 AND older_set.is_completed = 1
+                AND COALESCE(older_set.set_type, 'working') <> 'warm_up'
                 AND older_set.weight_kg >= wset.weight_kg
                 AND older_session.completed_at < ws.completed_at
             ) THEN wse.exercise_id END) AS personal_records
@@ -168,6 +169,7 @@ export function createInsightsRepository(database: SQLiteDatabase) {
            JOIN workout_sessions ws ON ws.id = wse.session_id
            JOIN workout_sets wset ON wset.session_exercise_id = wse.id
            WHERE ws.status = 'completed' AND wset.is_completed = 1
+             AND COALESCE(wset.set_type, 'working') <> 'warm_up'
              AND ws.completed_at >= ? AND ws.completed_at < ?
            GROUP BY wse.exercise_name_snapshot
            ORDER BY SUM(wset.weight_kg * wset.actual_reps) DESC,
@@ -198,6 +200,7 @@ export function createInsightsRepository(database: SQLiteDatabase) {
              JOIN workout_session_exercises wse ON wse.session_id = ws.id
              JOIN workout_sets wset ON wset.session_exercise_id = wse.id
              WHERE ws.status = 'completed' AND wset.is_completed = 1
+               AND COALESCE(wset.set_type, 'working') <> 'warm_up'
                AND ws.completed_at >= ? AND ws.completed_at < ?
              GROUP BY bucket ORDER BY bucket ASC`,
           startIso,

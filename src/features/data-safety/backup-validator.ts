@@ -8,6 +8,7 @@ import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
   BACKUP_SCHEMA_VERSION,
+  LEGACY_BACKUP_SCHEMA_VERSION,
   BACKUP_TABLES,
   MAX_BACKUP_BYTES,
   type BackupData,
@@ -44,6 +45,58 @@ export class BackupValidationError extends Error {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function upgradeLegacySchema(value: unknown): unknown {
+  if (
+    !isRecord(value) ||
+    value.schemaVersion !== LEGACY_BACKUP_SCHEMA_VERSION ||
+    !isRecord(value.data)
+  )
+    return value;
+  const data = value.data;
+  const rows = (table: string) =>
+    Array.isArray(data[table])
+      ? (data[table] as Record<string, unknown>[])
+      : [];
+  return {
+    ...value,
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    data: {
+      ...data,
+      workout_day_exercises: rows('workout_day_exercises').map((row) => ({
+        ...row,
+        default_rest_seconds: 90,
+        superset_group_id: null,
+        superset_order: null,
+      })),
+      workout_sessions: rows('workout_sessions').map((row) => ({
+        ...row,
+        rest_timer_deadline: null,
+        rest_timer_duration_seconds: null,
+        rest_timer_exercise_id: null,
+        rest_timer_alerted_at: null,
+        rest_timer_notification_id: null,
+        selected_session_exercise_id: null,
+        notes: '',
+      })),
+      workout_session_exercises: rows('workout_session_exercises').map(
+        (row) => ({
+          ...row,
+          rest_duration_seconds: 90,
+          superset_group_id: null,
+          superset_order: null,
+          is_skipped: 0,
+        })
+      ),
+      workout_sets: rows('workout_sets').map((row) => ({
+        ...row,
+        set_type: 'working',
+        effort_mode: null,
+        effort_value: null,
+      })),
+    },
+  };
 }
 
 function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
@@ -231,6 +284,13 @@ function assertDomainRules(data: BackupData): void {
     'actual_reps',
     'is_active',
     'is_completed',
+    'default_rest_seconds',
+    'rest_timer_duration_seconds',
+    'rest_timer_exercise_id',
+    'selected_session_exercise_id',
+    'rest_duration_seconds',
+    'superset_order',
+    'is_skipped',
   ]);
   for (const table of BACKUP_TABLES) {
     for (const [recordIndex, row] of data[table].entries()) {
@@ -287,7 +347,7 @@ function assertDomainRules(data: BackupData): void {
     }
     weekdays.add(weekday);
   }
-  // Schema 4 permits legacy workout days without schedule rows. New writes
+  // Legacy schema 4 permits workout days without schedule rows. New writes
   // prevent this state, while backups must preserve existing valid datasets.
   if (
     data.workout_day_exercises.some(
@@ -295,16 +355,50 @@ function assertDomainRules(data: BackupData): void {
         !['total', 'per_hand'].includes(String(row.weight_mode)) ||
         Number(row.default_set_count) <= 0 ||
         Number(row.default_target_reps) <= 0 ||
-        Number(row.default_weight_kg) < 0
+        Number(row.default_weight_kg) < 0 ||
+        Number(row.default_rest_seconds) < 15 ||
+        Number(row.default_rest_seconds) > 1800
     )
   )
     throw new BackupValidationError('invalid_workout_default');
   if (
     data.workout_session_exercises.some(
-      (row) => !['total', 'per_hand'].includes(String(row.weight_mode_snapshot))
+      (row) =>
+        !['total', 'per_hand'].includes(String(row.weight_mode_snapshot)) ||
+        ![0, 1].includes(Number(row.is_skipped)) ||
+        Number(row.rest_duration_seconds) < 15 ||
+        Number(row.rest_duration_seconds) > 1800
     )
   )
     throw new BackupValidationError('invalid_weight_mode');
+  for (const rows of [
+    data.workout_day_exercises,
+    data.workout_session_exercises,
+  ]) {
+    const groups = new Map<string, Set<number>>();
+    for (const row of rows) {
+      const groupId = row.superset_group_id;
+      const order = row.superset_order;
+      if ((groupId === null) !== (order === null))
+        throw new BackupValidationError('invalid_superset');
+      if (groupId === null || order === null) continue;
+      if (typeof groupId !== 'string' || groupId.length === 0)
+        throw new BackupValidationError('invalid_superset');
+      const parentId = row.workout_day_id ?? row.session_id;
+      const groupKey = `${parentId}:${groupId}`;
+      const orders = groups.get(groupKey) ?? new Set<number>();
+      if (
+        !Number.isSafeInteger(order) ||
+        Number(order) < 0 ||
+        orders.has(Number(order))
+      )
+        throw new BackupValidationError('invalid_superset');
+      orders.add(Number(order));
+      groups.set(groupKey, orders);
+    }
+    if ([...groups.values()].some((orders) => orders.size < 2))
+      throw new BackupValidationError('invalid_superset');
+  }
   if (
     data.workout_sessions.filter((row) => row.status === 'active').length > 1
   ) {
@@ -320,6 +414,14 @@ function assertDomainRules(data: BackupData): void {
     ) {
       throw new BackupValidationError('invalid_session_status');
     }
+    if (
+      (row.rest_timer_deadline === null) !==
+        (row.rest_timer_duration_seconds === null) ||
+      (row.rest_timer_duration_seconds !== null &&
+        (Number(row.rest_timer_duration_seconds) < 1 ||
+          Number(row.rest_timer_duration_seconds) > 1800))
+    )
+      throw new BackupValidationError('invalid_rest_timer');
   }
   if (
     data.workout_sets.some(
@@ -329,7 +431,21 @@ function assertDomainRules(data: BackupData): void {
         Number(row.target_reps) <= 0 ||
         Number(row.weight_kg) < 0 ||
         (row.actual_reps !== null && Number(row.actual_reps) < 0) ||
-        (row.is_completed === 1 && row.completed_at === null)
+        (row.is_completed === 1 && row.completed_at === null) ||
+        !['warm_up', 'working', 'drop', 'amrap', 'failure'].includes(
+          String(row.set_type)
+        ) ||
+        (row.effort_mode !== null &&
+          !['rpe', 'rir'].includes(String(row.effort_mode))) ||
+        (row.effort_mode === 'rpe' &&
+          (Number(row.effort_value) < 1 ||
+            Number(row.effort_value) > 10 ||
+            (Number(row.effort_value) * 2) % 1 !== 0)) ||
+        (row.effort_mode === 'rir' &&
+          (!Number.isSafeInteger(row.effort_value) ||
+            Number(row.effort_value) < 0 ||
+            Number(row.effort_value) > 10)) ||
+        (row.effort_mode === null && row.effort_value !== null)
     )
   )
     throw new BackupValidationError('invalid_set');
@@ -371,6 +487,7 @@ export function createBackupSummary(data: BackupData) {
 }
 
 export function validateBackup(value: unknown): TitanLogBackup {
+  value = upgradeLegacySchema(value);
   if (
     !isRecord(value) ||
     !hasExactKeys(value, [

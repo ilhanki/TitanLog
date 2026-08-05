@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { randomUUID } from 'expo-crypto';
 
 import type {
   AvailableExercise,
@@ -24,6 +25,7 @@ export type WorkoutProgramErrorCode =
   | 'invalid_day'
   | 'invalid_exercise'
   | 'invalid_schedule'
+  | 'invalid_superset'
   | 'reorder_unavailable'
   | 'schedule_conflict';
 
@@ -57,7 +59,11 @@ function validateDefaults(defaults: ExerciseDefaultsDraft): void {
     !Number.isFinite(defaults.weightKg) ||
     defaults.weightKg <= 0 ||
     defaults.weightKg > 2000 ||
-    !['total', 'per_hand'].includes(defaults.weightMode)
+    !['total', 'per_hand'].includes(defaults.weightMode) ||
+    (defaults.defaultRestSeconds !== undefined &&
+      (!Number.isSafeInteger(defaults.defaultRestSeconds) ||
+        defaults.defaultRestSeconds < 15 ||
+        defaults.defaultRestSeconds > 1800))
   ) {
     throw new WorkoutProgramError('invalid_defaults');
   }
@@ -187,12 +193,14 @@ export function createWorkoutProgramRepository(database: SQLiteDatabase) {
         const result = await transaction.runAsync(
           `UPDATE workout_day_exercises
            SET default_set_count = ?, default_target_reps = ?,
-               default_weight_kg = ?, weight_mode = ?
+               default_weight_kg = ?, weight_mode = ?,
+               default_rest_seconds = COALESCE(?, default_rest_seconds)
            WHERE workout_day_id = ? AND exercise_id = ?`,
           defaults.setCount,
           defaults.targetReps,
           defaults.weightKg,
           defaults.weightMode,
+          defaults.defaultRestSeconds ?? null,
           workoutDayId,
           exerciseId
         );
@@ -285,6 +293,17 @@ export function createWorkoutProgramRepository(database: SQLiteDatabase) {
         if (result.changes !== 1) {
           throw new WorkoutProgramError('exercise_not_found');
         }
+        await transaction.runAsync(
+          `UPDATE workout_day_exercises
+           SET superset_group_id = NULL, superset_order = NULL
+           WHERE workout_day_id = ? AND superset_group_id IN (
+             SELECT superset_group_id FROM workout_day_exercises
+             WHERE workout_day_id = ? AND superset_group_id IS NOT NULL
+             GROUP BY superset_group_id HAVING COUNT(*) < 2
+           )`,
+          workoutDayId,
+          workoutDayId
+        );
         const rows = await transaction.getAllAsync<OrderRow>(
           `SELECT id, exercise_id, sort_order
            FROM workout_day_exercises
@@ -296,6 +315,106 @@ export function createWorkoutProgramRepository(database: SQLiteDatabase) {
         remainingCount = rows.length;
       });
       return remainingCount;
+    },
+
+    async createSuperset(
+      workoutDayId: number,
+      exerciseIds: readonly number[]
+    ): Promise<string> {
+      const uniqueIds = [...new Set(exerciseIds)];
+      if (uniqueIds.length < 2)
+        throw new WorkoutProgramError('invalid_superset');
+      const groupId = randomUUID();
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        await requireActiveDay(transaction, workoutDayId);
+        const rows = await transaction.getAllAsync<OrderRow>(
+          `SELECT id, exercise_id, sort_order
+           FROM workout_day_exercises
+           WHERE workout_day_id = ? AND exercise_id IN (${uniqueIds.map(() => '?').join(', ')})
+           ORDER BY sort_order, id`,
+          workoutDayId,
+          ...uniqueIds
+        );
+        if (rows.length !== uniqueIds.length)
+          throw new WorkoutProgramError('exercise_not_found');
+        for (const [groupOrder, row] of rows.entries()) {
+          await transaction.runAsync(
+            `UPDATE workout_day_exercises
+             SET superset_group_id = ?, superset_order = ? WHERE id = ?`,
+            groupId,
+            groupOrder,
+            row.id
+          );
+        }
+        await transaction.runAsync(
+          `UPDATE workout_day_exercises
+           SET superset_group_id = NULL, superset_order = NULL
+           WHERE workout_day_id = ? AND superset_group_id IN (
+             SELECT superset_group_id FROM workout_day_exercises
+             WHERE workout_day_id = ? AND superset_group_id IS NOT NULL
+             GROUP BY superset_group_id HAVING COUNT(*) < 2
+           )`,
+          workoutDayId,
+          workoutDayId
+        );
+      });
+      return groupId;
+    },
+
+    async dissolveSuperset(
+      workoutDayId: number,
+      groupId: string
+    ): Promise<void> {
+      if (!groupId) throw new WorkoutProgramError('invalid_superset');
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        await requireActiveDay(transaction, workoutDayId);
+        const result = await transaction.runAsync(
+          `UPDATE workout_day_exercises
+           SET superset_group_id = NULL, superset_order = NULL
+           WHERE workout_day_id = ? AND superset_group_id = ?`,
+          workoutDayId,
+          groupId
+        );
+        if (result.changes < 2)
+          throw new WorkoutProgramError('invalid_superset');
+      });
+    },
+
+    async removeExerciseFromSuperset(
+      workoutDayId: number,
+      exerciseId: number
+    ): Promise<void> {
+      await database.withExclusiveTransactionAsync(async (transaction) => {
+        await requireActiveDay(transaction, workoutDayId);
+        const member = await transaction.getFirstAsync<{
+          superset_group_id: string;
+        }>(
+          `SELECT superset_group_id FROM workout_day_exercises
+           WHERE workout_day_id = ? AND exercise_id = ?
+             AND superset_group_id IS NOT NULL`,
+          workoutDayId,
+          exerciseId
+        );
+        if (!member) throw new WorkoutProgramError('invalid_superset');
+        await transaction.runAsync(
+          `UPDATE workout_day_exercises
+           SET superset_group_id = NULL, superset_order = NULL
+           WHERE workout_day_id = ? AND exercise_id = ?`,
+          workoutDayId,
+          exerciseId
+        );
+        await transaction.runAsync(
+          `UPDATE workout_day_exercises
+           SET superset_group_id = NULL, superset_order = NULL
+           WHERE workout_day_id = ? AND superset_group_id = ?
+             AND (SELECT COUNT(*) FROM workout_day_exercises
+                  WHERE workout_day_id = ? AND superset_group_id = ?) < 2`,
+          workoutDayId,
+          member.superset_group_id,
+          workoutDayId,
+          member.superset_group_id
+        );
+      });
     },
 
     async getAvailableExercises(

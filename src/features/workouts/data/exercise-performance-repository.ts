@@ -23,8 +23,11 @@ type AppearanceRow = {
 
 type PerformanceSetRow = {
   actual_reps: number;
+  effort_mode: 'rpe' | 'rir' | null;
+  effort_value: number | null;
   session_exercise_id: number;
   set_number: number;
+  set_type: ExercisePerformanceSet['setType'];
   weight_kg: number;
 };
 
@@ -57,7 +60,10 @@ function mapAppearances(
     const sets = setsByAppearance.get(row.session_exercise_id) ?? [];
     sets.push({
       actualReps: row.actual_reps,
+      effortMode: row.effort_mode,
+      effortValue: row.effort_value,
       setNumber: row.set_number,
+      setType: row.set_type,
       weightKg: row.weight_kg,
     });
     setsByAppearance.set(row.session_exercise_id, sets);
@@ -144,6 +150,7 @@ async function loadRecordSummaries(
      WHERE ws.status = 'completed'
        AND ws.completed_at IS NOT NULL
        AND wset.is_completed = 1
+       AND COALESCE(wset.set_type, 'working') <> 'warm_up'
        AND wset.actual_reps IS NOT NULL
        AND ${whereClause}
      GROUP BY wse.id, wse.exercise_id, ws.id, ws.completed_at
@@ -158,9 +165,11 @@ async function loadCompletedSets(
 ): Promise<PerformanceSetRow[]> {
   if (appearanceIds.length === 0) return [];
   return database.getAllAsync<PerformanceSetRow>(
-    `SELECT session_exercise_id, set_number, actual_reps, weight_kg
+    `SELECT session_exercise_id, set_number, actual_reps, weight_kg,
+            set_type, effort_mode, effort_value
      FROM workout_sets
      WHERE is_completed = 1
+       AND COALESCE(set_type, 'working') <> 'warm_up'
        AND actual_reps IS NOT NULL
        AND session_exercise_id IN (${placeholders(appearanceIds.length)})
      ORDER BY session_exercise_id, set_number`,
@@ -206,6 +215,7 @@ export function createExercisePerformanceRepository(database: SQLiteDatabase) {
                FROM workout_sets AS valid_set
                WHERE valid_set.session_exercise_id = wse.id
                  AND valid_set.is_completed = 1
+                 AND COALESCE(valid_set.set_type, 'working') <> 'warm_up'
                  AND valid_set.actual_reps IS NOT NULL
              )
          )

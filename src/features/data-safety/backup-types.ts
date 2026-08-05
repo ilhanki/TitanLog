@@ -1,6 +1,7 @@
 export const BACKUP_FORMAT = 'titanlog-backup' as const;
 export const BACKUP_FORMAT_VERSION = 1 as const;
-export const BACKUP_SCHEMA_VERSION = 4 as const;
+export const BACKUP_SCHEMA_VERSION = 5 as const;
+export const LEGACY_BACKUP_SCHEMA_VERSION = 4 as const;
 export const MAX_BACKUP_BYTES = 20 * 1024 * 1024;
 
 export const BACKUP_TABLES = [

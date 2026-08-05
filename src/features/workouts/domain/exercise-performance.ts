@@ -1,4 +1,7 @@
-import type { WeightMode } from '@/features/workouts/domain/models';
+import type {
+  WeightMode,
+  WorkoutSetType,
+} from '@/features/workouts/domain/models';
 
 export type ExerciseIdentity = {
   exerciseId: number | null;
@@ -8,7 +11,10 @@ export type ExerciseIdentity = {
 
 export type ExercisePerformanceSet = {
   actualReps: number;
+  effortMode?: 'rpe' | 'rir' | null;
+  effortValue?: number | null;
   setNumber: number;
+  setType?: WorkoutSetType;
   weightKg: number;
 };
 

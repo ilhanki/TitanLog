@@ -6,6 +6,7 @@ import { migration003 } from '@/database/migrations/migration-003';
 import { migration004 } from '@/database/migrations/migration-004';
 import { migration005 } from '@/database/migrations/migration-005';
 import { migration006 } from '@/database/migrations/migration-006';
+import { migration007 } from '@/database/migrations/migration-007';
 
 const migrations = [
   migration001,
@@ -14,6 +15,7 @@ const migrations = [
   migration004,
   migration005,
   migration006,
+  migration007,
 ] as const;
 
 type UserVersionRow = {

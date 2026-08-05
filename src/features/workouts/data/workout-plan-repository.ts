@@ -26,6 +26,7 @@ type ScheduleRow = { iso_weekday: number };
 type ExercisePreviewRow = { default_set_count: number; name: string };
 
 type ExerciseRow = {
+  default_rest_seconds: number;
   default_set_count: number;
   default_target_reps: number;
   default_weight_kg: number;
@@ -34,6 +35,8 @@ type ExerciseRow = {
   muscle_group: string;
   name: string;
   sort_order: number;
+  superset_group_id: string | null;
+  superset_order: number | null;
   weight_mode: WeightMode;
 };
 
@@ -112,7 +115,8 @@ export function createWorkoutPlanRepository(database: SQLiteDatabase) {
         `SELECT e.id, e.name, e.muscle_group, e.equipment,
                 wde.sort_order, wde.default_set_count,
                 wde.default_target_reps, wde.default_weight_kg,
-                wde.weight_mode
+                wde.weight_mode, wde.default_rest_seconds,
+                wde.superset_group_id, wde.superset_order
          FROM workout_day_exercises AS wde
          JOIN exercises AS e ON e.id = wde.exercise_id
          WHERE wde.workout_day_id = ?
@@ -122,11 +126,14 @@ export function createWorkoutPlanRepository(database: SQLiteDatabase) {
     ]);
     const exercises: WorkoutExercise[] = exerciseRows.map((exercise) => ({
       equipment: exercise.equipment,
+      defaultRestSeconds: exercise.default_rest_seconds,
       id: exercise.id,
       muscleGroup: exercise.muscle_group,
       name: exercise.name,
       setCount: exercise.default_set_count,
       sortOrder: exercise.sort_order,
+      supersetGroupId: exercise.superset_group_id,
+      supersetOrder: exercise.superset_order,
       targetReps: exercise.default_target_reps,
       weightKg: exercise.default_weight_kg,
       weightMode: exercise.weight_mode,

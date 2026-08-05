@@ -51,6 +51,9 @@ export const BACKUP_TABLE_SCHEMAS: Record<BackupTableName, BackupTableSchema> =
       default_target_reps: 'number',
       default_weight_kg: 'number',
       weight_mode: 'string',
+      default_rest_seconds: 'number',
+      superset_group_id: 'nullable-string',
+      superset_order: 'nullable-number',
     },
     workout_sessions: {
       id: 'number',
@@ -62,6 +65,13 @@ export const BACKUP_TABLE_SCHEMAS: Record<BackupTableName, BackupTableSchema> =
       cancelled_at: 'nullable-string',
       created_at: 'string',
       updated_at: 'string',
+      rest_timer_deadline: 'nullable-string',
+      rest_timer_duration_seconds: 'nullable-number',
+      rest_timer_exercise_id: 'nullable-number',
+      rest_timer_alerted_at: 'nullable-string',
+      rest_timer_notification_id: 'nullable-string',
+      selected_session_exercise_id: 'nullable-number',
+      notes: 'string',
     },
     workout_session_exercises: {
       id: 'number',
@@ -72,6 +82,10 @@ export const BACKUP_TABLE_SCHEMAS: Record<BackupTableName, BackupTableSchema> =
       weight_mode_snapshot: 'string',
       sort_order: 'number',
       created_at: 'string',
+      rest_duration_seconds: 'number',
+      superset_group_id: 'nullable-string',
+      superset_order: 'nullable-number',
+      is_skipped: 'number',
     },
     workout_sets: {
       id: 'number',
@@ -84,6 +98,9 @@ export const BACKUP_TABLE_SCHEMAS: Record<BackupTableName, BackupTableSchema> =
       completed_at: 'nullable-string',
       created_at: 'string',
       updated_at: 'string',
+      set_type: 'string',
+      effort_mode: 'nullable-string',
+      effort_value: 'nullable-number',
     },
     body_profiles: {
       id: 'number',
@@ -120,7 +137,11 @@ export function normalizePersistedBackupRow(
       const value = persisted[column];
       return [
         column,
-        value === undefined && kind.startsWith('nullable-') ? null : value,
+        table === 'workout_sessions' && column === 'rest_timer_notification_id'
+          ? null
+          : value === undefined && kind.startsWith('nullable-')
+            ? null
+            : value,
       ];
     })
   ) as BackupRow;

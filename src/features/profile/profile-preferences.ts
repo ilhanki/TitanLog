@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import type { WorkoutEffortMode } from '@/features/workouts/domain/models';
 
 export const PROFILE_FALLBACK_NAME = 'Titan Sporcusu';
 export const PROFILE_NAME_MIN_LENGTH = 2;
@@ -10,6 +11,10 @@ export type ProfilePreferences = {
   weightUnit: WeightUnit;
   weeklyActiveDayTarget: number | null;
   weeklyWorkoutTarget: number | null;
+  workoutEffortMode: WorkoutEffortMode;
+  workoutHapticsEnabled: boolean;
+  workoutKeepAwakeEnabled: boolean;
+  globalRestSeconds: number;
 };
 
 export type WeightUnit = 'kg' | 'lb';
@@ -20,6 +25,10 @@ type ProfilePreferencesRow = {
   weight_unit: WeightUnit;
   weekly_active_day_target: number | null;
   weekly_workout_target: number | null;
+  workout_effort_mode: WorkoutEffortMode;
+  workout_haptics_enabled: number;
+  workout_keep_awake_enabled: number;
+  global_rest_seconds: number;
 };
 
 export type ProfileNameValidation =
@@ -47,6 +56,10 @@ function mapProfile(row: ProfilePreferencesRow): ProfilePreferences {
     weightUnit: row.weight_unit,
     weeklyActiveDayTarget: row.weekly_active_day_target,
     weeklyWorkoutTarget: row.weekly_workout_target,
+    workoutEffortMode: row.workout_effort_mode,
+    workoutHapticsEnabled: row.workout_haptics_enabled === 1,
+    workoutKeepAwakeEnabled: row.workout_keep_awake_enabled === 1,
+    globalRestSeconds: row.global_rest_seconds,
   };
 }
 
@@ -55,7 +68,9 @@ export function createProfilePreferencesRepository(database: SQLiteDatabase) {
     async get(): Promise<ProfilePreferences> {
       const row = await database.getFirstAsync<ProfilePreferencesRow>(
         `SELECT display_name, avatar_uri, weight_unit, weekly_workout_target,
-                weekly_active_day_target
+                weekly_active_day_target, workout_effort_mode,
+                workout_haptics_enabled, workout_keep_awake_enabled,
+                global_rest_seconds
          FROM profile_preferences WHERE id = 1`
       );
       return row
@@ -66,6 +81,10 @@ export function createProfilePreferencesRepository(database: SQLiteDatabase) {
             weightUnit: 'kg',
             weeklyActiveDayTarget: null,
             weeklyWorkoutTarget: null,
+            workoutEffortMode: 'off',
+            workoutHapticsEnabled: true,
+            workoutKeepAwakeEnabled: true,
+            globalRestSeconds: 90,
           };
     },
 
@@ -121,6 +140,32 @@ export function createProfilePreferencesRepository(database: SQLiteDatabase) {
              updated_at = ? WHERE id = 1`,
         weeklyWorkoutTarget,
         weeklyActiveDayTarget,
+        new Date().toISOString()
+      );
+    },
+
+    async saveWorkoutPreferences(input: {
+      effortMode: WorkoutEffortMode;
+      globalRestSeconds: number;
+      hapticsEnabled: boolean;
+      keepAwakeEnabled: boolean;
+    }): Promise<void> {
+      if (
+        !['off', 'rpe', 'rir'].includes(input.effortMode) ||
+        !Number.isSafeInteger(input.globalRestSeconds) ||
+        input.globalRestSeconds < 15 ||
+        input.globalRestSeconds > 1800
+      )
+        throw new Error('invalid_workout_preferences');
+      await database.runAsync(
+        `UPDATE profile_preferences
+         SET workout_effort_mode = ?, global_rest_seconds = ?,
+             workout_haptics_enabled = ?, workout_keep_awake_enabled = ?,
+             updated_at = ? WHERE id = 1`,
+        input.effortMode,
+        input.globalRestSeconds,
+        input.hapticsEnabled ? 1 : 0,
+        input.keepAwakeEnabled ? 1 : 0,
         new Date().toISOString()
       );
     },

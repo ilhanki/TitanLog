@@ -35,6 +35,10 @@ export function parseDefaultRepetitions(value: string): number | null {
   return parseBoundedInteger(value, 1, 100);
 }
 
+export function parseDefaultRestSeconds(value: string): number | null {
+  return parseBoundedInteger(value, 15, 1800);
+}
+
 function parseBoundedInteger(
   value: string,
   minimum: number,
@@ -49,7 +53,8 @@ function parseBoundedInteger(
 }
 
 export function parseDefaultWeight(value: string): number | null {
-  return parseWeightInput(value);
+  const weight = parseWeightInput(value);
+  return weight !== null && weight > 0 ? weight : null;
 }
 
 export function isDuplicateExerciseName(
@@ -92,15 +97,21 @@ export function createExerciseDefaultsDraft(
   setCount: string,
   targetReps: string,
   weight: string,
-  weightMode: WeightMode
+  weightMode: WeightMode,
+  defaultRestSeconds?: string
 ): ExerciseDefaultsDraft | null {
   const parsedSetCount = parseDefaultSetCount(setCount);
   const parsedTargetReps = parseDefaultRepetitions(targetReps);
   const parsedWeight = parseDefaultWeight(weight);
+  const parsedRestSeconds =
+    defaultRestSeconds === undefined
+      ? undefined
+      : parseDefaultRestSeconds(defaultRestSeconds);
   if (
     parsedSetCount === null ||
     parsedTargetReps === null ||
-    parsedWeight === null
+    parsedWeight === null ||
+    parsedRestSeconds === null
   ) {
     return null;
   }
@@ -109,5 +120,10 @@ export function createExerciseDefaultsDraft(
     targetReps: parsedTargetReps,
     weightKg: parsedWeight,
     weightMode,
+    ...(defaultRestSeconds === undefined
+      ? {}
+      : {
+          defaultRestSeconds: parsedRestSeconds,
+        }),
   };
 }

@@ -87,6 +87,7 @@ export function createCompletedWorkoutDetail(
     ),
     exercises: session.exercises.map(createExerciseDetail),
     id: session.id,
+    notes: session.notes ?? '',
     startedAt: session.startedAt,
     totalRepetitions: metrics.totalRepetitions,
     totalVolume: metrics.totalVolume,
