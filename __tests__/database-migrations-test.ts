@@ -24,13 +24,13 @@ function createDatabase(currentVersion: number) {
 }
 
 describe('runMigrations', () => {
-  it('applies migrations 1 through 6 on a fresh database', async () => {
+  it('applies migrations 1 through 7 on a fresh database', async () => {
     const { database, transactionExecAsync } = createDatabase(0);
 
-    await expect(runMigrations(database)).resolves.toBe(6);
-    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(6);
+    await expect(runMigrations(database)).resolves.toBe(7);
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(7);
     expect(transactionExecAsync).toHaveBeenLastCalledWith(
-      'PRAGMA user_version = 6'
+      'PRAGMA user_version = 7'
     );
     expect(transactionExecAsync).toHaveBeenCalledWith(
       expect.stringContaining('CREATE TABLE IF NOT EXISTS workout_sessions')
@@ -52,22 +52,22 @@ describe('runMigrations', () => {
   it('upgrades version 1 without rewriting workout tables', async () => {
     const { database } = createDatabase(1);
 
-    await expect(runMigrations(database)).resolves.toBe(6);
-    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(5);
+    await expect(runMigrations(database)).resolves.toBe(7);
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(6);
   });
 
   it('upgrades version 2 by changing only future workout defaults', async () => {
     const { database } = createDatabase(2);
 
-    await expect(runMigrations(database)).resolves.toBe(6);
-    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(4);
+    await expect(runMigrations(database)).resolves.toBe(7);
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(5);
   });
 
   it('upgrades schema 3 with ownership metadata only', async () => {
     const { database } = createDatabase(3);
 
-    await expect(runMigrations(database)).resolves.toBe(6);
-    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(3);
+    await expect(runMigrations(database)).resolves.toBe(7);
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(4);
   });
 
   it('keeps session and body rows outside the future-default migration', () => {
@@ -86,8 +86,8 @@ describe('runMigrations', () => {
   it('upgrades schema 4 with sync bookkeeping only', async () => {
     const { database, transactionExecAsync } = createDatabase(4);
 
-    await expect(runMigrations(database)).resolves.toBe(6);
-    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(2);
+    await expect(runMigrations(database)).resolves.toBe(7);
+    expect(database.withExclusiveTransactionAsync).toHaveBeenCalledTimes(3);
     expect(transactionExecAsync).toHaveBeenCalledWith(migration005.sql);
     expect(migration005.sql).toContain('INSERT OR IGNORE INTO sync_state');
     expect(migration005.sql).not.toMatch(
@@ -98,10 +98,10 @@ describe('runMigrations', () => {
     );
   });
 
-  it('does not rerun migration 6 when schema is current', async () => {
-    const { database } = createDatabase(6);
+  it('does not rerun migration 7 when schema is current', async () => {
+    const { database } = createDatabase(7);
 
-    await expect(runMigrations(database)).resolves.toBe(6);
+    await expect(runMigrations(database)).resolves.toBe(7);
     expect(database.withExclusiveTransactionAsync).not.toHaveBeenCalled();
   });
 });

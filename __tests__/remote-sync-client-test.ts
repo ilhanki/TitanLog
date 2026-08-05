@@ -53,14 +53,14 @@ const archive: TitanLogBackup = {
   deviceId: 'titanlog-sync',
   format: 'titanlog-backup',
   formatVersion: 1,
-  schemaVersion: 4,
+  schemaVersion: 5,
   summary: { exercises: 0, measurements: 0, programs: 0, sets: 0, workouts: 0 },
 };
 const serialized = serializeBackup(archive);
 const contentHash = 'a'.repeat(64);
 const head: RemoteSyncHead = {
   archiveFormatVersion: 1,
-  archiveSchemaVersion: 4,
+  archiveSchemaVersion: 5,
   byteSize: new TextEncoder().encode(serialized).byteLength,
   contentHash,
   revision: 2,
@@ -200,7 +200,7 @@ describe('remote sync client boundary', () => {
   });
 
   it('blocks unsupported remote schema before download', async () => {
-    const unsupported = { ...head, archiveSchemaVersion: 5 };
+    const unsupported = { ...head, archiveSchemaVersion: 6 };
     mockInvoke.mockResolvedValueOnce({
       data: {
         downloadUrl: 'https://project.supabase.co/storage/v1/object/sign/token',

@@ -25,7 +25,7 @@ const backup: TitanLogBackup = {
   deviceId: 'installation-123',
   format: 'titanlog-backup',
   formatVersion: 1,
-  schemaVersion: 4,
+  schemaVersion: 5,
   summary: { exercises: 0, measurements: 0, programs: 0, sets: 0, workouts: 0 },
 };
 const mockUpload = jest.fn();
@@ -334,7 +334,7 @@ describe('manual private cloud backup', () => {
     [
       'unsupported fitness schema',
       serializeBackup(backup).replace(
-        '"schemaVersion": 4',
+        '"schemaVersion": 5',
         '"schemaVersion": 5'
       ),
       'archive_validation',

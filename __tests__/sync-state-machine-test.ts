@@ -13,7 +13,7 @@ const base: SyncState = {
 function head(overrides: Partial<RemoteSyncHead> = {}): RemoteSyncHead {
   return {
     archiveFormatVersion: 1,
-    archiveSchemaVersion: 4,
+    archiveSchemaVersion: 5,
     byteSize: 1024,
     contentHash: 'a'.repeat(64),
     revision: 3,
@@ -88,7 +88,7 @@ describe('manual sync decision matrix', () => {
 
   it.each([
     ['format', { archiveFormatVersion: 2 }],
-    ['schema', { archiveSchemaVersion: 5 }],
+    ['schema', { archiveSchemaVersion: 6 }],
   ])('blocks unsupported remote %s versions', (_label, override) => {
     expect(
       decideManualSync('a'.repeat(64), base, head(override))

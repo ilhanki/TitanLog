@@ -75,7 +75,7 @@ function archive(createdAt: string): TitanLogBackup {
     deviceId: 'installation-123',
     format: 'titanlog-backup',
     formatVersion: 1,
-    schemaVersion: 4,
+    schemaVersion: 5,
     summary: {
       exercises: 0,
       measurements: 0,

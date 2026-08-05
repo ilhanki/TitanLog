@@ -167,7 +167,9 @@ describe('workout history screens', () => {
     expect(getByText(appStrings.workout.comparisonTitle)).toBeTruthy();
     expect(getByText('+65 kg · artış (+37,1 %)')).toBeTruthy();
     expect(
-      getByLabelText('Dumbbell Curl, Set 1, 10 tekrar, 17,5 kg, Tamamlandı')
+      getByLabelText(
+        'Dumbbell Curl, Set 1, 10 tekrar, 17,5 kg, Tamamlandı, Çalışma'
+      )
     ).toBeTruthy();
     expect(getByLabelText('Dumbbell Curl, Set 2, Tamamlanmadı')).toBeTruthy();
     expect(

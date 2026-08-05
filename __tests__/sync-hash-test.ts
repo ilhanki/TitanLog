@@ -45,7 +45,7 @@ function archive(overrides: Partial<TitanLogBackup> = {}): TitanLogBackup {
     deviceId: 'installation-one',
     format: 'titanlog-backup',
     formatVersion: 1,
-    schemaVersion: 4,
+    schemaVersion: 5,
     summary: createBackupSummary(emptyData),
     ...overrides,
   };

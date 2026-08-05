@@ -20,7 +20,7 @@ const mockStartSession = jest.fn();
 const mockCompleteSet = jest.fn();
 const mockAddSet = jest.fn();
 const mockRemoveSet = jest.fn();
-const mockUpdateSetValues = jest.fn();
+const mockUpdateCompletedSet = jest.fn();
 const mockUseWorkoutOverview = jest.fn();
 const mockGetActiveExercisePerformance = jest.fn();
 let mockLocalParams = { dayId: '1', sessionId: '9' };
@@ -134,7 +134,7 @@ jest.mock('@/features/workouts/data/workout-session-repository', () => {
       removeLastIncompleteSet: mockRemoveSet,
       startSessionFromWorkoutDay: mockStartSession,
       toggleSetCompletion: jest.fn(),
-      updateSetValues: mockUpdateSetValues,
+      updateCompletedSet: mockUpdateCompletedSet,
     }),
   };
 });
@@ -521,7 +521,14 @@ describe('workout screens', () => {
     );
 
     await waitFor(() => {
-      expect(mockUpdateSetValues).toHaveBeenCalledWith(31, 18.5, 10);
+      expect(mockUpdateCompletedSet).toHaveBeenCalledWith(
+        31,
+        18.5,
+        10,
+        'working',
+        'off',
+        null
+      );
     });
     expect(sessionWithCompletedSet.exercises[0]!.sets[0]!.isCompleted).toBe(
       true
@@ -589,3 +596,12 @@ describe('workout screens', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/workout/program');
   });
 });
+jest.mock('expo-notifications', () => ({
+  AndroidImportance: { HIGH: 4 },
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+  cancelScheduledNotificationAsync: jest.fn(),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ granted: false }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: false }),
+  scheduleNotificationAsync: jest.fn(),
+  setNotificationChannelAsync: jest.fn(),
+}));

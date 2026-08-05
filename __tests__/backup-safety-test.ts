@@ -65,6 +65,9 @@ const data: BackupData = {
       default_target_reps: 12,
       default_weight_kg: 40,
       weight_mode: 'total',
+      default_rest_seconds: 90,
+      superset_group_id: null,
+      superset_order: null,
     },
   ],
   workout_sessions: [
@@ -76,6 +79,13 @@ const data: BackupData = {
       started_at: '2026-07-02T10:00:00.000Z',
       completed_at: '2026-07-02T11:00:00.000Z',
       cancelled_at: null,
+      rest_timer_deadline: null,
+      rest_timer_duration_seconds: null,
+      rest_timer_exercise_id: null,
+      rest_timer_alerted_at: null,
+      rest_timer_notification_id: null,
+      selected_session_exercise_id: null,
+      notes: '',
       created_at: '2026-07-02T10:00:00.000Z',
       updated_at: '2026-07-02T11:00:00.000Z',
     },
@@ -87,6 +97,13 @@ const data: BackupData = {
       started_at: '2026-07-03T10:00:00.000Z',
       completed_at: null,
       cancelled_at: '2026-07-03T10:05:00.000Z',
+      rest_timer_deadline: null,
+      rest_timer_duration_seconds: null,
+      rest_timer_exercise_id: null,
+      rest_timer_alerted_at: null,
+      rest_timer_notification_id: null,
+      selected_session_exercise_id: null,
+      notes: '',
       created_at: '2026-07-03T10:00:00.000Z',
       updated_at: '2026-07-03T10:05:00.000Z',
     },
@@ -98,6 +115,13 @@ const data: BackupData = {
       started_at: '2026-07-04T10:00:00.000Z',
       completed_at: null,
       cancelled_at: null,
+      rest_timer_deadline: null,
+      rest_timer_duration_seconds: null,
+      rest_timer_exercise_id: null,
+      rest_timer_alerted_at: null,
+      rest_timer_notification_id: null,
+      selected_session_exercise_id: null,
+      notes: 'Güçlü ve kontrollü tempo',
       created_at: '2026-07-04T10:00:00.000Z',
       updated_at: '2026-07-04T10:00:00.000Z',
     },
@@ -111,6 +135,10 @@ const data: BackupData = {
       muscle_group_snapshot: 'Sırt',
       weight_mode_snapshot: 'total',
       sort_order: 1,
+      rest_duration_seconds: 90,
+      superset_group_id: null,
+      superset_order: null,
+      is_skipped: 0,
       created_at: '2026-07-02T10:00:00.000Z',
     },
   ],
@@ -123,6 +151,9 @@ const data: BackupData = {
       actual_reps: 12,
       weight_kg: 40,
       is_completed: 1,
+      set_type: 'working',
+      effort_mode: null,
+      effort_value: null,
       completed_at: '2026-07-02T10:10:00.000Z',
       created_at: '2026-07-02T10:00:00.000Z',
       updated_at: '2026-07-02T10:10:00.000Z',
@@ -169,6 +200,72 @@ function archive(overrides: Partial<TitanLogBackup> = {}): TitanLogBackup {
 }
 
 describe('versioned backup safety', () => {
+  it('upgrades a schema-4 archive with deterministic workout defaults', () => {
+    const legacy = JSON.parse(JSON.stringify(archive())) as Record<
+      string,
+      unknown
+    >;
+    legacy.schemaVersion = 4;
+    const legacyData = legacy.data as BackupData;
+    for (const column of [
+      'default_rest_seconds',
+      'superset_group_id',
+      'superset_order',
+    ])
+      delete legacyData.workout_day_exercises[0]![column];
+    for (const session of legacyData.workout_sessions)
+      for (const column of [
+        'rest_timer_deadline',
+        'rest_timer_duration_seconds',
+        'rest_timer_exercise_id',
+        'rest_timer_alerted_at',
+        'rest_timer_notification_id',
+        'selected_session_exercise_id',
+        'notes',
+      ])
+        delete session[column];
+    for (const column of [
+      'rest_duration_seconds',
+      'superset_group_id',
+      'superset_order',
+      'is_skipped',
+    ])
+      delete legacyData.workout_session_exercises[0]![column];
+    for (const column of ['set_type', 'effort_mode', 'effort_value'])
+      delete legacyData.workout_sets[0]![column];
+
+    const upgraded = validateBackup(legacy);
+
+    expect(upgraded.schemaVersion).toBe(5);
+    expect(upgraded.data.workout_day_exercises[0]).toMatchObject({
+      default_rest_seconds: 90,
+      superset_group_id: null,
+      superset_order: null,
+    });
+    expect(upgraded.data.workout_sets[0]).toMatchObject({
+      set_type: 'working',
+      effort_mode: null,
+      effort_value: null,
+    });
+  });
+
+  it('rejects single-member supersets and invalid archived effort', () => {
+    const invalidSuperset = archive({
+      data: JSON.parse(JSON.stringify(data)) as BackupData,
+    });
+    invalidSuperset.data.workout_day_exercises[0]!.superset_group_id =
+      'group-a';
+    invalidSuperset.data.workout_day_exercises[0]!.superset_order = 0;
+    expect(() => validateBackup(invalidSuperset)).toThrow('invalid_superset');
+
+    const invalidEffort = archive({
+      data: JSON.parse(JSON.stringify(data)) as BackupData,
+    });
+    invalidEffort.data.workout_sets[0]!.effort_mode = 'rir';
+    invalidEffort.data.workout_sets[0]!.effort_value = 2.5;
+    expect(() => validateBackup(invalidEffort)).toThrow('invalid_set');
+  });
+
   it('validates a complete archive and summarizes truthful records', () => {
     expect(validateBackup(archive()).summary).toEqual({
       exercises: 1,

@@ -1,10 +1,12 @@
 import {
   calculateSessionMetrics,
   canCompleteSet,
+  displayedWeightToKg,
   formatWorkoutWeight,
   getIsoWeekday,
   parseRepetitionInput,
   parseWeightInput,
+  weightForDisplay,
 } from '@/features/workouts/utils/workout-values';
 
 describe('workout value helpers', () => {
@@ -18,7 +20,7 @@ describe('workout value helpers', () => {
     expect(parseWeightInput(' 12,5 ')).toBe(12.5);
     expect(parseWeightInput('12.50')).toBe(12.5);
     expect(parseWeightInput('2000')).toBe(2000);
-    expect(parseWeightInput('0')).toBeNull();
+    expect(parseWeightInput('0')).toBe(0);
     expect(parseWeightInput('-1')).toBeNull();
     expect(parseWeightInput('12,555')).toBeNull();
     expect(parseWeightInput('2000.01')).toBeNull();
@@ -39,9 +41,16 @@ describe('workout value helpers', () => {
   });
 
   it('requires a positive repetition count before a set can complete', () => {
-    expect(canCompleteSet({ actualReps: 10, weightKg: 0 })).toBe(false);
+    expect(canCompleteSet({ actualReps: 10, weightKg: 0 })).toBe(true);
     expect(canCompleteSet({ actualReps: 0, weightKg: 20 })).toBe(false);
     expect(canCompleteSet({ actualReps: null, weightKg: 20 })).toBe(false);
+  });
+
+  it('round-trips lb display values without changing kg storage', () => {
+    const pounds = weightForDisplay(40, 'lb');
+    expect(pounds).toBe(88.18);
+    expect(displayedWeightToKg(pounds, 'lb')).toBeCloseTo(40, 1);
+    expect(displayedWeightToKg(weightForDisplay(40, 'kg'), 'kg')).toBe(40);
   });
 
   it('calculates completed metrics and counts per-hand weight only once', () => {
@@ -60,9 +69,13 @@ describe('workout value helpers', () => {
     };
 
     expect(calculateSessionMetrics(session)).toEqual({
+      averageEffort: null,
+      averageEffortMode: null,
+      completedExerciseCount: 2,
       completedSetCount: 2,
       totalRepetitions: 16,
       totalVolume: 245,
+      warmUpSetCount: 0,
     });
   });
 });

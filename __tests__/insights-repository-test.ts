@@ -37,6 +37,17 @@ describe('fitness insights repository', () => {
       INSERT INTO body_measurements (measured_at, weight_kg, created_at, updated_at) VALUES ('2026-08-03T08:00:00.000Z', 100, '2026-08-03', '2026-08-03');
       INSERT INTO body_measurements (measured_at, weight_kg, created_at, updated_at) VALUES ('2026-08-05T08:00:00.000Z', 99, '2026-08-05', '2026-08-05');
     `);
+    database.exec(
+      "ALTER TABLE workout_sets ADD COLUMN set_type TEXT NOT NULL DEFAULT 'working'"
+    );
+    database.exec(`
+      INSERT INTO workout_sets
+        (id, session_exercise_id, set_number, target_reps, actual_reps,
+         weight_kg, is_completed, completed_at, created_at, updated_at, set_type)
+      VALUES
+        (5, 1, 3, 5, 5, 100, 1, '2026-08-03T10:10:00.000Z',
+         '2026-08-03', '2026-08-03', 'warm_up');
+    `);
     const summary = await createInsightsRepository(
       adapter(database)
     ).getSummary('week', new Date('2026-08-05T12:00:00.000Z'));
@@ -58,6 +69,9 @@ describe('fitness insights repository', () => {
     const database = new DatabaseSync(':memory:');
     database.exec(migration001.sql);
     database.exec(migration002.sql);
+    database.exec(
+      "ALTER TABLE workout_sets ADD COLUMN set_type TEXT NOT NULL DEFAULT 'working'"
+    );
     const summary = await createInsightsRepository(
       adapter(database)
     ).getSummary('year', new Date('2026-08-05T12:00:00.000Z'));

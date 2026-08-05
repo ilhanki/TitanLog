@@ -180,6 +180,53 @@ describe('workout session repository', () => {
     expect(transaction.runAsync).not.toHaveBeenCalled();
   });
 
+  it('persists completed set type and effort through an explicit edit', async () => {
+    const runAsync = jest.fn().mockResolvedValue({ changes: 1 });
+    const repository = createWorkoutSessionRepository(
+      createDatabase({ runAsync })
+    );
+
+    await repository.updateCompletedSet(30, 52.5, 10, 'drop', 'rpe', 9.5);
+
+    expect(runAsync).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'SET weight_kg = ?, actual_reps = ?, set_type = ?'
+      ),
+      52.5,
+      10,
+      'drop',
+      'rpe',
+      9.5,
+      expect.any(String),
+      30
+    );
+    await expect(
+      repository.updateCompletedSet(30, 52.5, 10, 'drop', 'rir', 2.5)
+    ).rejects.toMatchObject({ code: 'invalid_set' });
+  });
+
+  it('stores one absolute rest-timer deadline on the active session', async () => {
+    const runAsync = jest.fn().mockResolvedValue({ changes: 1 });
+    const repository = createWorkoutSessionRepository(
+      createDatabase({ runAsync })
+    );
+    const now = Date.parse('2026-08-05T10:00:00.000Z');
+
+    const timer = await repository.startRestTimer(10, 90, 20, null, now);
+
+    expect(timer.deadline).toBe('2026-08-05T10:01:30.000Z');
+    expect(runAsync).toHaveBeenCalledTimes(1);
+    expect(runAsync).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE id = ? AND status = 'active'"),
+      timer.deadline,
+      90,
+      20,
+      null,
+      '2026-08-05T10:00:00.000Z',
+      10
+    );
+  });
+
   it('edits set values without changing completed status', async () => {
     const runAsync = jest.fn().mockResolvedValue({ changes: 1 });
     const database = createDatabase({ runAsync });
@@ -276,7 +323,10 @@ describe('workout session repository', () => {
 
   it('completes a session only after a completed set and returns real metrics', async () => {
     const transaction = {
-      getFirstAsync: jest.fn().mockResolvedValue({ count: 1 }),
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValueOnce({ status: 'active' })
+        .mockResolvedValueOnce({ count: 1 }),
       runAsync: jest.fn().mockResolvedValue({ changes: 1 }),
     };
     const database = createDatabase({
@@ -604,7 +654,10 @@ describe('workout session repository', () => {
       expect.any(String),
       'total',
       1,
-      expect.any(String)
+      expect.any(String),
+      90,
+      null,
+      null
     );
     expect(transaction.runAsync).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO workout_sets'),

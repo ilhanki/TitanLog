@@ -7,6 +7,8 @@ import { migration002 } from '@/database/migrations/migration-002';
 import { migration003 } from '@/database/migrations/migration-003';
 import { migration004 } from '@/database/migrations/migration-004';
 import { migration005 } from '@/database/migrations/migration-005';
+import { migration006 } from '@/database/migrations/migration-006';
+import { migration007 } from '@/database/migrations/migration-007';
 import {
   createBackupArchive,
   replaceBackupData,
@@ -97,6 +99,13 @@ function migrateToVersion5(fixture: MigratedSchema4Fixture): void {
   fixture.exec(`PRAGMA user_version = ${migration005.version}`);
 }
 
+function migrateToCurrentVersion(fixture: MigratedSchema4Fixture): void {
+  for (const migration of [migration006, migration007]) {
+    fixture.exec(migration.sql);
+    fixture.exec(`PRAGMA user_version = ${migration.version}`);
+  }
+}
+
 function seedAlpha9Dataset(fixture: MigratedSchema4Fixture): void {
   fixture.exec(`
     INSERT INTO workout_plans
@@ -175,6 +184,7 @@ describe('schema-4 backup round trip', () => {
     seedAlpha9Dataset(fixture);
     migrateToVersion4(fixture);
     migrateToVersion5(fixture);
+    migrateToCurrentVersion(fixture);
   });
 
   afterEach(() => {
@@ -237,6 +247,8 @@ describe('schema-4 backup round trip', () => {
         migration003,
         migration004,
         migration005,
+        migration006,
+        migration007,
       ]) {
         fresh.exec(migration.sql);
       }
@@ -365,6 +377,8 @@ describe('schema-4 backup round trip', () => {
         migration003,
         migration004,
         migration005,
+        migration006,
+        migration007,
       ]) {
         target.exec(migration.sql);
         target.exec(`PRAGMA user_version = ${migration.version}`);
@@ -401,7 +415,7 @@ describe('schema-4 backup round trip', () => {
     );
     const serialized = serializeBackup(archive);
 
-    expect(archive.schemaVersion).toBe(4);
+    expect(archive.schemaVersion).toBe(5);
     expect(serialized).not.toMatch(
       /sync_state|last_remote|pending_operation|123e4567/
     );
@@ -420,6 +434,8 @@ describe('schema-4 backup round trip', () => {
         migration003,
         migration004,
         migration005,
+        migration006,
+        migration007,
       ]) {
         target.exec(migration.sql);
       }
