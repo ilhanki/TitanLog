@@ -2,7 +2,7 @@
 
 TitanLog; antrenman programını, aktif set takibini, vücut ölçümlerini ve geçmiş karşılaştırmalarını cihaz üzerinde saklayan Android öncelikli, çevrimdışı çalışan bir fitness takip uygulamasıdır.
 
-Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1.0-alpha.9`, güncel yerel geliştirme sürümü ise Sprint 13 için hazırlanan `0.1.0-alpha.12`'dir. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
+Proje aktif alfa geliştirme aşamasındadır. Son yayımlanan ön sürüm `v0.1.0-alpha.9`, güncel yerel geliştirme adayı ise Sprint 14 için hazırlanan `0.1.0-alpha.13`'tür. Arayüz, düşük parlamalı grafit yüzeyleri ve ölçülü bakır vurguları birleştiren **Titan Iron** tasarım kimliğini kullanır.
 
 [![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
 [![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-20232A?logo=react&logoColor=61DAFB)](https://reactnative.dev/)
@@ -21,6 +21,14 @@ Güncel yerel geliştirme, kişisel profil başlığı, özel profil fotoğrafı
 Profil medyası fitness arşivlerine girmez; hesaplı kullanımda public olmayan, kullanıcıya özel Storage yolu kullanılır. Yedekleme ve cihaz eşitleme yalnız kullanıcının açık eylemiyle başlar. Hesap ve veri sahipliği birbirinden ayrı kalır.
 
 Hesaplama kuralları, profil fotoğrafı gizliliği, Veri Merkezi farkları ve bilinen sınırlar için [`docs/profile-insights-data-center.md`](docs/profile-insights-data-center.md) belgesine bakın.
+
+## Sprint 14 — Workout Experience 2.0
+
+Yerel alpha.13 adayı; mutlak bitiş zamanına dayalı dinlenme zamanlayıcısı, hızlı set kopyalama ve ağırlık kontrolleri, set türleri, isteğe bağlı RPE/RIR, program ve aktif antrenman superseti, aktif hareket yönetimi, kalıcı notlar ve genişletilmiş canlı/tamamlanmış özetler ekler. Isınma setleri birincil çalışma hacminden ve kişisel rekorlardan merkezi bir kuralla ayrılır.
+
+Aktif oturum force-stop sonrasında set, efor, superset, not ve zamanlayıcı durumuyla devam eder. Android bildirimi hareket adı veya hesap bilgisi taşımaz; izin reddedilirse timer çevrimdışı çalışmaya devam eder. Galaxy Watch, Wear OS, Health Connect ve Samsung Health bu sürümde uygulanmamıştır.
+
+Davranışlar, hesaplama politikası, gizlilik sınırı ve bilinen kısıtlar için [`docs/workout-experience-2.md`](docs/workout-experience-2.md) belgesine; sürüm özeti için [`RELEASE_NOTES.md`](RELEASE_NOTES.md) dosyasına bakın.
 
 ## Temel özellikler
 
@@ -197,7 +205,7 @@ Bu yaklaşım ağ bağlantısı olmadan çalışmayı sağlar; tek başına şif
 
 - Node.js `20.19.0` veya üzeri
 - npm
-- Android geliştirme akışı için Expo SDK 54 ile uyumlu Expo Go
+- Android geliştirme akışı için Expo SDK 54 ile uyumlu development build
 
 ```bash
 git clone https://github.com/ilhanki/TitanLog.git
@@ -206,7 +214,13 @@ npm ci
 npx expo start
 ```
 
-Metro'nun gösterdiği QR kodu Android cihazdaki Expo Go ile tarayın. Ağ erişimini kapatarak yerel başlangıcı sınamak için:
+Bildirim ve keep-awake native modüllerini içeren taze development build'i Android cihaza kurun. Ardından Metro'yu development-client kipinde başlatın:
+
+```bash
+npx expo start --dev-client --clear
+```
+
+Ağ erişimini kapatarak yerel başlangıcı sınamak için:
 
 ```bash
 npx expo start --offline
@@ -255,7 +269,7 @@ Mevcut test paketi repository ve SQLite davranışlarının yanında determinist
 
 ## Veritabanı ve migration'lar
 
-- Güncel yerel SQLite şema sürümü `5`'tir. `.titanlog` veri şeması geriye uyumluluk için `4`, arşiv biçimi ise `1` olarak kalır.
+- Güncel yerel SQLite şema sürümü `7`'dir. `.titanlog` fitness veri şeması `5`, arşiv biçimi `1`'dir; şema-4 fitness arşivleri doğrulama sırasında güvenli varsayılanlarla yükseltilir.
 - Migration'lar sürüm sırasıyla ve işlem içinde uygulanır.
 - Migration 1–3 yayımlanmış şema geçmişidir ve geriye dönük olarak düzenlenmemelidir.
 - Migration 4 mevcut verileri yeniden yazmadan kurulum kimliği, isteğe bağlı sahip hesap ve son yedek zamanlarını tek `dataset_metadata` satırında tutar.
@@ -296,14 +310,14 @@ TitanLog/
 
 TitanLog, [Semantic Versioning](https://semver.org/lang/tr/) ön sürüm modelini kullanır. Yayımlanan kilometre taşları mevcut HEAD üzerinde açıklamalı Git tag'leriyle işaretlenir ve fiziksel cihaz doğrulamasından sonra yayımlanır.
 
-- Yerel paket hazırlığı: `0.1.0-alpha.12`
+- Yerel paket hazırlığı: `0.1.0-alpha.13`
 - Son yayımlanan tag: `v0.1.0-alpha.9`
-- Planlanan sonraki tag: `v0.1.0-alpha.12`
+- Planlanan sonraki tag: `v0.1.0-alpha.13`
 - Expo uygulama sürümü: `0.1.0`
 - Android `versionCode`: `1`
 - iOS `buildNumber`: `1`
 
-`v0.1.0-alpha.10` ve `v0.1.0-alpha.11` oluşturulmamıştır. `v0.1.0-alpha.12` de bu yerel hazırlık sırasında oluşturulmamıştır. Yeni profil medyası migration'ı deploy edilmemiştir; yeni native medya modüllerini içeren development build ve Samsung Galaxy A55 kabul testi beklemektedir.
+`v0.1.0-alpha.10`, `v0.1.0-alpha.11` ve `v0.1.0-alpha.12` oluşturulmamıştır. `v0.1.0-alpha.13` de bu yerel hazırlık sırasında oluşturulmamıştır. Arşiv şema 5 Supabase migration'ı deploy edilmemiştir; yeni bildirim/haptik/keep-awake modüllerini içeren development build ve Samsung Galaxy A55 kabul testi beklemektedir.
 
 ## Yol haritası
 
