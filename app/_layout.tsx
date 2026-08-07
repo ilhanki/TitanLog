@@ -75,7 +75,7 @@ function RootNavigator() {
           <Stack.Screen name="workout/program/day/[dayId]/index" />
           <Stack.Screen name="workout/program/day/[dayId]/add-exercise/index" />
           <Stack.Screen name="workout/program/day/[dayId]/add-exercise/custom" />
-          <Stack.Screen name="workout/session/[sessionId]/index" />
+          <Stack.Screen name="workout/session/[sessionId]" />
           <Stack.Screen name="workout/session/[sessionId]/summary" />
         </Stack.Protected>
         <Stack.Protected guard={activation.signedOutAuthRoutesAvailable}>
